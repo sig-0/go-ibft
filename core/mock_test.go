@@ -7,35 +7,42 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/0xPolygon/go-ibft/messages"
-	"github.com/0xPolygon/go-ibft/messages/proto"
+	"github.com/madz-lab/go-ibft/messages"
+	"github.com/madz-lab/go-ibft/messages/proto"
 )
 
 // Define delegation methods
-type isValidBlockDelegate func([]byte) bool
-type isValidSenderDelegate func(*proto.Message) bool
-type isProposerDelegate func([]byte, uint64, uint64) bool
-type buildProposalDelegate func(uint64) []byte
-type isValidProposalHashDelegate func([]byte, []byte) bool
-type isValidCommittedSealDelegate func([]byte, *messages.CommittedSeal) bool
+type (
+	isValidBlockDelegate         func([]byte) bool
+	isValidSenderDelegate        func(*proto.Message) bool
+	isProposerDelegate           func([]byte, uint64, uint64) bool
+	buildProposalDelegate        func(uint64) []byte
+	isValidProposalHashDelegate  func([]byte, []byte) bool
+	isValidCommittedSealDelegate func([]byte, *messages.CommittedSeal) bool
+)
 
 type buildPrePrepareMessageDelegate func(
 	[]byte,
 	*proto.RoundChangeCertificate,
 	*proto.View,
 ) *proto.Message
-type buildPrepareMessageDelegate func([]byte, *proto.View) *proto.Message
-type buildCommitMessageDelegate func([]byte, *proto.View) *proto.Message
-type buildRoundChangeMessageDelegate func(
-	[]byte,
-	*proto.PreparedCertificate,
-	*proto.View,
-) *proto.Message
 
-type quorumDelegate func(blockHeight uint64) uint64
-type insertBlockDelegate func([]byte, []*messages.CommittedSeal)
-type idDelegate func() []byte
-type maximumFaultyNodesDelegate func() uint64
+type (
+	buildPrepareMessageDelegate     func([]byte, *proto.View) *proto.Message
+	buildCommitMessageDelegate      func([]byte, *proto.View) *proto.Message
+	buildRoundChangeMessageDelegate func(
+		[]byte,
+		*proto.PreparedCertificate,
+		*proto.View,
+	) *proto.Message
+)
+
+type (
+	quorumDelegate             func(blockHeight uint64) uint64
+	insertBlockDelegate        func([]byte, []*messages.CommittedSeal)
+	idDelegate                 func() []byte
+	maximumFaultyNodesDelegate func() uint64
+)
 
 // mockBackend is the mock backend structure that is configurable
 type mockBackend struct {
@@ -284,11 +291,15 @@ func (m mockMessages) GetMostRoundChangeMessages(round, height uint64) []*proto.
 	return nil
 }
 
-type backendConfigCallback func(*mockBackend)
-type loggerConfigCallback func(*mockLogger)
-type transportConfigCallback func(*mockTransport)
+type (
+	backendConfigCallback   func(*mockBackend)
+	loggerConfigCallback    func(*mockLogger)
+	transportConfigCallback func(*mockTransport)
+)
 
 // newMockCluster creates a new IBFT cluster
+//
+//nolint:unparam // Logger callback currently not used
 func newMockCluster(
 	numNodes uint64,
 	backendCallbackMap map[int]backendConfigCallback,

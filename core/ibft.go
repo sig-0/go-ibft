@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xPolygon/go-ibft/messages"
-	"github.com/0xPolygon/go-ibft/messages/proto"
+	"github.com/madz-lab/go-ibft/messages"
+	"github.com/madz-lab/go-ibft/messages/proto"
 )
 
 type Logger interface {
@@ -673,8 +673,8 @@ func (i *IBFT) validateProposal(msg *proto.Message, view *proto.View) bool {
 	// Extract possible rounds and their corresponding
 	// block hashes
 	type roundHashTuple struct {
-		round uint64
 		hash  []byte
+		round uint64
 	}
 
 	roundsAndPreparedBlockHashes := make([]roundHashTuple, 0)
@@ -699,8 +699,8 @@ func (i *IBFT) validateProposal(msg *proto.Message, view *proto.View) bool {
 
 	// Find the max round
 	var (
-		maxRound     uint64 = 0
-		expectedHash []byte = nil
+		maxRound     uint64
+		expectedHash []byte
 	)
 
 	for _, tuple := range roundsAndPreparedBlockHashes {

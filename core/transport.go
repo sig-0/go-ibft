@@ -1,6 +1,6 @@
 package core
 
-import "github.com/0xPolygon/go-ibft/messages/proto"
+import "github.com/madz-lab/go-ibft/messages/proto"
 
 // Transport defines an interface
 // the node uses to communicate with other peers

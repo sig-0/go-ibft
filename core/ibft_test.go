@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/go-ibft/messages"
-	"github.com/0xPolygon/go-ibft/messages/proto"
+	"github.com/madz-lab/go-ibft/messages"
+	"github.com/madz-lab/go-ibft/messages/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -152,7 +152,8 @@ func filterMessages(messages []*proto.Message, isValid func(message *proto.Messa
 func generateFilledRCMessages(
 	quorum uint64,
 	proposal,
-	proposalHash []byte) []*proto.Message {
+	proposalHash []byte,
+) []*proto.Message {
 	// Generate random RC messages
 	roundChangeMessages := generateMessages(quorum, proto.MessageType_ROUND_CHANGE)
 	prepareMessages := generateMessages(quorum-1, proto.MessageType_PREPARE)
@@ -220,8 +221,8 @@ func TestRunNewRound_Proposer(t *testing.T) {
 			ctx, cancelFn := context.WithCancel(context.Background())
 
 			var (
-				newProposal                        = []byte("new block")
-				multicastedProposal *proto.Message = nil
+				newProposal         = []byte("new block")
+				multicastedProposal *proto.Message
 
 				log       = mockLogger{}
 				transport = mockTransport{func(message *proto.Message) {
@@ -297,11 +298,11 @@ func TestRunNewRound_Proposer(t *testing.T) {
 			setRoundForMessages(roundChangeMessages, 1)
 
 			var (
-				multicastedPreprepare *proto.Message = nil
-				multicastedPrepare    *proto.Message = nil
-				proposalHash                         = []byte("proposal hash")
-				proposal                             = []byte("proposal")
-				notifyCh                             = make(chan uint64, 1)
+				multicastedPreprepare *proto.Message
+				multicastedPrepare    *proto.Message
+				proposalHash          = []byte("proposal hash")
+				proposal              = []byte("proposal")
+				notifyCh              = make(chan uint64, 1)
 
 				log       = mockLogger{}
 				transport = mockTransport{func(message *proto.Message) {
@@ -454,10 +455,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 			}
 
 			var (
-				multicastedPreprepare *proto.Message = nil
-				multicastedPrepare    *proto.Message = nil
-				proposal                             = []byte("proposal")
-				notifyCh                             = make(chan uint64, 1)
+				multicastedPreprepare *proto.Message
+				multicastedPrepare    *proto.Message
+				proposal              = []byte("proposal")
+				notifyCh              = make(chan uint64, 1)
 
 				log       = mockLogger{}
 				transport = mockTransport{func(message *proto.Message) {
@@ -569,11 +570,11 @@ func TestRunNewRound_Validator_Zero(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	var (
-		proposal                          = []byte("new block")
-		proposalHash                      = []byte("proposal hash")
-		proposer                          = []byte("proposer")
-		multicastedPrepare *proto.Message = nil
-		notifyCh                          = make(chan uint64, 1)
+		proposal           = []byte("new block")
+		proposalHash       = []byte("proposal hash")
+		proposer           = []byte("proposer")
+		multicastedPrepare *proto.Message
+		notifyCh           = make(chan uint64, 1)
 
 		log       = mockLogger{}
 		transport = mockTransport{
@@ -717,16 +718,16 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 	}
 
 	testTable := []struct {
-		name            string
 		proposalMessage *proto.Message
+		name            string
 	}{
 		{
-			"validator receives valid block proposal (round > 0, new block)",
 			generateProposalWithNoPrevious(),
+			"validator receives valid block proposal (round > 0, new block)",
 		},
 		{
-			"validator receives valid block proposal (round > 0, old block)",
 			generateProposalWithPrevious(),
+			"validator receives valid block proposal (round > 0, old block)",
 		},
 	}
 
@@ -740,8 +741,8 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 			defer cancelFn()
 
 			var (
-				multicastedPrepare *proto.Message = nil
-				notifyCh                          = make(chan uint64, 1)
+				multicastedPrepare *proto.Message
+				notifyCh           = make(chan uint64, 1)
 
 				log       = mockLogger{}
 				transport = mockTransport{
@@ -841,10 +842,10 @@ func TestRunPrepare(t *testing.T) {
 			ctx, cancelFn := context.WithCancel(context.Background())
 
 			var (
-				proposal                         = []byte("block proposal")
-				proposalHash                     = []byte("proposal hash")
-				multicastedCommit *proto.Message = nil
-				notifyCh                         = make(chan uint64, 1)
+				proposal          = []byte("block proposal")
+				proposalHash      = []byte("proposal hash")
+				multicastedCommit *proto.Message
+				notifyCh          = make(chan uint64, 1)
 
 				log       = mockLogger{}
 				transport = mockTransport{func(message *proto.Message) {
@@ -950,12 +951,12 @@ func TestRunCommit(t *testing.T) {
 			var (
 				wg sync.WaitGroup
 
-				proposal                                         = []byte("block proposal")
-				proposalHash                                     = []byte("proposal hash")
-				signer                                           = []byte("signer")
-				insertedProposal       []byte                    = nil
-				insertedCommittedSeals []*messages.CommittedSeal = nil
-				committedSeals                                   = []*messages.CommittedSeal{
+				proposal               = []byte("block proposal")
+				proposalHash           = []byte("proposal hash")
+				signer                 = []byte("signer")
+				insertedProposal       []byte
+				insertedCommittedSeals []*messages.CommittedSeal
+				committedSeals         = []*messages.CommittedSeal{
 					{
 						Signer:    signer,
 						Signature: generateSeals(1)[0],
@@ -1076,53 +1077,53 @@ func TestIBFT_IsAcceptableMessage(t *testing.T) {
 	}
 
 	testTable := []struct {
-		name          string
 		view          *proto.View
 		currentView   *proto.View
+		name          string
 		invalidSender bool
 		acceptable    bool
 	}{
 		{
-			"invalid sender",
 			nil,
 			baseView,
+			"invalid sender",
 			true,
 			false,
 		},
 		{
-			"malformed message",
 			nil,
 			baseView,
+			"malformed message",
 			false,
 			false,
 		},
 		{
-			"higher height number",
 			&proto.View{
 				Height: baseView.Height + 100,
 				Round:  baseView.Round,
 			},
 			baseView,
+			"higher height number",
 			false,
 			true,
 		},
 		{
-			"higher round number",
 			&proto.View{
 				Height: baseView.Height,
 				Round:  baseView.Round + 1,
 			},
 			baseView,
+			"higher round number",
 			false,
 			true,
 		},
 		{
-			"lower height number",
 			baseView,
 			&proto.View{
 				Height: baseView.Height + 1,
 				Round:  baseView.Round,
 			},
+			"lower height number",
 			false,
 			false,
 		},
@@ -1339,8 +1340,8 @@ func TestIBFT_FutureProposal(t *testing.T) {
 
 			var (
 				wg                    sync.WaitGroup
-				receivedProposalEvent *newProposalEvent = nil
-				notifyCh                                = make(chan uint64, 1)
+				receivedProposalEvent *newProposalEvent
+				notifyCh              = make(chan uint64, 1)
 
 				log     = mockLogger{}
 				backend = mockBackend{
@@ -1425,7 +1426,7 @@ func TestIBFT_ValidPC(t *testing.T) {
 		t.Parallel()
 
 		var (
-			certificate *proto.PreparedCertificate = nil
+			certificate *proto.PreparedCertificate
 
 			log       = mockLogger{}
 			transport = mockTransport{}

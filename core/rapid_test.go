@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/go-ibft/messages"
-	"github.com/0xPolygon/go-ibft/messages/proto"
+	"github.com/madz-lab/go-ibft/messages"
+	"github.com/madz-lab/go-ibft/messages/proto"
 	"github.com/stretchr/testify/assert"
 	"pgregory.net/rapid"
 )
@@ -17,10 +17,10 @@ import (
 // mockInsertedProposals keeps track of inserted proposals for a cluster
 // of nodes
 type mockInsertedProposals struct {
-	sync.Mutex
+	proposals        []map[uint64][]byte
+	currentProposals []uint64
 
-	proposals        []map[uint64][]byte // for each node, map the height -> proposal
-	currentProposals []uint64            // for each node, save the current proposal height
+	sync.Mutex
 }
 
 // newMockInsertedProposals creates a new proposal insertion tracker

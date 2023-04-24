@@ -1,10 +1,11 @@
 package messages
 
 import (
-	"github.com/0xPolygon/go-ibft/messages/proto"
-	"github.com/google/uuid"
 	"sync"
 	"sync/atomic"
+
+	"github.com/google/uuid"
+	"github.com/madz-lab/go-ibft/messages/proto"
 )
 
 type eventManager struct {
@@ -25,21 +26,17 @@ type SubscriptionID int32
 // Subscription is the subscription
 // returned to the user
 type Subscription struct {
-	// ID is the unique identifier of the subscription
-	ID SubscriptionID
-
 	// SubCh is the notification channel
 	// on which the listener will receive notifications
 	SubCh chan uint64
+
+	// ID is the unique identifier of the subscription
+	ID SubscriptionID
 }
 
 // SubscriptionDetails contain the requested
 // details for the subscription
 type SubscriptionDetails struct {
-	// MessageType is the type of message
-	// being subscribed to
-	MessageType proto.MessageType
-
 	// View is the combination of height + round
 	// being subscribed to
 	View *proto.View
@@ -47,6 +44,10 @@ type SubscriptionDetails struct {
 	// MinNumMessages is the threshold of messages
 	// being subscribed to
 	MinNumMessages int
+
+	// MessageType is the type of message
+	// being subscribed to
+	MessageType proto.MessageType
 
 	// HasMinRound is the flag indicating if the
 	// round number is a lower bound

@@ -1,18 +1,19 @@
 package messages
 
 import (
-	"github.com/0xPolygon/go-ibft/messages/proto"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEventSubscription_EventSupported(t *testing.T) {
 	t.Parallel()
 
 	type signalDetails struct {
-		messageType   proto.MessageType
 		view          *proto.View
 		totalMessages int
+		messageType   proto.MessageType
 	}
 
 	commonDetails := SubscriptionDetails{
@@ -25,22 +26,30 @@ func TestEventSubscription_EventSupported(t *testing.T) {
 	}
 
 	testTable := []struct {
+		event               signalDetails
 		name                string
 		subscriptionDetails SubscriptionDetails
-		event               signalDetails
 		shouldSupport       bool
 	}{
 		{
-			"Same signal as subscription",
-			commonDetails,
 			signalDetails{
-				commonDetails.MessageType,
 				commonDetails.View,
 				commonDetails.MinNumMessages,
+				commonDetails.MessageType,
 			},
+			"Same signal as subscription",
+			commonDetails,
 			true,
 		},
 		{
+			signalDetails{
+				&proto.View{
+					Height: commonDetails.View.Height,
+					Round:  commonDetails.View.Round + 1,
+				},
+				commonDetails.MinNumMessages,
+				commonDetails.MessageType,
+			},
 			"Message round > round than subscription (supported)",
 			SubscriptionDetails{
 				MessageType:    commonDetails.MessageType,
@@ -48,17 +57,14 @@ func TestEventSubscription_EventSupported(t *testing.T) {
 				MinNumMessages: commonDetails.MinNumMessages,
 				HasMinRound:    true,
 			},
-			signalDetails{
-				commonDetails.MessageType,
-				&proto.View{
-					Height: commonDetails.View.Height,
-					Round:  commonDetails.View.Round + 1,
-				},
-				commonDetails.MinNumMessages,
-			},
 			true,
 		},
 		{
+			signalDetails{
+				commonDetails.View,
+				commonDetails.MinNumMessages,
+				commonDetails.MessageType,
+			},
 			"Message round == round than subscription (supported)",
 			SubscriptionDetails{
 				MessageType:    commonDetails.MessageType,
@@ -66,27 +72,30 @@ func TestEventSubscription_EventSupported(t *testing.T) {
 				MinNumMessages: commonDetails.MinNumMessages,
 				HasMinRound:    true,
 			},
-			signalDetails{
-				commonDetails.MessageType,
-				commonDetails.View,
-				commonDetails.MinNumMessages,
-			},
 			true,
 		},
 		{
-			"Message round > round than subscription (not supported)",
-			commonDetails,
 			signalDetails{
-				commonDetails.MessageType,
 				&proto.View{
 					Height: commonDetails.View.Height,
 					Round:  commonDetails.View.Round + 1,
 				},
 				commonDetails.MinNumMessages,
+				commonDetails.MessageType,
 			},
+			"Message round > round than subscription (not supported)",
+			commonDetails,
 			false,
 		},
 		{
+			signalDetails{
+				&proto.View{
+					Height: commonDetails.View.Height,
+					Round:  commonDetails.View.Round + 10 - 1,
+				},
+				commonDetails.MinNumMessages,
+				commonDetails.MessageType,
+			},
 			"Message round < round than subscription (not supported)",
 			SubscriptionDetails{
 				MessageType: commonDetails.MessageType,
@@ -97,47 +106,39 @@ func TestEventSubscription_EventSupported(t *testing.T) {
 				MinNumMessages: commonDetails.MinNumMessages,
 				HasMinRound:    true,
 			},
-			signalDetails{
-				commonDetails.MessageType,
-				&proto.View{
-					Height: commonDetails.View.Height,
-					Round:  commonDetails.View.Round + 10 - 1,
-				},
-				commonDetails.MinNumMessages,
-			},
 			false,
 		},
 		{
-			"Lower number of messages",
-			commonDetails,
 			signalDetails{
-				commonDetails.MessageType,
 				commonDetails.View,
 				commonDetails.MinNumMessages - 1,
+				commonDetails.MessageType,
 			},
+			"Lower number of messages",
+			commonDetails,
 			false,
 		},
 		{
-			"Invalid message type",
-			commonDetails,
 			signalDetails{
-				proto.MessageType_COMMIT,
 				commonDetails.View,
 				commonDetails.MinNumMessages,
+				proto.MessageType_COMMIT,
 			},
+			"Invalid message type",
+			commonDetails,
 			false,
 		},
 		{
-			"Invalid message height",
-			commonDetails,
 			signalDetails{
-				commonDetails.MessageType,
 				&proto.View{
 					Height: commonDetails.View.Height + 1,
 					Round:  commonDetails.View.Round,
 				},
 				commonDetails.MinNumMessages,
+				commonDetails.MessageType,
 			},
+			"Invalid message height",
+			commonDetails,
 			false,
 		},
 	}

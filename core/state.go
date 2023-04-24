@@ -3,8 +3,8 @@ package core
 import (
 	"sync"
 
-	"github.com/0xPolygon/go-ibft/messages"
-	"github.com/0xPolygon/go-ibft/messages/proto"
+	"github.com/madz-lab/go-ibft/messages"
+	"github.com/madz-lab/go-ibft/messages/proto"
 )
 
 type stateType uint8
@@ -16,36 +16,34 @@ const (
 	fin
 )
 
-func (s stateType) String() (str string) {
+func (s stateType) String() string {
 	switch s {
 	case newRound:
-		str = "new round"
+		return "new round"
 	case prepare:
-		str = "prepare"
+		return "prepare"
 	case commit:
-		str = "commit"
+		return "commit"
 	case fin:
-		str = "fin"
+		return "fin"
 	}
 
-	return
+	return ""
 }
 
 type state struct {
-	sync.RWMutex
-
 	//	current view (sequence, round)
 	view *proto.View
 
 	// latestPC is the latest prepared certificate
 	latestPC *proto.PreparedCertificate
 
+	//	accepted block proposal for current round
+	proposalMessage *proto.Message
+
 	// latestPreparedProposedBlock is the block
 	// for which Q(N)-1 PREPARE messages were received
 	latestPreparedProposedBlock []byte
-
-	//	accepted block proposal for current round
-	proposalMessage *proto.Message
 
 	//	validated commit seals
 	seals []*messages.CommittedSeal
@@ -53,7 +51,10 @@ type state struct {
 	//	flags for different states
 	roundStarted bool
 
+	// current state name
 	name stateType
+
+	sync.RWMutex
 }
 
 func (s *state) getView() *proto.View {

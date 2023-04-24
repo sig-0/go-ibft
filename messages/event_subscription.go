@@ -1,13 +1,10 @@
 package messages
 
 import (
-	"github.com/0xPolygon/go-ibft/messages/proto"
+	"github.com/madz-lab/go-ibft/messages/proto"
 )
 
 type eventSubscription struct {
-	// details contains the details of the event subscription
-	details SubscriptionDetails
-
 	// outputCh is the update channel for the subscriber
 	outputCh chan uint64
 
@@ -16,6 +13,9 @@ type eventSubscription struct {
 
 	// notifyCh is the channel for receiving event requests
 	notifyCh chan uint64
+
+	// details contains the details of the event subscription
+	details SubscriptionDetails
 }
 
 // close stops the event subscription

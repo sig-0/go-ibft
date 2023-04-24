@@ -3,7 +3,7 @@ package messages
 import (
 	"testing"
 
-	"github.com/0xPolygon/go-ibft/messages/proto"
+	"github.com/madz-lab/go-ibft/messages/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,13 +49,11 @@ func TestMessages_ExtractCommitHash(t *testing.T) {
 	commitHash := []byte("commit hash")
 
 	testTable := []struct {
+		message            *proto.Message
 		name               string
 		expectedCommitHash []byte
-		message            *proto.Message
 	}{
 		{
-			"valid message",
-			commitHash,
 			&proto.Message{
 				Type: proto.MessageType_COMMIT,
 				Payload: &proto.Message_CommitData{
@@ -64,13 +62,15 @@ func TestMessages_ExtractCommitHash(t *testing.T) {
 					},
 				},
 			},
+			"valid message",
+			commitHash,
 		},
 		{
-			"invalid message",
-			nil,
 			&proto.Message{
 				Type: proto.MessageType_PREPARE,
 			},
+			"invalid message",
+			nil,
 		},
 	}
 
@@ -95,13 +95,11 @@ func TestMessages_ExtractProposal(t *testing.T) {
 	proposal := []byte("proposal")
 
 	testTable := []struct {
+		message          *proto.Message
 		name             string
 		expectedProposal []byte
-		message          *proto.Message
 	}{
 		{
-			"valid message",
-			proposal,
 			&proto.Message{
 				Type: proto.MessageType_PREPREPARE,
 				Payload: &proto.Message_PreprepareData{
@@ -110,13 +108,15 @@ func TestMessages_ExtractProposal(t *testing.T) {
 					},
 				},
 			},
+			"valid message",
+			proposal,
 		},
 		{
-			"invalid message",
-			nil,
 			&proto.Message{
 				Type: proto.MessageType_PREPARE,
 			},
+			"invalid message",
+			nil,
 		},
 	}
 
@@ -141,13 +141,11 @@ func TestMessages_ExtractProposalHash(t *testing.T) {
 	proposalHash := []byte("proposal hash")
 
 	testTable := []struct {
+		message              *proto.Message
 		name                 string
 		expectedProposalHash []byte
-		message              *proto.Message
 	}{
 		{
-			"valid message",
-			proposalHash,
 			&proto.Message{
 				Type: proto.MessageType_PREPREPARE,
 				Payload: &proto.Message_PreprepareData{
@@ -156,13 +154,15 @@ func TestMessages_ExtractProposalHash(t *testing.T) {
 					},
 				},
 			},
+			"valid message",
+			proposalHash,
 		},
 		{
-			"invalid message",
-			nil,
 			&proto.Message{
 				Type: proto.MessageType_PREPARE,
 			},
+			"invalid message",
+			nil,
 		},
 	}
 
@@ -189,12 +189,11 @@ func TestMessages_ExtractRCC(t *testing.T) {
 	}
 
 	testTable := []struct {
-		name        string
 		expectedRCC *proto.RoundChangeCertificate
 		message     *proto.Message
+		name        string
 	}{
 		{
-			"valid message",
 			rcc,
 			&proto.Message{
 				Type: proto.MessageType_PREPREPARE,
@@ -204,13 +203,14 @@ func TestMessages_ExtractRCC(t *testing.T) {
 					},
 				},
 			},
+			"valid message",
 		},
 		{
-			"invalid message",
 			nil,
 			&proto.Message{
 				Type: proto.MessageType_PREPARE,
 			},
+			"invalid message",
 		},
 	}
 
@@ -235,13 +235,11 @@ func TestMessages_ExtractPrepareHash(t *testing.T) {
 	prepareHash := []byte("prepare hash")
 
 	testTable := []struct {
+		message             *proto.Message
 		name                string
 		expectedPrepareHash []byte
-		message             *proto.Message
 	}{
 		{
-			"valid message",
-			prepareHash,
 			&proto.Message{
 				Type: proto.MessageType_PREPARE,
 				Payload: &proto.Message_PrepareData{
@@ -250,13 +248,15 @@ func TestMessages_ExtractPrepareHash(t *testing.T) {
 					},
 				},
 			},
+			"valid message",
+			prepareHash,
 		},
 		{
-			"invalid message",
-			nil,
 			&proto.Message{
 				Type: proto.MessageType_PREPREPARE,
 			},
+			"invalid message",
+			nil,
 		},
 	}
 
@@ -284,12 +284,11 @@ func TestMessages_ExtractLatestPC(t *testing.T) {
 	}
 
 	testTable := []struct {
-		name       string
 		expectedPC *proto.PreparedCertificate
 		message    *proto.Message
+		name       string
 	}{
 		{
-			"valid message",
 			latestPC,
 			&proto.Message{
 				Type: proto.MessageType_ROUND_CHANGE,
@@ -299,13 +298,14 @@ func TestMessages_ExtractLatestPC(t *testing.T) {
 					},
 				},
 			},
+			"valid message",
 		},
 		{
-			"invalid message",
 			nil,
 			&proto.Message{
 				Type: proto.MessageType_PREPREPARE,
 			},
+			"invalid message",
 		},
 	}
 
@@ -330,13 +330,11 @@ func TestMessages_ExtractLPPB(t *testing.T) {
 	latestPPB := []byte("latest block")
 
 	testTable := []struct {
+		message      *proto.Message
 		name         string
 		expectedLPPB []byte
-		message      *proto.Message
 	}{
 		{
-			"valid message",
-			latestPPB,
 			&proto.Message{
 				Type: proto.MessageType_ROUND_CHANGE,
 				Payload: &proto.Message_RoundChangeData{
@@ -345,13 +343,15 @@ func TestMessages_ExtractLPPB(t *testing.T) {
 					},
 				},
 			},
+			"valid message",
+			latestPPB,
 		},
 		{
-			"invalid message",
-			nil,
 			&proto.Message{
 				Type: proto.MessageType_PREPREPARE,
 			},
+			"invalid message",
+			nil,
 		},
 	}
 

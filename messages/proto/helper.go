@@ -1,9 +1,17 @@
 package proto
 
-import "google.golang.org/protobuf/proto"
+import (
+	"errors"
+
+	"google.golang.org/protobuf/proto"
+)
 
 func (m *Message) PayloadNoSig() ([]byte, error) {
-	mm, _ := proto.Clone(m).(*Message)
+	mm, ok := proto.Clone(m).(*Message)
+	if !ok {
+		return nil, errors.New("unable to cast message type")
+	}
+
 	mm.Signature = nil
 
 	raw, err := proto.Marshal(mm)
