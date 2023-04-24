@@ -1,5 +1,3 @@
-# go-ibft README
-
 ## Overview
 
 `go-ibft` is a simple, straightforward, IBFT state machine implementation.
@@ -20,7 +18,7 @@ To get up and running with the `go-ibft` package, you can pull it into your proj
 
 `go get github.com/madz-lab/go-ibft`
 
-Currently, the minimum required go version is `go 1.17`.
+Currently, the minimum required go version is `go 1.19`.
 
 ## Usage Examples
 
