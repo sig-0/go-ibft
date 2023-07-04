@@ -687,7 +687,7 @@ func (i *IBFT) validateProposal(msg *proto.Message, view *proto.View) bool {
 			hash := messages.ExtractProposalHash(certificate.ProposalMessage)
 
 			roundsAndPreparedBlockHashes = append(roundsAndPreparedBlockHashes, roundHashTuple{
-				round: rcMessage.View.Round,
+				round: certificate.ProposalMessage.View.Round,
 				hash:  hash,
 			})
 		}
@@ -704,7 +704,7 @@ func (i *IBFT) validateProposal(msg *proto.Message, view *proto.View) bool {
 	)
 
 	for _, tuple := range roundsAndPreparedBlockHashes {
-		if tuple.round > maxRound {
+		if tuple.round >= maxRound {
 			maxRound = tuple.round
 			expectedHash = tuple.hash
 		}

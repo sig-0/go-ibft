@@ -829,6 +829,124 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 	}
 }
 
+func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
+	t.Parallel()
+
+	var (
+		log       mockLogger
+		backend   mockBackend
+		transport mockTransport
+		msgs      mockMessages
+
+		notifyCh = make(chan uint64, 1)
+
+		ctx context.Context
+
+		round1ProposalMsg *proto.Message
+
+		round0Proposer     = []byte("round 0 proposer")
+		round1Proposer     = []byte("round 1 proposer")
+		round0Proposal     = []byte("round 0 proposal")
+		round0ProposalHash = []byte("round 0 proposal hash")
+	)
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+
+	// backend
+	backend.isProposerFn = func(from []byte, _ uint64, round uint64) bool {
+		switch round {
+		case 0:
+			return bytes.Equal(from, round0Proposer)
+		case 1:
+			return bytes.Equal(from, round1Proposer)
+		}
+
+		return false
+	}
+
+	// messages
+	msgs.subscribeFn = func(_ messages.SubscriptionDetails) *messages.Subscription {
+		return &messages.Subscription{
+			SubCh: notifyCh,
+		}
+	}
+
+	msgs.getValidMessagesFn = func(_ *proto.View, _ proto.MessageType, isValid func(message *proto.Message) bool) []*proto.Message {
+		if !isValid(round1ProposalMsg) {
+			return nil
+		}
+
+		return []*proto.Message{round1ProposalMsg}
+	}
+
+	msgs.unsubscribeFn = func(_ messages.SubscriptionID) { cancelFn() }
+
+	round1ProposalMsg = &proto.Message{
+		View: &proto.View{Round: 1},
+		From: round1Proposer,
+		Type: proto.MessageType_PREPREPARE,
+		Payload: &proto.Message_PreprepareData{
+			PreprepareData: &proto.PrePrepareMessage{
+				Proposal:     round0Proposal,
+				ProposalHash: round0ProposalHash,
+				Certificate: &proto.RoundChangeCertificate{
+					RoundChangeMessages: []*proto.Message{
+						{
+							View: &proto.View{Round: 0},
+							Type: proto.MessageType_ROUND_CHANGE,
+							Payload: &proto.Message_RoundChangeData{
+								RoundChangeData: &proto.RoundChangeMessage{
+									LastPreparedProposedBlock: round0Proposal,
+									LatestPreparedCertificate: &proto.PreparedCertificate{
+										ProposalMessage: &proto.Message{
+											View: &proto.View{Round: 0},
+											From: round0Proposer,
+											Type: proto.MessageType_PREPREPARE,
+											Payload: &proto.Message_PreprepareData{
+												PreprepareData: &proto.PrePrepareMessage{
+													Proposal:     round0Proposal,
+													ProposalHash: round0ProposalHash,
+												},
+											},
+										},
+										PrepareMessages: []*proto.Message{
+											{
+												View: &proto.View{Round: 0},
+												From: []byte("some validator"),
+												Type: proto.MessageType_PREPARE,
+												Payload: &proto.Message_PrepareData{
+													PrepareData: &proto.PrepareMessage{
+														ProposalHash: round0ProposalHash,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					}},
+			}},
+	}
+
+	i := NewIBFT(log, backend, transport)
+	i.messages = msgs
+	i.state.setView(&proto.View{Round: 1})
+
+	// Make sure the notification is sent out
+	notifyCh <- 1
+
+	i.wg.Add(1)
+	i.startRound(ctx)
+	i.wg.Wait()
+
+	// Make sure the node moves to prepare state
+	assert.Equal(t, prepare, i.state.name)
+
+	// Make sure the accepted proposal is the one that was sent out
+	assert.Equal(t, round0Proposal, i.state.getProposal())
+}
+
 // TestRunPrepare checks that the node behaves correctly
 // in prepare state
 func TestRunPrepare(t *testing.T) {
