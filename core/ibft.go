@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -633,84 +634,110 @@ func (i *IBFT) validateProposal0(msg *proto.Message, view *proto.View) bool {
 
 // validateProposal validates a proposal for round > 0
 func (i *IBFT) validateProposal(msg *proto.Message, view *proto.View) bool {
-	var (
-		height = view.Height
-		round  = view.Round
-
-		proposalHash = messages.ExtractProposalHash(msg)
-		certificate  = messages.ExtractRoundChangeCertificate(msg)
-		rcc          = messages.ExtractRoundChangeCertificate(msg)
-	)
+	// Make sure the current node is not the proposer for this round
+	if i.backend.IsProposer(i.backend.ID(), view.Height, view.Round) {
+		return false
+	}
 
 	// Make sure common proposal validations pass
 	if !i.validateProposalCommon(msg, view) {
 		return false
 	}
 
+	certificate := messages.ExtractRoundChangeCertificate(msg)
+
+	// Make sure the certificate is valid
+	if err := i.validateRoundChangeCertificate(certificate, view); err != nil {
+		return false
+	}
+
+	roundsAndPreparedProposalHashes := i.extractRoundsAndProposalHashes(certificate, view)
+	if len(roundsAndPreparedProposalHashes) == 0 {
+		return true
+	}
+
+	// Find the max round and its prepared proposal hash
+	var (
+		maxRound             uint64
+		maxRoundProposalHash []byte
+	)
+
+	for round, hash := range roundsAndPreparedProposalHashes {
+		if round >= maxRound {
+			maxRound = round
+			maxRoundProposalHash = hash
+		}
+	}
+
+	return bytes.Equal(maxRoundProposalHash, messages.ExtractProposalHash(msg))
+}
+
+func (i *IBFT) validateRoundChangeCertificate(
+	certificate *proto.RoundChangeCertificate,
+	view *proto.View,
+) error {
 	// Make sure there is a certificate
 	if certificate == nil {
-		return false
+		return errors.New("no round change certificate")
 	}
 
 	// Make sure there are Quorum RCC
-	if len(certificate.RoundChangeMessages) < int(i.backend.Quorum(height)) {
-		return false
+	if len(certificate.RoundChangeMessages) < int(i.backend.Quorum(view.Height)) {
+		return fmt.Errorf("no quorum round change messages in certificate: expected=%d actual=%d",
+			len(certificate.RoundChangeMessages),
+			int(i.backend.Quorum(view.Height)),
+		)
 	}
 
-	// Make sure the current node is not the proposer for this round
-	if i.backend.IsProposer(i.backend.ID(), height, round) {
-		return false
+	if !messages.HasUniqueSenders(certificate.RoundChangeMessages) {
+		return fmt.Errorf("no unique senders in certificate")
 	}
 
 	// Make sure all messages in the RCC are valid Round Change messages
 	for _, rc := range certificate.RoundChangeMessages {
 		// Make sure the message is a Round Change message
 		if rc.Type != proto.MessageType_ROUND_CHANGE {
-			return false
+			return fmt.Errorf("invalid message type in certificate: %s", rc.Type.String())
+		}
+
+		// make sure height matches the proposal's height
+		if rc.View.Height != view.Height {
+			return fmt.Errorf("invalid height in certificate: expected=%d actual=%d", view.Height, rc.View.Height)
+		}
+
+		// make sure round matches the proposal's round
+		if rc.View.Round != view.Round {
+			return fmt.Errorf("invalid round in certificate: expected=%d actual=%d", view.Round, rc.View.Round)
+		}
+
+		if !i.backend.IsValidSender(rc) {
+			return fmt.Errorf("invalid sender in certificate: from=%s", rc.From)
 		}
 	}
 
-	// Extract possible rounds and their corresponding
-	// block hashes
-	type roundHashTuple struct {
-		hash  []byte
-		round uint64
-	}
+	return nil
+}
 
-	roundsAndPreparedBlockHashes := make([]roundHashTuple, 0)
+func (i *IBFT) extractRoundsAndProposalHashes(
+	certificate *proto.RoundChangeCertificate,
+	view *proto.View,
+) map[uint64][]byte {
+	roundHashMap := make(map[uint64][]byte)
 
-	for _, rcMessage := range rcc.RoundChangeMessages {
-		certificate := messages.ExtractLatestPC(rcMessage)
-
-		// Check if there is a certificate, and if it's a valid PC
-		if certificate != nil && i.validPC(certificate, msg.View.Round, height) {
-			hash := messages.ExtractProposalHash(certificate.ProposalMessage)
-
-			roundsAndPreparedBlockHashes = append(roundsAndPreparedBlockHashes, roundHashTuple{
-				round: certificate.ProposalMessage.View.Round,
-				hash:  hash,
-			})
+	for _, msg := range certificate.RoundChangeMessages {
+		certificate := messages.ExtractLatestPC(msg)
+		if certificate == nil {
+			continue
 		}
-	}
 
-	if len(roundsAndPreparedBlockHashes) == 0 {
-		return true
-	}
-
-	// Find the max round
-	var (
-		maxRound     uint64
-		expectedHash []byte
-	)
-
-	for _, tuple := range roundsAndPreparedBlockHashes {
-		if tuple.round >= maxRound {
-			maxRound = tuple.round
-			expectedHash = tuple.hash
+		if !i.validPC(certificate, msg.View.Round, view.Height) {
+			continue
 		}
+
+		roundHashMap[certificate.ProposalMessage.View.Round] = messages.ExtractProposalHash(certificate.ProposalMessage)
 	}
 
-	return bytes.Equal(expectedHash, proposalHash)
+	return roundHashMap
 }
 
 // handlePrePrepare parses the received proposal and performs
