@@ -176,14 +176,31 @@ func HaveSameProposalHash(messages []*proto.Message) bool {
 	return true
 }
 
-// AllHaveLowerRound checks if all messages have the same round
+// AllHaveLowerRound checks if all messages have lower round than provided
 func AllHaveLowerRound(messages []*proto.Message, round uint64) bool {
-	if len(messages) < 1 {
+	if len(messages) == 0 {
 		return false
 	}
 
-	for _, message := range messages {
-		if message.View.Round >= round {
+	for _, msg := range messages {
+		if msg.View.Round >= round {
+			return false
+		}
+	}
+
+	return true
+}
+
+// AllHaveSameRound checks if all messages have the same round
+func AllHaveSameRound(messages []*proto.Message) bool {
+	if len(messages) == 0 {
+		return false
+	}
+
+	round := messages[0].View.Round
+
+	for _, msg := range messages {
+		if msg.View.Round != round {
 			return false
 		}
 	}
@@ -193,12 +210,12 @@ func AllHaveLowerRound(messages []*proto.Message, round uint64) bool {
 
 // AllHaveSameHeight checks if all messages have the same height
 func AllHaveSameHeight(messages []*proto.Message, height uint64) bool {
-	if len(messages) < 1 {
+	if len(messages) == 0 {
 		return false
 	}
 
-	for _, message := range messages {
-		if message.View.Height != height {
+	for _, msg := range messages {
+		if msg.View.Height != height {
 			return false
 		}
 	}

@@ -1118,17 +1118,24 @@ func (i *IBFT) validPC(
 		return false
 	}
 
-	// Make sure the proposal message is sent by the proposer
-	// for the round
-	proposal := certificate.ProposalMessage
-	if !i.backend.IsProposer(proposal.From, proposal.View.Height, proposal.View.Round) {
+	// Make sure all the messages have the same round
+	if !messages.AllHaveSameRound(allMessages) {
+		return false
+	}
+
+	// Make sure the signature is correct
+	if !i.backend.IsValidSender(certificate.ProposalMessage) {
 		return false
 	}
 
 	// Make sure the Prepare messages are validators, apart from the proposer
-	for _, message := range certificate.PrepareMessages {
+	for _, msg := range certificate.PrepareMessages {
 		// Make sure the sender is part of the validator set
-		if !i.backend.IsValidSender(message) {
+		if !i.backend.IsValidSender(msg) {
+			return false
+		}
+
+		if i.backend.IsProposer(msg.From, msg.View.Height, msg.View.Round) {
 			return false
 		}
 	}
