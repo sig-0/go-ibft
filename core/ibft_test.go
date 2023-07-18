@@ -2821,10 +2821,11 @@ func TestIBFT_RunSequence_NewProposal(t *testing.T) {
 	defer cancelFn()
 
 	var (
-		proposal = []byte("proposal")
-		round    = uint64(10)
-		height   = uint64(1)
-		quorum   = uint64(4)
+		proposal                  = []byte("proposal")
+		round                     = uint64(10)
+		height                    = uint64(1)
+		quorum                    = uint64(4)
+		prepareMessageMulticasted = false
 
 		log     = mockLogger{}
 		backend = mockBackend{
@@ -2832,7 +2833,11 @@ func TestIBFT_RunSequence_NewProposal(t *testing.T) {
 				return quorum
 			},
 		}
-		transport = mockTransport{}
+		transport = mockTransport{
+			func(_ *proto.Message) {
+				prepareMessageMulticasted = true
+			},
+		}
 	)
 
 	i := NewIBFT(log, backend, transport)
@@ -2873,6 +2878,9 @@ func TestIBFT_RunSequence_NewProposal(t *testing.T) {
 
 	// Make sure the state is the prepare state
 	assert.Equal(t, prepare, i.state.name)
+
+	// Make sure the prepare message is multicasted
+	assert.True(t, prepareMessageMulticasted)
 }
 
 // TestIBFT_RunSequence_FutureRCC verifies that the
