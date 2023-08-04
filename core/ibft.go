@@ -462,6 +462,10 @@ func (i *IBFT) handleRoundChangeMessage(view *proto.View, quorum uint64) *proto.
 		return nil
 	}
 
+	if !messages.HasUniqueSenders(msgs) {
+		return nil
+	}
+
 	return &proto.RoundChangeCertificate{
 		RoundChangeMessages: msgs,
 	}
@@ -979,21 +983,34 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.Messa
 		return nil
 	}
 
-	//	check the messages for any previous proposal (if they have any, it's the same proposal)
-	var previousProposal []byte
+	var (
+		maxRound              uint64
+		maxRoundProposedBlock []byte
+	)
 
+	roundsAndPreparedBlocks := make(map[uint64][]byte)
+
+	// find a previous block within the round change messages
 	for _, msg := range rcc.RoundChangeMessages {
-		//	if message contains block, break
-		latestPC := messages.ExtractLatestPC(msg)
+		block := messages.ExtractLastPreparedProposedBlock(msg)
+		pc := messages.ExtractLatestPC(msg)
 
-		if latestPC != nil {
-			previousProposal = messages.ExtractLastPreparedProposedBlock(msg)
+		if block == nil || pc == nil {
+			continue
+		}
 
-			break
+		roundsAndPreparedBlocks[pc.ProposalMessage.View.Round] = block
+	}
+
+	// select block from the highest round
+	for round, block := range roundsAndPreparedBlocks {
+		if round >= maxRound {
+			maxRound = round
+			maxRoundProposedBlock = block
 		}
 	}
 
-	if previousProposal == nil {
+	if maxRoundProposedBlock == nil {
 		//	build new proposal
 		proposal := i.backend.BuildProposal(height)
 
@@ -1008,7 +1025,7 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.Messa
 	}
 
 	return i.backend.BuildPrePrepareMessage(
-		previousProposal,
+		maxRoundProposedBlock,
 		rcc,
 		&proto.View{
 			Height: height,

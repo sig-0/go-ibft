@@ -294,6 +294,52 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		roundChangeMessages := generateMessages(quorum, proto.MessageType_ROUND_CHANGE)
 		setRoundForMessages(roundChangeMessages, 1)
 
+		for _, msg := range roundChangeMessages {
+			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = []byte("previous block")
+			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
+				ProposalMessage: &proto.Message{
+					View:      &proto.View{Round: 0},
+					From:      []byte("previous proposer"),
+					Signature: nil,
+					Type:      proto.MessageType_PREPREPARE,
+					Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
+						Proposal:     nil,
+						ProposalHash: []byte("proposal hash"),
+						Certificate:  nil,
+					}},
+				},
+				PrepareMessages: []*proto.Message{
+					{
+						View:      &proto.View{Round: 0},
+						From:      []byte("some validator 1"),
+						Signature: nil,
+						Type:      proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+							ProposalHash: []byte("proposal hash")},
+						},
+					},
+					{
+						View:      &proto.View{Round: 0},
+						From:      []byte("some validator 2"),
+						Signature: nil,
+						Type:      proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+							ProposalHash: []byte("proposal hash")},
+						},
+					},
+					{
+						View:      &proto.View{Round: 0},
+						From:      []byte("some validator 3"),
+						Signature: nil,
+						Type:      proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+							ProposalHash: []byte("proposal hash")},
+						},
+					},
+				},
+			}
+		}
+
 		var (
 			multicastedPreprepare *proto.Message
 			multicastedPrepare    *proto.Message
@@ -431,6 +477,52 @@ func TestRunNewRound_Proposer(t *testing.T) {
 
 		setRoundForMessages(roundChangeMessages, 1)
 
+		for _, msg := range roundChangeMessages {
+			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = lastPreparedProposedBlock
+			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
+				ProposalMessage: &proto.Message{
+					View:      &proto.View{Round: 0},
+					From:      []byte("previous proposer"),
+					Signature: nil,
+					Type:      proto.MessageType_PREPREPARE,
+					Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
+						Proposal:     nil,
+						ProposalHash: []byte("proposal hash"),
+						Certificate:  nil,
+					}},
+				},
+				PrepareMessages: []*proto.Message{
+					{
+						View:      &proto.View{Round: 0},
+						From:      []byte("some validator 1"),
+						Signature: nil,
+						Type:      proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+							ProposalHash: []byte("proposal hash")},
+						},
+					},
+					{
+						View:      &proto.View{Round: 0},
+						From:      []byte("some validator 2"),
+						Signature: nil,
+						Type:      proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+							ProposalHash: []byte("proposal hash")},
+						},
+					},
+					{
+						View:      &proto.View{Round: 0},
+						From:      []byte("some validator 3"),
+						Signature: nil,
+						Type:      proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+							ProposalHash: []byte("proposal hash")},
+						},
+					},
+				},
+			}
+		}
+
 		// Make sure at least one RC message has a PC
 		payload, _ := roundChangeMessages[1].Payload.(*proto.Message_RoundChangeData)
 		rcData := payload.RoundChangeData
@@ -566,6 +658,234 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		assert.Nil(t, multicastedPrepare)
 	},
 	)
+
+	t.Run("proposer builds previous proposal from round 1 (resend last prepared proposal)", func(t *testing.T) {
+		t.Parallel()
+
+		round1PreparedProposedBlock := []byte("last prepared block")
+		round1ProposalHash := []byte("proposal hash")
+		round1Proposer := []byte("round 1 proposer")
+
+		quorum := uint64(4)
+		ctx, cancelFn := context.WithCancel(context.Background())
+
+		roundChangeMessages := generateMessages(quorum, proto.MessageType_ROUND_CHANGE)
+		prepareMessages := generateMessages(quorum-1, proto.MessageType_PREPARE)
+
+		for index, message := range prepareMessages {
+			message.Payload = &proto.Message_PrepareData{
+				PrepareData: &proto.PrepareMessage{
+					ProposalHash: round1ProposalHash,
+				},
+			}
+
+			message.From = []byte(fmt.Sprintf("node %d", index+1))
+		}
+
+		setRoundForMessages(roundChangeMessages, 2)
+
+		for _, msg := range roundChangeMessages {
+			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = round1PreparedProposedBlock
+			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
+				ProposalMessage: &proto.Message{
+					View: &proto.View{Round: 1},
+					From: round1Proposer,
+					Type: proto.MessageType_PREPREPARE,
+					Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
+						Proposal:     round1PreparedProposedBlock,
+						ProposalHash: round1ProposalHash,
+						Certificate:  nil,
+					}},
+				},
+				PrepareMessages: []*proto.Message{
+					{
+						View:      &proto.View{Round: 1},
+						From:      []byte("some validator 1"),
+						Signature: nil,
+						Type:      proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+							ProposalHash: round1ProposalHash},
+						},
+					},
+					{
+						View:      &proto.View{Round: 1},
+						From:      []byte("some validator 2"),
+						Signature: nil,
+						Type:      proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+							ProposalHash: round1ProposalHash},
+						},
+					},
+					{
+						View:      &proto.View{Round: 1},
+						From:      []byte("some validator 3"),
+						Signature: nil,
+						Type:      proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+							ProposalHash: round1ProposalHash},
+						},
+					},
+				},
+			}
+		}
+
+		// some msg has older block and round
+		someRCMsg := roundChangeMessages[1]
+
+		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = round1PreparedProposedBlock
+		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
+			ProposalMessage: &proto.Message{
+				View: &proto.View{Round: 0},
+				From: round1Proposer,
+				Type: proto.MessageType_PREPREPARE,
+				Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
+					Proposal:     []byte("round 0 block"),
+					ProposalHash: []byte("round 0 block hash"),
+					Certificate:  nil,
+				}},
+			},
+			PrepareMessages: []*proto.Message{
+				{
+					View:      &proto.View{Round: 0},
+					From:      []byte("some validator 1"),
+					Signature: nil,
+					Type:      proto.MessageType_PREPARE,
+					Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+						ProposalHash: []byte("round 0 block hash")},
+					},
+				},
+				{
+					View:      &proto.View{Round: 0},
+					From:      []byte("some validator 2"),
+					Signature: nil,
+					Type:      proto.MessageType_PREPARE,
+					Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+						ProposalHash: []byte("round 0 block hash")},
+					},
+				},
+				{
+					View:      &proto.View{Round: 0},
+					From:      []byte("some validator 3"),
+					Signature: nil,
+					Type:      proto.MessageType_PREPARE,
+					Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
+						ProposalHash: []byte("round 0 block hash")},
+					},
+				},
+			},
+		}
+
+		var (
+			multicastedPreprepare *proto.Message
+			multicastedPrepare    *proto.Message
+			proposal              = []byte("proposal")
+			notifyCh              = make(chan uint64, 1)
+
+			log       = mockLogger{}
+			transport = mockTransport{func(message *proto.Message) {
+				switch message.Type {
+				case proto.MessageType_PREPREPARE:
+					multicastedPreprepare = message
+				case proto.MessageType_PREPARE:
+					multicastedPrepare = message
+				default:
+				}
+			}}
+			backend = mockBackend{
+				idFn: func() []byte { return round1Proposer },
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+					if bytes.Equal(from, round1Proposer) ||
+						bytes.Equal(from, []byte("unique node")) {
+						return true
+					}
+
+					return false
+				},
+				quorumFn: func(_ uint64) uint64 {
+					return quorum
+				},
+				buildProposalFn: func(_ uint64) []byte {
+					return proposal
+				},
+				buildPrepareMessageFn: func(_ []byte, view *proto.View) *proto.Message {
+					return &proto.Message{
+						View: view,
+						Type: proto.MessageType_PREPARE,
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: round1ProposalHash,
+							},
+						},
+					}
+				},
+				buildPrePrepareMessageFn: func(
+					proposal []byte,
+					certificate *proto.RoundChangeCertificate,
+					view *proto.View,
+				) *proto.Message {
+					return &proto.Message{
+						View: view,
+						Type: proto.MessageType_PREPREPARE,
+						Payload: &proto.Message_PreprepareData{
+							PreprepareData: &proto.PrePrepareMessage{
+								Proposal:     proposal,
+								ProposalHash: round1ProposalHash,
+								Certificate:  certificate,
+							},
+						},
+					}
+				},
+			}
+			messages = mockMessages{
+				subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
+					return &messages.Subscription{
+						ID:    messages.SubscriptionID(1),
+						SubCh: notifyCh,
+					}
+				},
+				unsubscribeFn: func(_ messages.SubscriptionID) {
+					cancelFn()
+				},
+				getValidMessagesFn: func(
+					view *proto.View,
+					messageType proto.MessageType,
+					isValid func(message *proto.Message) bool,
+				) []*proto.Message {
+					return filterMessages(
+						roundChangeMessages,
+						isValid,
+					)
+				},
+			}
+		)
+
+		i := NewIBFT(log, backend, transport)
+		i.messages = messages
+		i.state.setView(&proto.View{
+			Height: 0,
+			Round:  2,
+		})
+
+		notifyCh <- 1
+
+		i.wg.Add(1)
+		i.startRound(ctx)
+		i.wg.Wait()
+
+		// Make sure the node changed the state to prepare
+		assert.Equal(t, prepare, i.state.name)
+
+		// Make sure the multicasted proposal is the accepted proposal
+		assert.Equal(t, multicastedPreprepare, i.state.proposalMessage)
+
+		// Make sure the correct proposal was multicasted
+		assert.True(t, proposalMatches(round1PreparedProposedBlock, multicastedPreprepare))
+
+		// Make sure the prepare message was not multicasted
+		assert.Nil(t, multicastedPrepare)
+	},
+	)
+
 }
 
 // TestRunNewRound_Validator_Zero validates the behavior
