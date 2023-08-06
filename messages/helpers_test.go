@@ -89,7 +89,7 @@ func TestMessages_ExtractCommitHash(t *testing.T) {
 	}
 }
 
-func TestMessages_ExtractProposal(t *testing.T) {
+func TestMessages_ExtractProposal(t *testing.T) { //nolint
 	t.Parallel()
 
 	proposal := []byte("proposal")
@@ -104,7 +104,10 @@ func TestMessages_ExtractProposal(t *testing.T) {
 				Type: proto.MessageType_PREPREPARE,
 				Payload: &proto.Message_PreprepareData{
 					PreprepareData: &proto.PrePrepareMessage{
-						Proposal: proposal,
+						Proposal: &proto.ProposedBlock{
+							Block: proposal,
+							Round: 0,
+						},
 					},
 				},
 			},
@@ -113,7 +116,15 @@ func TestMessages_ExtractProposal(t *testing.T) {
 		},
 		{
 			&proto.Message{
-				Type: proto.MessageType_PREPARE,
+				Type: proto.MessageType_PREPREPARE,
+				Payload: &proto.Message_PreprepareData{
+					PreprepareData: &proto.PrePrepareMessage{
+						Proposal: &proto.ProposedBlock{
+							Block: nil,
+							Round: 0,
+						},
+					},
+				},
 			},
 			"invalid message",
 			nil,
@@ -129,7 +140,7 @@ func TestMessages_ExtractProposal(t *testing.T) {
 			assert.Equal(
 				t,
 				testCase.expectedProposal,
-				ExtractProposal(testCase.message),
+				ExtractProposal(testCase.message).Block,
 			)
 		})
 	}
@@ -324,7 +335,7 @@ func TestMessages_ExtractLatestPC(t *testing.T) {
 	}
 }
 
-func TestMessages_ExtractLPPB(t *testing.T) {
+func TestMessages_ExtractLPPB(t *testing.T) { //nolint
 	t.Parallel()
 
 	latestPPB := []byte("latest block")
@@ -339,7 +350,10 @@ func TestMessages_ExtractLPPB(t *testing.T) {
 				Type: proto.MessageType_ROUND_CHANGE,
 				Payload: &proto.Message_RoundChangeData{
 					RoundChangeData: &proto.RoundChangeMessage{
-						LastPreparedProposedBlock: latestPPB,
+						LastPreparedProposedBlock: &proto.ProposedBlock{
+							Block: latestPPB,
+							Round: 0,
+						},
 					},
 				},
 			},
@@ -348,7 +362,15 @@ func TestMessages_ExtractLPPB(t *testing.T) {
 		},
 		{
 			&proto.Message{
-				Type: proto.MessageType_PREPREPARE,
+				Type: proto.MessageType_ROUND_CHANGE,
+				Payload: &proto.Message_RoundChangeData{
+					RoundChangeData: &proto.RoundChangeMessage{
+						LastPreparedProposedBlock: &proto.ProposedBlock{
+							Block: nil,
+							Round: 0,
+						},
+					},
+				},
 			},
 			"invalid message",
 			nil,
@@ -364,7 +386,7 @@ func TestMessages_ExtractLPPB(t *testing.T) {
 			assert.Equal(
 				t,
 				testCase.expectedLPPB,
-				ExtractLastPreparedProposedBlock(testCase.message),
+				ExtractLastPreparedProposedBlock(testCase.message).Block,
 			)
 		})
 	}

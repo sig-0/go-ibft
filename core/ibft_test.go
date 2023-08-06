@@ -301,10 +301,12 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 1)
 
 		for _, msg := range roundChangeMessages {
+			//nolint
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.ProposedBlock{
 				Block: []byte("previous block"),
 				Round: 0,
 			}
+			//nolint
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View:      &proto.View{Round: 0},
@@ -323,8 +325,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						From:      []byte("some validator 1"),
 						Signature: nil,
 						Type:      proto.MessageType_PREPARE,
-						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-							ProposalHash: []byte("proposal hash")},
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: []byte("proposal hash"),
+							},
 						},
 					},
 					{
@@ -332,8 +336,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						From:      []byte("some validator 2"),
 						Signature: nil,
 						Type:      proto.MessageType_PREPARE,
-						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-							ProposalHash: []byte("proposal hash")},
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: []byte("proposal hash"),
+							},
 						},
 					},
 					{
@@ -341,8 +347,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						From:      []byte("some validator 3"),
 						Signature: nil,
 						Type:      proto.MessageType_PREPARE,
-						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-							ProposalHash: []byte("proposal hash")},
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: []byte("proposal hash"),
+							},
 						},
 					},
 				},
@@ -370,11 +378,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 			backend = mockBackend{
 				idFn: func() []byte { return round1Proposer },
 				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
-					if bytes.Equal(from, round1Proposer) {
-						return true
-					}
-
-					return false
+					return bytes.Equal(from, round1Proposer)
 				},
 				quorumFn: func(_ uint64) uint64 {
 					return quorum
@@ -490,10 +494,12 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 1)
 
 		for _, msg := range roundChangeMessages {
+			//nolint
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.ProposedBlock{
 				Block: lastPreparedProposedBlock,
 				Round: 0,
 			}
+			//nolint
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View:      &proto.View{Round: 0},
@@ -512,8 +518,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						From:      []byte("some validator 1"),
 						Signature: nil,
 						Type:      proto.MessageType_PREPARE,
-						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-							ProposalHash: []byte("proposal hash")},
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: []byte("proposal hash"),
+							},
 						},
 					},
 					{
@@ -521,8 +529,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						From:      []byte("some validator 2"),
 						Signature: nil,
 						Type:      proto.MessageType_PREPARE,
-						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-							ProposalHash: []byte("proposal hash")},
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: []byte("proposal hash"),
+							},
 						},
 					},
 					{
@@ -530,8 +540,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						From:      []byte("some validator 3"),
 						Signature: nil,
 						Type:      proto.MessageType_PREPARE,
-						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-							ProposalHash: []byte("proposal hash")},
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: []byte("proposal hash"),
+							},
 						},
 					},
 				},
@@ -709,10 +721,12 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 2)
 
 		for _, msg := range roundChangeMessages {
+			//nolint
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.ProposedBlock{
 				Block: round1PreparedProposedBlock,
 				Round: 1,
 			}
+			//nolint
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View: &proto.View{Round: 1},
@@ -733,8 +747,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						From:      []byte("some validator 1"),
 						Signature: nil,
 						Type:      proto.MessageType_PREPARE,
-						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-							ProposalHash: round1ProposalHash},
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: round1ProposalHash,
+							},
 						},
 					},
 					{
@@ -742,8 +758,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						From:      []byte("some validator 2"),
 						Signature: nil,
 						Type:      proto.MessageType_PREPARE,
-						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-							ProposalHash: round1ProposalHash},
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: round1ProposalHash,
+							},
 						},
 					},
 					{
@@ -751,8 +769,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						From:      []byte("some validator 3"),
 						Signature: nil,
 						Type:      proto.MessageType_PREPARE,
-						Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-							ProposalHash: round1ProposalHash},
+						Payload: &proto.Message_PrepareData{
+							PrepareData: &proto.PrepareMessage{
+								ProposalHash: round1ProposalHash,
+							},
 						},
 					},
 				},
@@ -762,10 +782,12 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		// some msg has older block and round
 		someRCMsg := roundChangeMessages[1]
 
+		//nolint
 		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.ProposedBlock{
 			Block: round1PreparedProposedBlock,
 			Round: 1,
 		}
+		//nolint
 		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 			ProposalMessage: &proto.Message{
 				View: &proto.View{Round: 0},
@@ -786,8 +808,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					From:      []byte("some validator 1"),
 					Signature: nil,
 					Type:      proto.MessageType_PREPARE,
-					Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-						ProposalHash: []byte("round 0 block hash")},
+					Payload: &proto.Message_PrepareData{
+						PrepareData: &proto.PrepareMessage{
+							ProposalHash: []byte("round 0 block hash"),
+						},
 					},
 				},
 				{
@@ -795,8 +819,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					From:      []byte("some validator 2"),
 					Signature: nil,
 					Type:      proto.MessageType_PREPARE,
-					Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-						ProposalHash: []byte("round 0 block hash")},
+					Payload: &proto.Message_PrepareData{
+						PrepareData: &proto.PrepareMessage{
+							ProposalHash: []byte("round 0 block hash"),
+						},
 					},
 				},
 				{
@@ -804,8 +830,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					From:      []byte("some validator 3"),
 					Signature: nil,
 					Type:      proto.MessageType_PREPARE,
-					Payload: &proto.Message_PrepareData{PrepareData: &proto.PrepareMessage{
-						ProposalHash: []byte("round 0 block hash")},
+					Payload: &proto.Message_PrepareData{
+						PrepareData: &proto.PrepareMessage{
+							ProposalHash: []byte("round 0 block hash"),
+						},
 					},
 				},
 			},
@@ -921,7 +949,6 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		assert.Nil(t, multicastedPrepare)
 	},
 	)
-
 }
 
 // TestRunNewRound_Validator_Zero validates the behavior
@@ -1242,7 +1269,11 @@ func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
 		}
 	}
 
-	msgs.getValidMessagesFn = func(_ *proto.View, _ proto.MessageType, isValid func(message *proto.Message) bool) []*proto.Message {
+	msgs.getValidMessagesFn = func(
+		_ *proto.View,
+		_ proto.MessageType,
+		isValid func(message *proto.Message) bool,
+	) []*proto.Message {
 		if !isValid(round1ProposalMsg) {
 			return nil
 		}
@@ -1305,8 +1336,10 @@ func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
 								},
 							},
 						},
-					}},
-			}},
+					},
+				},
+			},
+		},
 	}
 
 	i := NewIBFT(log, backend, transport)
@@ -1795,9 +1828,10 @@ func TestIBFT_FutureProposal(t *testing.T) {
 		return roundChangeMessages
 	}
 
-	generateFilledRCMessagesWithRound := func(q uint64, proposal, hash []byte, round uint64) []*proto.Message {
+	generateFilledRCMessagesWithRound := func(_ uint64, proposal, hash []byte, round uint64) []*proto.Message {
 		msgs := generateFilledRCMessages(quorum, proposal, hash)
 		setRoundForMessages(msgs, round)
+
 		return msgs
 	}
 
@@ -2360,11 +2394,7 @@ func TestIBFT_ValidPC(t *testing.T) {
 					return bytes.Equal(proposer, sender)
 				},
 				isValidSenderFn: func(message *proto.Message) bool {
-					if bytes.Equal(message.From, invalidProposer) {
-						return false
-					}
-
-					return true
+					return !bytes.Equal(message.From, invalidProposer)
 				},
 			}
 		)
@@ -2410,11 +2440,7 @@ func TestIBFT_ValidPC(t *testing.T) {
 					return bytes.Equal(proposer, sender)
 				},
 				isValidSenderFn: func(message *proto.Message) bool {
-					if bytes.Equal(message.From, invalidSender) {
-						return false
-					}
-
-					return true
+					return !bytes.Equal(message.From, invalidSender)
 				},
 			}
 		)
@@ -2806,11 +2832,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 		)
 
 		backend.isProposerFn = func(from []byte, _ uint64, _ uint64) bool {
-			if bytes.Equal(from, proposalProposer) {
-				return true
-			}
-
-			return false
+			return bytes.Equal(from, proposalProposer)
 		}
 
 		backend.isValidProposalHashFn = func(_ []byte, _ []byte) bool {
@@ -2844,7 +2866,6 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 		i := NewIBFT(log, backend, transport)
 
 		assert.False(t, i.validateProposal(proposalMsg, view))
-
 	})
 
 	t.Run("round of round change messages does not match round of the proposal", func(t *testing.T) {
@@ -2862,11 +2883,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 		)
 
 		backend.isProposerFn = func(from []byte, _ uint64, _ uint64) bool {
-			if bytes.Equal(from, proposalProposer) {
-				return true
-			}
-
-			return false
+			return bytes.Equal(from, proposalProposer)
 		}
 
 		backend.isValidProposalHashFn = func(_ []byte, _ []byte) bool {
@@ -2900,7 +2917,6 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 		i := NewIBFT(log, backend, transport)
 
 		assert.False(t, i.validateProposal(proposalMsg, view))
-
 	})
 
 	t.Run("sender in rcc not a validator", func(t *testing.T) {
@@ -2918,11 +2934,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 		)
 
 		backend.isProposerFn = func(from []byte, _ uint64, _ uint64) bool {
-			if bytes.Equal(from, proposalProposer) {
-				return true
-			}
-
-			return false
+			return bytes.Equal(from, proposalProposer)
 		}
 
 		backend.isValidProposalHashFn = func(_ []byte, _ []byte) bool {
@@ -2979,11 +2991,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 		)
 
 		backend.isProposerFn = func(from []byte, _ uint64, _ uint64) bool {
-			if bytes.Equal(from, proposalProposer) {
-				return true
-			}
-
-			return false
+			return bytes.Equal(from, proposalProposer)
 		}
 
 		backend.isValidProposalHashFn = func(_ []byte, _ []byte) bool {
@@ -3039,11 +3047,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 		)
 
 		backend.isProposerFn = func(from []byte, _ uint64, _ uint64) bool {
-			if bytes.Equal(from, proposalProposer) {
-				return true
-			}
-
-			return false
+			return bytes.Equal(from, proposalProposer)
 		}
 
 		backend.isValidProposalHashFn = func(_ []byte, _ []byte) bool {
@@ -3114,11 +3118,7 @@ func TestIBFT_WatchForFutureRCC(t *testing.T) {
 				return quorum
 			},
 			isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
-				if bytes.Equal(from, []byte("unique node")) {
-					return true
-				}
-
-				return false
+				return bytes.Equal(from, []byte("unique node"))
 			},
 		}
 		messages = mockMessages{
