@@ -21,7 +21,7 @@ func proposalMatches(proposal []byte, message *proto.Message) bool {
 	preprepareData, _ := message.Payload.(*proto.Message_PreprepareData)
 	extractedProposal := preprepareData.PreprepareData.Proposal
 
-	return bytes.Equal(proposal, extractedProposal)
+	return bytes.Equal(proposal, extractedProposal.Block)
 }
 
 func prepareHashMatches(prepareHash []byte, message *proto.Message) bool {
@@ -183,7 +183,10 @@ func generateFilledRCMessages(
 			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{
 				PreprepareData: &proto.PrePrepareMessage{
-					Proposal:     proposal,
+					Proposal: &proto.ProposedBlock{
+						Block: proposal,
+						Round: 0,
+					},
 					ProposalHash: proposalHash,
 					Certificate:  nil,
 				},
@@ -196,7 +199,10 @@ func generateFilledRCMessages(
 	for _, message := range roundChangeMessages {
 		message.Payload = &proto.Message_RoundChangeData{
 			RoundChangeData: &proto.RoundChangeMessage{
-				LastPreparedProposedBlock: proposal,
+				LastPreparedProposedBlock: &proto.ProposedBlock{
+					Block: proposal,
+					Round: 0,
+				},
 				LatestPreparedCertificate: lastPreparedCertificate,
 			},
 		}
@@ -238,7 +244,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					return newProposal
 				},
 				buildPrePrepareMessageFn: func(
-					proposal []byte,
+					proposal *proto.ProposedBlock,
 					certificate *proto.RoundChangeCertificate,
 					view *proto.View,
 				) *proto.Message {
@@ -295,7 +301,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 1)
 
 		for _, msg := range roundChangeMessages {
-			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = []byte("previous block")
+			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.ProposedBlock{
+				Block: []byte("previous block"),
+				Round: 0,
+			}
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View:      &proto.View{Round: 0},
@@ -385,7 +394,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					}
 				},
 				buildPrePrepareMessageFn: func(
-					_ []byte,
+					_ *proto.ProposedBlock,
 					_ *proto.RoundChangeCertificate,
 					view *proto.View,
 				) *proto.Message {
@@ -394,7 +403,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						Type: proto.MessageType_PREPREPARE,
 						Payload: &proto.Message_PreprepareData{
 							PreprepareData: &proto.PrePrepareMessage{
-								Proposal:     proposal,
+								Proposal: &proto.ProposedBlock{
+									Block: proposal,
+									Round: 0,
+								},
 								ProposalHash: proposalHash,
 							},
 						},
@@ -478,7 +490,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 1)
 
 		for _, msg := range roundChangeMessages {
-			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = lastPreparedProposedBlock
+			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.ProposedBlock{
+				Block: lastPreparedProposedBlock,
+				Round: 0,
+			}
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View:      &proto.View{Round: 0},
@@ -527,7 +542,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		payload, _ := roundChangeMessages[1].Payload.(*proto.Message_RoundChangeData)
 		rcData := payload.RoundChangeData
 
-		rcData.LastPreparedProposedBlock = lastPreparedProposedBlock
+		rcData.LastPreparedProposedBlock = &proto.ProposedBlock{
+			Block: lastPreparedProposedBlock,
+			Round: 0,
+		}
 		rcData.LatestPreparedCertificate = &proto.PreparedCertificate{
 			ProposalMessage: &proto.Message{
 				View: &proto.View{
@@ -538,7 +556,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 				Type: proto.MessageType_PREPREPARE,
 				Payload: &proto.Message_PreprepareData{
 					PreprepareData: &proto.PrePrepareMessage{
-						Proposal:     lastPreparedProposedBlock,
+						Proposal: &proto.ProposedBlock{
+							Block: lastPreparedProposedBlock,
+							Round: 0,
+						},
 						ProposalHash: proposalHash,
 						Certificate:  nil,
 					},
@@ -591,7 +612,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					}
 				},
 				buildPrePrepareMessageFn: func(
-					proposal []byte,
+					_ *proto.ProposedBlock,
 					certificate *proto.RoundChangeCertificate,
 					view *proto.View,
 				) *proto.Message {
@@ -600,7 +621,10 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						Type: proto.MessageType_PREPREPARE,
 						Payload: &proto.Message_PreprepareData{
 							PreprepareData: &proto.PrePrepareMessage{
-								Proposal:     proposal,
+								Proposal: &proto.ProposedBlock{
+									Block: lastPreparedProposedBlock,
+									Round: 0,
+								},
 								ProposalHash: proposalHash,
 								Certificate:  certificate,
 							},
@@ -685,14 +709,20 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 2)
 
 		for _, msg := range roundChangeMessages {
-			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = round1PreparedProposedBlock
+			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.ProposedBlock{
+				Block: round1PreparedProposedBlock,
+				Round: 1,
+			}
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View: &proto.View{Round: 1},
 					From: round1Proposer,
 					Type: proto.MessageType_PREPREPARE,
 					Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
-						Proposal:     round1PreparedProposedBlock,
+						Proposal: &proto.ProposedBlock{
+							Block: round1PreparedProposedBlock,
+							Round: 1,
+						},
 						ProposalHash: round1ProposalHash,
 						Certificate:  nil,
 					}},
@@ -732,14 +762,20 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		// some msg has older block and round
 		someRCMsg := roundChangeMessages[1]
 
-		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = round1PreparedProposedBlock
+		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.ProposedBlock{
+			Block: round1PreparedProposedBlock,
+			Round: 1,
+		}
 		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 			ProposalMessage: &proto.Message{
 				View: &proto.View{Round: 0},
 				From: round1Proposer,
 				Type: proto.MessageType_PREPREPARE,
 				Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
-					Proposal:     []byte("round 0 block"),
+					Proposal: &proto.ProposedBlock{
+						Block: []byte("round 0 block"),
+						Round: 0,
+					},
 					ProposalHash: []byte("round 0 block hash"),
 					Certificate:  nil,
 				}},
@@ -819,7 +855,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					}
 				},
 				buildPrePrepareMessageFn: func(
-					proposal []byte,
+					proposal *proto.ProposedBlock,
 					certificate *proto.RoundChangeCertificate,
 					view *proto.View,
 				) *proto.Message {
@@ -958,7 +994,10 @@ func TestRunNewRound_Validator_Zero(t *testing.T) {
 							Type: proto.MessageType_PREPREPARE,
 							Payload: &proto.Message_PreprepareData{
 								PreprepareData: &proto.PrePrepareMessage{
-									Proposal: proposal,
+									Proposal: &proto.ProposedBlock{
+										Block: proposal,
+										Round: 0,
+									},
 								},
 							},
 						},
@@ -984,7 +1023,7 @@ func TestRunNewRound_Validator_Zero(t *testing.T) {
 	assert.Equal(t, prepare, i.state.name)
 
 	// Make sure the accepted proposal is the one that was sent out
-	assert.Equal(t, proposal, i.state.getProposal())
+	assert.Equal(t, proposal, i.state.getProposal().Block)
 
 	// Make sure the correct proposal hash was multicasted
 	assert.True(t, prepareHashMatches(proposalHash, multicastedPrepare))
@@ -1013,7 +1052,10 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{
 				PreprepareData: &proto.PrePrepareMessage{
-					Proposal:     proposal,
+					Proposal: &proto.ProposedBlock{
+						Block: proposal,
+						Round: 0,
+					},
 					ProposalHash: proposalHash,
 					Certificate: &proto.RoundChangeCertificate{
 						RoundChangeMessages: roundChangeMessages,
@@ -1033,7 +1075,10 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{
 				PreprepareData: &proto.PrePrepareMessage{
-					Proposal:     proposal,
+					Proposal: &proto.ProposedBlock{
+						Block: proposal,
+						Round: 0,
+					},
 					ProposalHash: proposalHash,
 					Certificate: &proto.RoundChangeCertificate{
 						RoundChangeMessages: generateFilledRCMessages(quorum, proposal, proposalHash),
@@ -1147,7 +1192,7 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 			assert.Equal(t, prepare, i.state.name)
 
 			// Make sure the accepted proposal is the one that was sent out
-			assert.Equal(t, proposal, i.state.getProposal())
+			assert.Equal(t, proposal, i.state.getProposal().Block)
 
 			// Make sure the correct proposal hash was multicasted
 			assert.True(t, prepareHashMatches(proposalHash, multicastedPrepare))
@@ -1213,7 +1258,10 @@ func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
 		Type: proto.MessageType_PREPREPARE,
 		Payload: &proto.Message_PreprepareData{
 			PreprepareData: &proto.PrePrepareMessage{
-				Proposal:     round0Proposal,
+				Proposal: &proto.ProposedBlock{
+					Block: round0Proposal,
+					Round: 0,
+				},
 				ProposalHash: round0ProposalHash,
 				Certificate: &proto.RoundChangeCertificate{
 					RoundChangeMessages: []*proto.Message{
@@ -1222,7 +1270,10 @@ func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
 							Type: proto.MessageType_ROUND_CHANGE,
 							Payload: &proto.Message_RoundChangeData{
 								RoundChangeData: &proto.RoundChangeMessage{
-									LastPreparedProposedBlock: round0Proposal,
+									LastPreparedProposedBlock: &proto.ProposedBlock{
+										Block: round0Proposal,
+										Round: 0,
+									},
 									LatestPreparedCertificate: &proto.PreparedCertificate{
 										ProposalMessage: &proto.Message{
 											View: &proto.View{Round: 0},
@@ -1230,7 +1281,10 @@ func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
 											Type: proto.MessageType_PREPREPARE,
 											Payload: &proto.Message_PreprepareData{
 												PreprepareData: &proto.PrePrepareMessage{
-													Proposal:     round0Proposal,
+													Proposal: &proto.ProposedBlock{
+														Block: round0Proposal,
+														Round: 0,
+													},
 													ProposalHash: round0ProposalHash,
 												},
 											},
@@ -1270,7 +1324,7 @@ func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
 	assert.Equal(t, prepare, i.state.name)
 
 	// Make sure the accepted proposal is the one that was sent out
-	assert.Equal(t, round0Proposal, i.state.getProposal())
+	assert.Equal(t, round0Proposal, i.state.getProposal().Block)
 }
 
 // TestRunPrepare checks that the node behaves correctly
@@ -1355,7 +1409,10 @@ func TestRunPrepare(t *testing.T) {
 			i.state.proposalMessage = &proto.Message{
 				Payload: &proto.Message_PreprepareData{
 					PreprepareData: &proto.PrePrepareMessage{
-						Proposal:     proposal,
+						Proposal: &proto.ProposedBlock{
+							Block: proposal,
+							Round: 0,
+						},
 						ProposalHash: proposalHash,
 					},
 				},
@@ -1374,7 +1431,7 @@ func TestRunPrepare(t *testing.T) {
 			assert.Equal(t, commit, i.state.name)
 
 			// Make sure the proposal didn't change
-			assert.Equal(t, proposal, i.state.getProposal())
+			assert.Equal(t, proposal, i.state.getProposal().Block)
 
 			// Make sure the proper proposal hash was multicasted
 			assert.True(t, commitHashMatches(proposalHash, multicastedCommit))
@@ -1460,7 +1517,10 @@ func TestRunCommit(t *testing.T) {
 			i.state.proposalMessage = &proto.Message{
 				Payload: &proto.Message_PreprepareData{
 					PreprepareData: &proto.PrePrepareMessage{
-						Proposal:     proposal,
+						Proposal: &proto.ProposedBlock{
+							Block: proposal,
+							Round: 0,
+						},
 						ProposalHash: proposalHash,
 					},
 				},
@@ -1781,7 +1841,10 @@ func TestIBFT_FutureProposal(t *testing.T) {
 				Type: proto.MessageType_PREPREPARE,
 				Payload: &proto.Message_PreprepareData{
 					PreprepareData: &proto.PrePrepareMessage{
-						Proposal:     proposal,
+						Proposal: &proto.ProposedBlock{
+							Block: proposal,
+							Round: 0,
+						},
 						ProposalHash: proposalHash,
 						Certificate: &proto.RoundChangeCertificate{
 							RoundChangeMessages: testCase.roundChangeMessages,
@@ -1864,7 +1927,7 @@ func TestIBFT_FutureProposal(t *testing.T) {
 			}
 
 			assert.Equal(t, testCase.notifyRound, receivedProposalEvent.round)
-			assert.Equal(t, proposal, messages.ExtractProposal(receivedProposalEvent.proposalMessage))
+			assert.Equal(t, proposal, messages.ExtractProposal(receivedProposalEvent.proposalMessage).Block)
 		})
 	}
 }
@@ -2765,7 +2828,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 			From: proposalProposer,
 			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
-				Proposal:     nil,
+				Proposal:     &proto.ProposedBlock{},
 				ProposalHash: nil,
 				Certificate: &proto.RoundChangeCertificate{
 					RoundChangeMessages: []*proto.Message{
@@ -2821,7 +2884,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 			From: proposalProposer,
 			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
-				Proposal:     nil,
+				Proposal:     &proto.ProposedBlock{},
 				ProposalHash: nil,
 				Certificate: &proto.RoundChangeCertificate{
 					RoundChangeMessages: []*proto.Message{
@@ -2881,7 +2944,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 			From: proposalProposer,
 			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
-				Proposal:     nil,
+				Proposal:     &proto.ProposedBlock{},
 				ProposalHash: nil,
 				Certificate: &proto.RoundChangeCertificate{
 					RoundChangeMessages: []*proto.Message{
@@ -2942,7 +3005,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 			From: proposalProposer,
 			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
-				Proposal:     nil,
+				Proposal:     &proto.ProposedBlock{},
 				ProposalHash: nil,
 				Certificate: &proto.RoundChangeCertificate{
 					RoundChangeMessages: []*proto.Message{
@@ -3002,7 +3065,7 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 			From: proposalProposer,
 			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{PreprepareData: &proto.PrePrepareMessage{
-				Proposal:     nil,
+				Proposal:     &proto.ProposedBlock{},
 				ProposalHash: nil,
 				Certificate: &proto.RoundChangeCertificate{
 					RoundChangeMessages: []*proto.Message{
@@ -3167,7 +3230,10 @@ func TestIBFT_RunSequence_NewProposal(t *testing.T) {
 		proposalMessage: &proto.Message{
 			Payload: &proto.Message_PreprepareData{
 				PreprepareData: &proto.PrePrepareMessage{
-					Proposal: proposal,
+					Proposal: &proto.ProposedBlock{
+						Block: proposal,
+						Round: 0,
+					},
 				},
 			},
 		},

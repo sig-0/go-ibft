@@ -22,7 +22,7 @@ type (
 )
 
 type buildPrePrepareMessageDelegate func(
-	[]byte,
+	*proto.ProposedBlock,
 	*proto.RoundChangeCertificate,
 	*proto.View,
 ) *proto.Message
@@ -31,7 +31,7 @@ type (
 	buildPrepareMessageDelegate     func([]byte, *proto.View) *proto.Message
 	buildCommitMessageDelegate      func([]byte, *proto.View) *proto.Message
 	buildRoundChangeMessageDelegate func(
-		[]byte,
+		*proto.ProposedBlock,
 		*proto.PreparedCertificate,
 		*proto.View,
 	) *proto.Message
@@ -141,11 +141,7 @@ func (m mockBackend) MaximumFaultyNodes() uint64 {
 	return 0
 }
 
-func (m mockBackend) BuildPrePrepareMessage(
-	proposal []byte,
-	certificate *proto.RoundChangeCertificate,
-	view *proto.View,
-) *proto.Message {
+func (m mockBackend) BuildPrePrepareMessage(proposal *proto.ProposedBlock, certificate *proto.RoundChangeCertificate, view *proto.View) *proto.Message {
 	if m.buildPrePrepareMessageFn != nil {
 		return m.buildPrePrepareMessageFn(proposal, certificate, view)
 	}
@@ -169,11 +165,7 @@ func (m mockBackend) BuildCommitMessage(proposalHash []byte, view *proto.View) *
 	return nil
 }
 
-func (m mockBackend) BuildRoundChangeMessage(
-	proposal []byte,
-	certificate *proto.PreparedCertificate,
-	view *proto.View,
-) *proto.Message {
+func (m mockBackend) BuildRoundChangeMessage(proposal *proto.ProposedBlock, certificate *proto.PreparedCertificate, view *proto.View) *proto.Message {
 	if m.buildRoundChangeMessageFn != nil {
 		return m.buildRoundChangeMessageFn(proposal, certificate, view)
 	}

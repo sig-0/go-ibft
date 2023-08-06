@@ -440,16 +440,19 @@ func (i *IBFT) handleRoundChangeMessage(view *proto.View, quorum uint64) *proto.
 	)
 
 	isValidFn := func(msg *proto.Message) bool {
-		proposal := messages.ExtractLastPreparedProposedBlock(msg)
-		certificate := messages.ExtractLatestPC(msg)
-
 		// Check if the prepared certificate is valid
+		certificate := messages.ExtractLatestPC(msg)
 		if !i.validPC(certificate, round, height) {
 			return false
 		}
 
+		proposal := messages.ExtractLastPreparedProposedBlock(msg)
+		if proposal == nil {
+			return true
+		}
+
 		// Make sure the certificate matches the proposal
-		return i.proposalMatchesCertificate(proposal, certificate)
+		return i.proposalMatchesCertificate(proposal.Block, certificate)
 	}
 
 	msgs := i.messages.GetValidMessages(
@@ -607,12 +610,12 @@ func (i *IBFT) validateProposalCommon(msg *proto.Message, view *proto.View) bool
 	}
 
 	//	hash matches keccak(proposal)
-	if !i.backend.IsValidProposalHash(proposal, proposalHash) {
+	if !i.backend.IsValidProposalHash(proposal.Block, proposalHash) {
 		return false
 	}
 
 	//	is valid block
-	return i.backend.IsValidBlock(proposal)
+	return i.backend.IsValidBlock(proposal.Block)
 }
 
 // validateProposal0 validates the proposal for round 0
@@ -623,7 +626,7 @@ func (i *IBFT) validateProposal0(msg *proto.Message, view *proto.View) bool {
 	)
 
 	//	proposal must be for round 0
-	if msg.View.Round != 0 {
+	if messages.ExtractProposal(msg).Round != 0 {
 		return false
 	}
 
@@ -821,7 +824,7 @@ func (i *IBFT) handlePrepare(view *proto.View, quorum uint64) bool {
 	isValidPrepare := func(message *proto.Message) bool {
 		// Verify that the proposal hash is valid
 		return i.backend.IsValidProposalHash(
-			i.state.getProposal(),
+			i.state.getProposal().Block,
 			messages.ExtractPrepareHash(message),
 		)
 	}
@@ -904,7 +907,7 @@ func (i *IBFT) handleCommit(view *proto.View, quorum uint64) bool {
 			committedSeal = messages.ExtractCommittedSeal(message)
 		)
 		//	Verify that the proposal hash is valid
-		if !i.backend.IsValidProposalHash(i.state.getProposal(), proposalHash) {
+		if !i.backend.IsValidProposalHash(i.state.getProposal().Block, proposalHash) {
 			return false
 		}
 
@@ -937,7 +940,7 @@ func (i *IBFT) runFin() {
 	// Insert the block to the node's underlying
 	// blockchain layer
 	i.backend.InsertBlock(
-		i.state.getProposal(),
+		i.state.getProposal().Block,
 		i.state.getCommittedSeals(),
 	)
 
@@ -967,7 +970,10 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.Messa
 		proposal := i.backend.BuildProposal(height)
 
 		return i.backend.BuildPrePrepareMessage(
-			proposal,
+			&proto.ProposedBlock{
+				Block: proposal,
+				Round: 0,
+			},
 			nil,
 			&proto.View{
 				Height: height,
@@ -992,14 +998,14 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.Messa
 
 	// find a previous block within the round change messages
 	for _, msg := range rcc.RoundChangeMessages {
-		block := messages.ExtractLastPreparedProposedBlock(msg)
+		pb := messages.ExtractLastPreparedProposedBlock(msg)
 		pc := messages.ExtractLatestPC(msg)
 
-		if block == nil || pc == nil {
+		if pb == nil || pc == nil {
 			continue
 		}
 
-		roundsAndPreparedBlocks[pc.ProposalMessage.View.Round] = block
+		roundsAndPreparedBlocks[pc.ProposalMessage.View.Round] = pb.Block
 	}
 
 	// select block from the highest round
@@ -1015,7 +1021,10 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.Messa
 		proposal := i.backend.BuildProposal(height)
 
 		return i.backend.BuildPrePrepareMessage(
-			proposal,
+			&proto.ProposedBlock{
+				Block: proposal,
+				Round: round,
+			},
 			rcc,
 			&proto.View{
 				Height: height,
@@ -1025,7 +1034,10 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.Messa
 	}
 
 	return i.backend.BuildPrePrepareMessage(
-		maxRoundProposedBlock,
+		&proto.ProposedBlock{
+			Block: maxRoundProposedBlock,
+			Round: round,
+		},
 		rcc,
 		&proto.View{
 			Height: height,

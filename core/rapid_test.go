@@ -108,7 +108,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 
 			// Make sure the preprepare message is built correctly
 			backend.buildPrePrepareMessageFn = func(
-				proposal []byte,
+				proposal *proto.ProposedBlock,
 				certificate *proto.RoundChangeCertificate,
 				view *proto.View,
 			) *proto.Message {
@@ -132,7 +132,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 
 			// Make sure the round change message is built correctly
 			backend.buildRoundChangeMessageFn = func(
-				proposal []byte,
+				proposal *proto.ProposedBlock,
 				certificate *proto.PreparedCertificate,
 				view *proto.View,
 			) *proto.Message {
@@ -300,7 +300,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 
 			// Make sure the preprepare message is built correctly
 			backend.buildPrePrepareMessageFn = func(
-				proposal []byte,
+				proposal *proto.ProposedBlock,
 				certificate *proto.RoundChangeCertificate,
 				view *proto.View,
 			) *proto.Message {
@@ -325,7 +325,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 
 			// Make sure the round change message is built correctly
 			backend.buildRoundChangeMessageFn = func(
-				proposal []byte,
+				proposal *proto.ProposedBlock,
 				certificate *proto.PreparedCertificate,
 				view *proto.View,
 			) *proto.Message {

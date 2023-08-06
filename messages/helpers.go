@@ -50,7 +50,7 @@ func ExtractCommitHash(commitMessage *proto.Message) []byte {
 }
 
 // ExtractProposal extracts the proposal from the passed in message
-func ExtractProposal(proposalMessage *proto.Message) []byte {
+func ExtractProposal(proposalMessage *proto.Message) *proto.ProposedBlock {
 	if proposalMessage.Type != proto.MessageType_PREPREPARE {
 		return nil
 	}
@@ -110,7 +110,7 @@ func ExtractLatestPC(roundChangeMessage *proto.Message) *proto.PreparedCertifica
 }
 
 // ExtractLastPreparedProposedBlock extracts the latest prepared proposed block from the passed in message
-func ExtractLastPreparedProposedBlock(roundChangeMessage *proto.Message) []byte {
+func ExtractLastPreparedProposedBlock(roundChangeMessage *proto.Message) *proto.ProposedBlock {
 	if roundChangeMessage.Type != proto.MessageType_ROUND_CHANGE {
 		return nil
 	}
