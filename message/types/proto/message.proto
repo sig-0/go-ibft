@@ -2,4 +2,63 @@ syntax = "proto3";
 
 option go_package = "message/types";
 
+// View represents a time interval in which validators attempt to reach consensus for a particular sequence.
+// Initially for a given sequence, round starts at 0. Whenever consensus is not reached in a round, validators move on to the next.
+message View {
+  uint64 sequence = 1;
+  uint64 round = 2;
+}
+
+// ProposedBlock is a block constructed by the proposer in a specific round
+message ProposedBlock {
+  bytes data = 1;
+  uint64 round = 2;
+}
+
+// PreparedCertificate is the last PROPOSAL message to reach Quorum-1 PREPARE messages
+message PreparedCertificate {
+  MsgProposal proposal_message = 1;
+  repeated MsgPrepare prepare_messages = 2;
+}
+
+// RoundChangeCertificate is a collection of ROUND-CHANGE messages multicasted by validators in a specific view
+message RoundChangeCertificate {
+  repeated MsgRoundChange messages = 1;
+}
+
+// MsgProposal is a proposed block multicasted by the proposer in a specific view.
+// If round_change_certificate is not empty, the block was extracted from previous rounds
+message MsgProposal {
+  View view = 1;
+  bytes from = 2;
+  bytes signature = 3;
+  ProposedBlock proposed_block = 4;
+  RoundChangeCertificate round_change_certificate = 5;
+}
+
+// MsgPrepare is the keccak hash corresponding to a proposed block in a specific view
+message MsgPrepare {
+  View view = 1;
+  bytes from = 2;
+  bytes signature = 3;
+  bytes proposal_hash = 4;
+}
+
+// MsgCommit is a validator's seal(signature) over a proposed block in a specific view
+message MsgCommit {
+  View view = 1;
+  bytes from = 2;
+  bytes signature = 3;
+  bytes proposal_hash = 4;
+  bytes commit_seal = 5;
+}
+
+// MsgRoundChange is a message multicasted when the round timer expire.
+message MsgRoundChange {
+  View view = 1;
+  bytes from = 2;
+  bytes signature = 3;
+  ProposedBlock latest_prepared_proposed_block = 4;
+  PreparedCertificate latest_prepared_certificate = 5;
+}
 
