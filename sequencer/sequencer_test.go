@@ -3,194 +3,162 @@ package sequencer
 import (
 	"bytes"
 	"context"
-	"github.com/madz-lab/go-ibft/message/types"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/madz-lab/go-ibft/message/types"
 )
 
 func TestHappyFlow(t *testing.T) {
 	t.Parallel()
 
-	t.Run("validator is not the proposer", func(t *testing.T) {
+	type testTable struct {
+		name                   string
+		expectedFinalizedBlock []byte
+		expectedFinalizedRound uint64
+		expectedCommitSeals    [][]byte
+
+		validator Validator
+		transport Transport
+		quorum    Quorum
+		feed      MessageFeed
+	}
+
+	t.Run("happy flow (round 0)", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			id            = []byte("validator id")
-			proposer      = []byte("proposer")
-			someValidator = []byte("some validator")
-			proposalHash  = []byte("proposal hash")
-			sequence      = uint64(101)
-		)
+		testTable := []testTable{
+			{
+				name:                   "validator is not the proposer",
+				expectedFinalizedBlock: []byte("block"),
+				expectedCommitSeals:    [][]byte{[]byte("commit seal")},
+				expectedFinalizedRound: 0,
 
-		var (
-			validator Validator
-			transport Transport
-			quorum    Quorum
-			feed      MessageFeed
-		)
-
-		validator = mockValidator{
-			recoverFromFn:  func(_ []byte, _ []byte) []byte { return someValidator },
-			hashFn:         func(_ []byte) []byte { return proposalHash },
-			isValidBlockFn: func(_ []byte) bool { return true },
-			idFn:           func() []byte { return id },
-			isProposerFn:   func(_ *types.View, from []byte) bool { return !bytes.Equal(from, id) },
-			signFn:         func(_ []byte) []byte { return nil },
-		}
-
-		feed = mockMessageeFeed{
-			subProposalFn: func() []*types.MsgProposal {
-				return []*types.MsgProposal{
-					{
-						View: &types.View{
-							Sequence: sequence,
-							Round:    0,
-						},
-						From: proposer,
-						ProposedBlock: &types.ProposedBlock{
-							Data:  []byte("block data"),
-							Round: 0,
-						},
-						ProposalHash: proposalHash,
+				validator: mockValidator{
+					recoverFromFn:  func(_ []byte, _ []byte) []byte { return []byte("some validator") },
+					hashFn:         func(_ []byte) []byte { return []byte("proposal hash") },
+					isValidBlockFn: func(_ []byte) bool { return true },
+					idFn:           func() []byte { return []byte("validator id") },
+					signFn:         func(_ []byte) []byte { return nil },
+					isProposerFn: func(_ *types.View, from []byte) bool {
+						return bytes.Equal(from, []byte("proposer"))
 					},
-				}
-			},
-			subPrepareFn: func() []*types.MsgPrepare {
-				return []*types.MsgPrepare{
-					{
-						View: &types.View{
-							Sequence: sequence,
-							Round:    0,
-						},
-						From:         someValidator,
-						ProposalHash: proposalHash,
+				},
+
+				feed: mockMessageeFeed{
+					subProposalFn: func() []*types.MsgProposal {
+						return []*types.MsgProposal{
+							{
+								View:         &types.View{Sequence: 101, Round: 0},
+								From:         []byte("proposer"),
+								ProposalHash: []byte("proposal hash"),
+								ProposedBlock: &types.ProposedBlock{
+									Data:  []byte("block"),
+									Round: 0,
+								},
+							},
+						}
 					},
-				}
-			},
-			subCommitFn: func() []*types.MsgCommit {
-				return []*types.MsgCommit{
-					{
-						View: &types.View{
-							Sequence: sequence,
-							Round:    0,
-						},
-						From:         someValidator,
-						ProposalHash: proposalHash,
-						CommitSeal:   []byte("commit seal"),
+					subPrepareFn: func() []*types.MsgPrepare {
+						return []*types.MsgPrepare{
+							{
+								View:         &types.View{Sequence: 101, Round: 0},
+								From:         []byte("some validator"),
+								ProposalHash: []byte("proposal hash"),
+							},
+						}
 					},
-				}
-			},
-		}
-
-		transport = DummyTransport
-
-		quorum = mockQuorum{
-			quorumPrepare: func(_ ...*types.MsgPrepare) bool {
-				return true
-			},
-			quorumCommit: func(_ ...*types.MsgCommit) bool {
-				return true
-			},
-		}
-
-		s := New(validator, 1*time.Second)
-		s.WithTransport(transport)
-		s.WithQuorum(quorum)
-
-		fb := s.FinalizeSequence(context.Background(), sequence, feed)
-		assert.NotNil(t, fb)
-		assert.Equal(t, uint64(0), fb.Round)
-		assert.Equal(t, []byte("block data"), fb.Block)
-		assert.Equal(t, [][]byte{[]byte("commit seal")}, fb.CommitSeals)
-	})
-
-	t.Run("validator is the proposer", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			id            = []byte("validator id")
-			someValidator = []byte("some validator")
-			proposalHash  = []byte("proposal hash")
-			sequence      = uint64(101)
-		)
-
-		var (
-			validator Validator
-			transport Transport
-			quorum    Quorum
-			feed      MessageFeed
-		)
-
-		validator = mockValidator{
-			recoverFromFn: func(_ []byte, _ []byte) []byte {
-				return someValidator
-			},
-			hashFn: func(_ []byte) []byte {
-				return proposalHash
-			},
-			isValidBlockFn: nil,
-			idFn: func() []byte {
-				return id
-			},
-			isProposerFn: func(_ *types.View, _ []byte) bool {
-				return true
-			},
-			signFn: func(_ []byte) []byte {
-				return nil
-			},
-			buildBlockFn: func() []byte {
-				return []byte("block")
-			},
-		}
-
-		feed = mockMessageeFeed{
-			subPrepareFn: func() []*types.MsgPrepare {
-				return []*types.MsgPrepare{
-					{
-						View: &types.View{
-							Sequence: sequence,
-							Round:    0,
-						},
-						From:         someValidator,
-						ProposalHash: proposalHash,
+					subCommitFn: func() []*types.MsgCommit {
+						return []*types.MsgCommit{
+							{
+								View:         &types.View{Sequence: 101, Round: 0},
+								From:         []byte("some validator"),
+								ProposalHash: []byte("proposal hash"),
+								CommitSeal:   []byte("commit seal"),
+							},
+						}
 					},
-				}
-			},
-			subCommitFn: func() []*types.MsgCommit {
-				return []*types.MsgCommit{
-					{
-						View: &types.View{
-							Sequence: sequence,
-							Round:    0,
-						},
-						From:         someValidator,
-						ProposalHash: proposalHash,
-						CommitSeal:   []byte("commit seal"),
+				},
+
+				quorum: mockQuorum{
+					quorumPrepare: func(_ ...*types.MsgPrepare) bool {
+						return true
 					},
-				}
+					quorumCommit: func(_ ...*types.MsgCommit) bool {
+						return true
+					},
+				},
+
+				transport: DummyTransport,
+			},
+
+			{
+				name:                   "validator is the proposer",
+				expectedFinalizedBlock: []byte("block"),
+				expectedCommitSeals:    [][]byte{[]byte("commit seal")},
+				expectedFinalizedRound: 0,
+
+				validator: mockValidator{
+					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
+					hashFn:        func(_ []byte) []byte { return []byte("proposal hash") },
+					idFn:          func() []byte { return []byte("validator id") },
+					isProposerFn:  func(_ *types.View, _ []byte) bool { return true },
+					signFn:        func(_ []byte) []byte { return nil },
+					buildBlockFn:  func() []byte { return []byte("block") },
+				},
+
+				feed: mockMessageeFeed{
+					subPrepareFn: func() []*types.MsgPrepare {
+						return []*types.MsgPrepare{
+							{
+								View:         &types.View{Sequence: 101, Round: 0},
+								From:         []byte("some validator"),
+								ProposalHash: []byte("proposal hash"),
+							},
+						}
+					},
+					subCommitFn: func() []*types.MsgCommit {
+						return []*types.MsgCommit{
+							{
+								View:         &types.View{Sequence: 101, Round: 0},
+								From:         []byte("some validator"),
+								ProposalHash: []byte("proposal hash"),
+								CommitSeal:   []byte("commit seal"),
+							},
+						}
+					},
+				},
+
+				quorum: mockQuorum{
+					quorumPrepare: func(_ ...*types.MsgPrepare) bool {
+						return true
+					},
+					quorumCommit: func(_ ...*types.MsgCommit) bool {
+						return true
+					},
+				},
+
+				transport: DummyTransport,
 			},
 		}
 
-		transport = DummyTransport
+		for _, tt := range testTable {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 
-		quorum = mockQuorum{
-			quorumPrepare: func(_ ...*types.MsgPrepare) bool {
-				return true
-			},
-			quorumCommit: func(_ ...*types.MsgCommit) bool {
-				return true
-			},
+				s := New(tt.validator, 1*time.Second)
+				s.WithTransport(tt.transport)
+				s.WithQuorum(tt.quorum)
+
+				fb := s.FinalizeSequence(context.Background(), 101, tt.feed)
+				assert.NotNil(t, fb)
+				assert.Equal(t, tt.expectedFinalizedRound, fb.Round)
+				assert.Equal(t, tt.expectedFinalizedBlock, fb.Block)
+				assert.Equal(t, tt.expectedCommitSeals, fb.CommitSeals)
+
+			})
 		}
-
-		s := New(validator, 1*time.Second)
-		s.WithTransport(transport)
-		s.WithQuorum(quorum)
-
-		fb := s.FinalizeSequence(context.Background(), sequence, feed)
-		assert.NotNil(t, fb)
-		assert.Equal(t, uint64(0), fb.Round)
-		assert.Equal(t, []byte("block"), fb.Block)
-		assert.Equal(t, [][]byte{[]byte("commit seal")}, fb.CommitSeals)
 	})
 }
