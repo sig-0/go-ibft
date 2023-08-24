@@ -33,7 +33,8 @@ message MsgProposal {
   bytes from = 2;
   bytes signature = 3;
   ProposedBlock proposed_block = 4;
-  RoundChangeCertificate round_change_certificate = 5;
+  bytes proposal_hash = 5;
+  RoundChangeCertificate round_change_certificate = 6;
 }
 
 // MsgPrepare is the keccak hash corresponding to a proposed block in a specific view
