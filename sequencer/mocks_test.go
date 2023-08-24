@@ -9,6 +9,7 @@ type mockValidator struct {
 	idFn           func() []byte
 	isProposerFn   func(*types.View, []byte) bool
 	signFn         func([]byte) []byte
+	buildBlockFn   func() []byte
 }
 
 func (v mockValidator) RecoverFrom(data []byte, sig []byte) []byte {
@@ -33,6 +34,10 @@ func (v mockValidator) IsProposer(view *types.View, id []byte) bool {
 
 func (v mockValidator) Sign(bytes []byte) []byte {
 	return v.signFn(bytes)
+}
+
+func (v mockValidator) BuildBlock() []byte {
+	return v.buildBlockFn()
 }
 
 type mockMessageeFeed struct {

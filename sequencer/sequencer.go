@@ -65,6 +65,7 @@ type Validator interface {
 	ID() []byte
 	IsProposer(view *types.View, id []byte) bool
 	Sign([]byte) []byte
+	BuildBlock() []byte
 }
 
 type FinalizedBlock struct {
@@ -225,6 +226,9 @@ func (s *Sequencer) runRound(ctx context.Context, view *types.View, feed Message
 
 		// if proposer
 		if s.validator.IsProposer(view, s.validator.ID()) {
+			if err := s.propose(ctx, view); err != nil {
+				return
+			}
 		}
 
 		// new round
@@ -248,7 +252,44 @@ func (s *Sequencer) runRound(ctx context.Context, view *types.View, feed Message
 	return c
 }
 
+func (s *Sequencer) propose(ctx context.Context, view *types.View) error {
+	if view.Round == 0 {
+		//	build fresh block
+		block := s.validator.BuildBlock()
+		pb := &types.ProposedBlock{
+			Data:  block,
+			Round: 0,
+		}
+
+		msg := &types.MsgProposal{
+			View:          view,
+			From:          s.validator.ID(),
+			ProposedBlock: pb,
+			ProposalHash:  s.validator.Hash(pb.Bytes()),
+		}
+
+		sig := s.validator.Sign(msg.Payload())
+
+		msg.Signature = sig
+
+		s.state.acceptedProposal = msg
+
+		s.transport.MulticastProposal(msg)
+
+		return nil
+	}
+
+	// todo: higher rounds
+
+	return nil
+}
+
 func (s *Sequencer) waitForProposal(ctx context.Context, view *types.View, feed MessageFeed) error {
+	if s.state.acceptedProposal != nil {
+		// this node is the proposer
+		return nil
+	}
+
 	sub, cancelSub := feed.SubscribeToProposalMessages(view, false)
 	defer cancelSub()
 

@@ -6,6 +6,7 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestHappyFlow(t *testing.T) {
@@ -93,7 +94,7 @@ func TestHappyFlow(t *testing.T) {
 			},
 		}
 
-		s := New(validator, 1)
+		s := New(validator, 1*time.Second)
 		s.WithTransport(transport)
 		s.WithQuorum(quorum)
 
@@ -101,6 +102,95 @@ func TestHappyFlow(t *testing.T) {
 		assert.NotNil(t, fb)
 		assert.Equal(t, uint64(0), fb.Round)
 		assert.Equal(t, []byte("block data"), fb.Block)
+		assert.Equal(t, [][]byte{[]byte("commit seal")}, fb.CommitSeals)
+	})
+
+	t.Run("validator is the proposer", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			id            = []byte("validator id")
+			someValidator = []byte("some validator")
+			proposalHash  = []byte("proposal hash")
+			sequence      = uint64(101)
+		)
+
+		var (
+			validator Validator
+			transport Transport
+			quorum    Quorum
+			feed      MessageFeed
+		)
+
+		validator = mockValidator{
+			recoverFromFn: func(_ []byte, _ []byte) []byte {
+				return someValidator
+			},
+			hashFn: func(_ []byte) []byte {
+				return proposalHash
+			},
+			isValidBlockFn: nil,
+			idFn: func() []byte {
+				return id
+			},
+			isProposerFn: func(_ *types.View, _ []byte) bool {
+				return true
+			},
+			signFn: func(_ []byte) []byte {
+				return nil
+			},
+			buildBlockFn: func() []byte {
+				return []byte("block")
+			},
+		}
+
+		feed = mockMessageeFeed{
+			subPrepareFn: func() []*types.MsgPrepare {
+				return []*types.MsgPrepare{
+					{
+						View: &types.View{
+							Sequence: sequence,
+							Round:    0,
+						},
+						From:         someValidator,
+						ProposalHash: proposalHash,
+					},
+				}
+			},
+			subCommitFn: func() []*types.MsgCommit {
+				return []*types.MsgCommit{
+					{
+						View: &types.View{
+							Sequence: sequence,
+							Round:    0,
+						},
+						From:         someValidator,
+						ProposalHash: proposalHash,
+						CommitSeal:   []byte("commit seal"),
+					},
+				}
+			},
+		}
+
+		transport = DummyTransport
+
+		quorum = mockQuorum{
+			quorumPrepare: func(_ ...*types.MsgPrepare) bool {
+				return true
+			},
+			quorumCommit: func(_ ...*types.MsgCommit) bool {
+				return true
+			},
+		}
+
+		s := New(validator, 1*time.Second)
+		s.WithTransport(transport)
+		s.WithQuorum(quorum)
+
+		fb := s.FinalizeSequence(context.Background(), sequence, feed)
+		assert.NotNil(t, fb)
+		assert.Equal(t, uint64(0), fb.Round)
+		assert.Equal(t, []byte("block"), fb.Block)
 		assert.Equal(t, [][]byte{[]byte("commit seal")}, fb.CommitSeals)
 	})
 }
