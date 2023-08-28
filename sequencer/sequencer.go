@@ -16,54 +16,15 @@ type MessageFeed interface {
 	SubscribeToRoundChangeMessages(view *types.View, higherRounds bool) (<-chan func() []*types.MsgRoundChange, func())
 }
 
-type Keccak interface {
-	Hash([]byte) []byte
-}
-
 type Verifier interface {
+	Keccak([]byte) []byte
 	IsValidBlock([]byte) bool
-}
-
-type EthRecover interface {
+	IsProposer(view *types.View, id []byte) bool
 	RecoverFrom(data []byte, sig []byte) []byte
 }
 
-type Transport interface {
-	MulticastProposal(*types.MsgProposal)
-	MulticastPrepare(*types.MsgPrepare)
-	MulticastCommit(*types.MsgCommit)
-	MulticastRoundChange(*types.MsgRoundChange)
-}
-
-var DummyTransport = dummyTransport{}
-
-type dummyTransport struct {
-}
-
-func (t dummyTransport) MulticastProposal(_ *types.MsgProposal) {
-}
-
-func (t dummyTransport) MulticastPrepare(_ *types.MsgPrepare) {
-}
-
-func (t dummyTransport) MulticastCommit(_ *types.MsgCommit) {
-}
-
-func (t dummyTransport) MulticastRoundChange(_ *types.MsgRoundChange) {
-}
-
-type Quorum interface {
-	HasQuorumPrepareMessages(...*types.MsgPrepare) bool
-	HasQuorumCommitMessages(...*types.MsgCommit) bool
-}
-
 type Validator interface {
-	EthRecover
-	Keccak
-	Verifier
-
 	ID() []byte
-	IsProposer(view *types.View, id []byte) bool
 	Sign([]byte) []byte
 	BuildBlock() []byte
 }
@@ -77,6 +38,8 @@ type FinalizedBlock struct {
 type Sequencer struct {
 	validator Validator
 
+	verifier Verifier
+
 	transport Transport
 
 	quorum Quorum
@@ -85,11 +48,19 @@ type Sequencer struct {
 
 	round0Duration time.Duration
 	wg             sync.WaitGroup
+
+	id []byte
 }
 
-func New(validator Validator, round0Duration time.Duration) *Sequencer {
+func New(
+	validator Validator,
+	verifier Verifier,
+	round0Duration time.Duration,
+) *Sequencer {
 	return &Sequencer{
+		id:             validator.ID(),
 		validator:      validator,
+		verifier:       verifier,
 		round0Duration: round0Duration,
 	}
 }
@@ -225,7 +196,7 @@ func (s *Sequencer) runRound(ctx context.Context, view *types.View, feed Message
 		}()
 
 		// if proposer
-		if s.validator.IsProposer(view, s.validator.ID()) {
+		if s.verifier.IsProposer(view, s.id) {
 			if err := s.propose(ctx, view); err != nil {
 				return
 			}
@@ -263,9 +234,9 @@ func (s *Sequencer) propose(ctx context.Context, view *types.View) error {
 
 		msg := &types.MsgProposal{
 			View:          view,
-			From:          s.validator.ID(),
+			From:          s.id,
 			ProposedBlock: pb,
-			ProposalHash:  s.validator.Hash(pb.Bytes()),
+			ProposalHash:  s.verifier.Keccak(pb.Bytes()),
 		}
 
 		sig := s.validator.Sign(msg.Payload())
@@ -335,19 +306,19 @@ func (s *Sequencer) isValidProposal(view *types.View, msg *types.MsgProposal) bo
 		return false
 	}
 
-	if s.validator.IsProposer(view, s.validator.ID()) {
+	if s.verifier.IsProposer(view, s.id) {
 		return false
 	}
 
-	if !s.validator.IsProposer(view, msg.From) {
+	if !s.verifier.IsProposer(view, msg.From) {
 		return false
 	}
 
-	if !s.validator.IsValidBlock(msg.ProposedBlock.Data) {
+	if !s.verifier.IsValidBlock(msg.ProposedBlock.Data) {
 		return false
 	}
 
-	if !bytes.Equal(msg.ProposalHash, s.validator.Hash(msg.ProposedBlock.Bytes())) {
+	if !bytes.Equal(msg.ProposalHash, s.verifier.Keccak(msg.ProposedBlock.Bytes())) {
 		return false
 	}
 
@@ -432,7 +403,7 @@ func (s *Sequencer) multicastCommit(view *types.View) {
 	}
 
 	pb := s.state.acceptedProposal.GetProposedBlock()
-	cs := s.validator.Sign(s.validator.Hash(pb.Bytes()))
+	cs := s.validator.Sign(s.verifier.Keccak(pb.Bytes()))
 
 	msg.CommitSeal = cs
 
@@ -492,7 +463,7 @@ func (s *Sequencer) isValidCommit(view *types.View, msg *types.MsgCommit) bool {
 		return false
 	}
 
-	if !bytes.Equal(msg.GetFrom(), s.validator.RecoverFrom(s.state.acceptedProposal.GetProposalHash(), msg.GetCommitSeal())) {
+	if !bytes.Equal(msg.GetFrom(), s.verifier.RecoverFrom(s.state.acceptedProposal.GetProposalHash(), msg.GetCommitSeal())) {
 		return false
 	}
 

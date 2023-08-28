@@ -21,6 +21,7 @@ func TestHappyFlow(t *testing.T) {
 		expectedCommitSeals    [][]byte
 
 		validator Validator
+		verifier  Verifier
 		transport Transport
 		quorum    Quorum
 		feed      MessageFeed
@@ -37,14 +38,17 @@ func TestHappyFlow(t *testing.T) {
 				expectedFinalizedRound: 0,
 
 				validator: mockValidator{
-					recoverFromFn:  func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-					hashFn:         func(_ []byte) []byte { return []byte("proposal hash") },
+					idFn:   func() []byte { return []byte("validator id") },
+					signFn: func(_ []byte) []byte { return nil },
+				},
+
+				verifier: mockVerifier{
+					keccakFn:       func(_ []byte) []byte { return []byte("proposal hash") },
 					isValidBlockFn: func(_ []byte) bool { return true },
-					idFn:           func() []byte { return []byte("validator id") },
-					signFn:         func(_ []byte) []byte { return nil },
 					isProposerFn: func(_ *types.View, from []byte) bool {
 						return bytes.Equal(from, []byte("proposer"))
 					},
+					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
 				},
 
 				feed: mockMessageeFeed{
@@ -101,12 +105,15 @@ func TestHappyFlow(t *testing.T) {
 				expectedFinalizedRound: 0,
 
 				validator: mockValidator{
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-					hashFn:        func(_ []byte) []byte { return []byte("proposal hash") },
-					idFn:          func() []byte { return []byte("validator id") },
+					idFn:         func() []byte { return []byte("validator id") },
+					signFn:       func(_ []byte) []byte { return nil },
+					buildBlockFn: func() []byte { return []byte("block") },
+				},
+
+				verifier: mockVerifier{
+					keccakFn:      func(_ []byte) []byte { return []byte("proposal hash") },
 					isProposerFn:  func(_ *types.View, _ []byte) bool { return true },
-					signFn:        func(_ []byte) []byte { return nil },
-					buildBlockFn:  func() []byte { return []byte("block") },
+					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
 				},
 
 				feed: mockMessageeFeed{
@@ -148,7 +155,7 @@ func TestHappyFlow(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				t.Parallel()
 
-				s := New(tt.validator, 1*time.Second)
+				s := New(tt.validator, tt.verifier, 1*time.Second)
 				s.WithTransport(tt.transport)
 				s.WithQuorum(tt.quorum)
 

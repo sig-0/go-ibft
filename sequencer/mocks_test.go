@@ -3,33 +3,13 @@ package sequencer
 import "github.com/madz-lab/go-ibft/message/types"
 
 type mockValidator struct {
-	recoverFromFn  func([]byte, []byte) []byte
-	hashFn         func([]byte) []byte
-	isValidBlockFn func([]byte) bool
-	idFn           func() []byte
-	isProposerFn   func(*types.View, []byte) bool
-	signFn         func([]byte) []byte
-	buildBlockFn   func() []byte
-}
-
-func (v mockValidator) RecoverFrom(data []byte, sig []byte) []byte {
-	return v.recoverFromFn(data, sig)
-}
-
-func (v mockValidator) Hash(bytes []byte) []byte {
-	return v.hashFn(bytes)
-}
-
-func (v mockValidator) IsValidBlock(bytes []byte) bool {
-	return v.isValidBlockFn(bytes)
+	idFn         func() []byte
+	signFn       func([]byte) []byte
+	buildBlockFn func() []byte
 }
 
 func (v mockValidator) ID() []byte {
 	return v.idFn()
-}
-
-func (v mockValidator) IsProposer(view *types.View, id []byte) bool {
-	return v.isProposerFn(view, id)
 }
 
 func (v mockValidator) Sign(bytes []byte) []byte {
@@ -38,6 +18,29 @@ func (v mockValidator) Sign(bytes []byte) []byte {
 
 func (v mockValidator) BuildBlock() []byte {
 	return v.buildBlockFn()
+}
+
+type mockVerifier struct {
+	keccakFn       func([]byte) []byte
+	isValidBlockFn func([]byte) bool
+	isProposerFn   func(*types.View, []byte) bool
+	recoverFromFn  func([]byte, []byte) []byte
+}
+
+func (v mockVerifier) Keccak(bytes []byte) []byte {
+	return v.keccakFn(bytes)
+}
+
+func (v mockVerifier) IsValidBlock(bytes []byte) bool {
+	return v.isValidBlockFn(bytes)
+}
+
+func (v mockVerifier) IsProposer(view *types.View, id []byte) bool {
+	return v.isProposerFn(view, id)
+}
+
+func (v mockVerifier) RecoverFrom(data []byte, sig []byte) []byte {
+	return v.recoverFromFn(data, sig)
 }
 
 type mockMessageeFeed struct {
