@@ -6,7 +6,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/protobuf v1.31.0
-	pgregory.net/rapid v1.0.0
+	pgregory.net/rapid v1.1.0
 )
 
 require (
