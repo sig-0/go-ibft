@@ -1,7 +1,6 @@
 package sequencer
 
 import (
-	"bytes"
 	"context"
 	"github.com/madz-lab/go-ibft/message/types"
 	"math"
@@ -195,24 +194,23 @@ func (s *Sequencer) runRound(ctx context.Context, view *types.View, feed Message
 			s.wg.Done()
 		}()
 
-		// if proposer
 		if s.verifier.IsProposer(view, s.id) {
 			if err := s.propose(ctx, view); err != nil {
 				return
 			}
 		}
 
-		// new round
+		// proposal.go
 		if err := s.waitForProposal(ctx, view, feed); err != nil {
 			return
 		}
 
-		// prepare
+		// prepare.go
 		if err := s.waitForPrepare(ctx, view, feed); err != nil {
 			return
 		}
 
-		// commit
+		// commit.go
 		if err := s.waitForCommit(ctx, view, feed); err != nil {
 			return
 		}
@@ -221,251 +219,4 @@ func (s *Sequencer) runRound(ctx context.Context, view *types.View, feed Message
 	}()
 
 	return c
-}
-
-func (s *Sequencer) propose(ctx context.Context, view *types.View) error {
-	if view.Round == 0 {
-		//	build fresh block
-		block := s.validator.BuildBlock()
-		pb := &types.ProposedBlock{
-			Data:  block,
-			Round: 0,
-		}
-
-		msg := &types.MsgProposal{
-			View:          view,
-			From:          s.id,
-			ProposedBlock: pb,
-			ProposalHash:  s.verifier.Keccak(pb.Bytes()),
-		}
-
-		sig := s.validator.Sign(msg.Payload())
-
-		msg.Signature = sig
-
-		s.state.acceptedProposal = msg
-
-		s.transport.MulticastProposal(msg)
-
-		return nil
-	}
-
-	// todo: higher rounds
-
-	return nil
-}
-
-func (s *Sequencer) waitForProposal(ctx context.Context, view *types.View, feed MessageFeed) error {
-	if s.state.acceptedProposal != nil {
-		// this node is the proposer
-		return nil
-	}
-
-	sub, cancelSub := feed.SubscribeToProposalMessages(view, false)
-	defer cancelSub()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case unwrapProposals := <-sub:
-			messages := unwrapProposals()
-
-			var validProposals []*types.MsgProposal
-			for _, msg := range messages {
-				if s.isValidProposal(view, msg) {
-					validProposals = append(validProposals, msg)
-				}
-			}
-
-			if len(validProposals) == 0 {
-				continue
-			}
-
-			if len(validProposals) > 1 {
-				//	todo proposer misbehavior
-			}
-
-			proposal := validProposals[0]
-
-			s.state.acceptedProposal = proposal
-
-			s.multicastPrepare(view)
-
-			return nil
-		}
-	}
-}
-
-func (s *Sequencer) isValidProposal(view *types.View, msg *types.MsgProposal) bool {
-	if msg.View.Sequence != view.Sequence || msg.View.Round != view.Round {
-		return false
-	}
-
-	if msg.ProposedBlock.Round != view.Round {
-		return false
-	}
-
-	if s.verifier.IsProposer(view, s.id) {
-		return false
-	}
-
-	if !s.verifier.IsProposer(view, msg.From) {
-		return false
-	}
-
-	if !s.verifier.IsValidBlock(msg.ProposedBlock.Data) {
-		return false
-	}
-
-	if !bytes.Equal(msg.ProposalHash, s.verifier.Keccak(msg.ProposedBlock.Bytes())) {
-		return false
-	}
-
-	if view.Round == 0 {
-		// all checks for round 0 proposal satisfied
-		return true
-	}
-
-	// todo higher rounds
-
-	return true
-}
-
-func (s *Sequencer) multicastPrepare(view *types.View) {
-	msg := &types.MsgPrepare{
-		View:         view,
-		From:         s.validator.ID(),
-		ProposalHash: s.state.acceptedProposal.GetProposalHash(),
-	}
-
-	msg.Signature = s.validator.Sign(msg.Payload())
-
-	s.transport.MulticastPrepare(msg)
-}
-
-func (s *Sequencer) waitForPrepare(ctx context.Context, view *types.View, feed MessageFeed) error {
-	sub, cancelSub := feed.SubscribeToPrepareMessages(view, false)
-	defer cancelSub()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case unwrapPrepares := <-sub:
-			msgs := unwrapPrepares()
-
-			var validPrepares []*types.MsgPrepare
-			for _, msg := range msgs {
-				if s.isValidPrepare(view, msg) {
-					validPrepares = append(validPrepares, msg)
-				}
-			}
-
-			if !s.quorum.HasQuorumPrepareMessages(validPrepares...) {
-				continue
-			}
-
-			pc := &types.PreparedCertificate{
-				ProposalMessage: s.state.acceptedProposal,
-				PrepareMessages: validPrepares,
-			}
-
-			pb := s.state.acceptedProposal.GetProposedBlock()
-
-			s.state.latestPreparedCertificate = pc
-			s.state.latestPreparedProposedBlock = pb
-
-			s.multicastCommit(view)
-
-			return nil
-		}
-	}
-}
-
-func (s *Sequencer) isValidPrepare(view *types.View, msg *types.MsgPrepare) bool {
-	if msg.View.Sequence != view.Sequence || msg.View.Round != view.Round {
-		return false
-	}
-
-	if !bytes.Equal(msg.ProposalHash, s.state.acceptedProposal.ProposalHash) {
-		return false
-	}
-
-	return true
-}
-
-func (s *Sequencer) multicastCommit(view *types.View) {
-	msg := &types.MsgCommit{
-		View:         view,
-		From:         s.validator.ID(),
-		ProposalHash: s.state.acceptedProposal.GetProposalHash(),
-	}
-
-	pb := s.state.acceptedProposal.GetProposedBlock()
-	cs := s.validator.Sign(s.verifier.Keccak(pb.Bytes()))
-
-	msg.CommitSeal = cs
-
-	sig := s.validator.Sign(msg.Payload())
-
-	msg.Signature = sig
-
-	s.transport.MulticastCommit(msg)
-}
-
-func (s *Sequencer) waitForCommit(ctx context.Context, view *types.View, feed MessageFeed) error {
-	sub, cancelSub := feed.SubscribeToCommitMessages(view, false)
-	defer cancelSub()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case unwrapCommits := <-sub:
-			msgs := unwrapCommits()
-
-			var validCommits []*types.MsgCommit
-			for _, msg := range msgs {
-				if s.isValidCommit(view, msg) {
-					validCommits = append(validCommits, msg)
-				}
-			}
-
-			if !s.quorum.HasQuorumCommitMessages(validCommits...) {
-				continue
-			}
-
-			var commitSeals [][]byte
-			for _, msgCommit := range validCommits {
-				commitSeals = append(commitSeals, msgCommit.CommitSeal)
-			}
-
-			fb := &FinalizedBlock{
-				Block:       s.state.acceptedProposal.GetProposedBlock().GetData(),
-				Round:       view.Round,
-				CommitSeals: commitSeals,
-			}
-
-			s.state.finalizedBlock = fb
-
-			return nil
-		}
-	}
-}
-
-func (s *Sequencer) isValidCommit(view *types.View, msg *types.MsgCommit) bool {
-	if msg.GetView().GetSequence() != view.GetSequence() || msg.GetView().GetRound() != view.GetRound() {
-		return false
-	}
-
-	if !bytes.Equal(msg.GetProposalHash(), s.state.acceptedProposal.GetProposalHash()) {
-		return false
-	}
-
-	if !bytes.Equal(msg.GetFrom(), s.verifier.RecoverFrom(s.state.acceptedProposal.GetProposalHash(), msg.GetCommitSeal())) {
-		return false
-	}
-
-	return true
 }
