@@ -152,6 +152,7 @@ func TestHappyFlow(t *testing.T) {
 		}
 
 		for _, tt := range testTable {
+			tt := tt
 			t.Run(tt.name, func(t *testing.T) {
 				t.Parallel()
 
@@ -165,6 +166,155 @@ func TestHappyFlow(t *testing.T) {
 				assert.Equal(t, tt.expectedFinalizedBlock, fb.Block)
 				assert.Equal(t, tt.expectedCommitSeals, fb.CommitSeals)
 
+			})
+		}
+	})
+}
+
+func TestMsgValidations(t *testing.T) {
+	t.Parallel()
+
+	t.Run("MsgProposal", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name     string
+			id       []byte
+			view     *types.View
+			verifier Verifier
+			proposal *types.MsgProposal
+			isValid  bool
+		}{
+			{
+				name: "view sequence mismatch",
+				view: &types.View{Sequence: 101, Round: 0},
+				proposal: &types.MsgProposal{
+					View: &types.View{Sequence: 102, Round: 0},
+				},
+			},
+
+			{
+				name: "view round mismatch",
+				view: &types.View{Sequence: 101, Round: 0},
+				proposal: &types.MsgProposal{
+					View: &types.View{Sequence: 101, Round: 5},
+				},
+			},
+
+			{
+				name: "proposed block round mismatch",
+				view: &types.View{Sequence: 101, Round: 0},
+				proposal: &types.MsgProposal{
+					View:          &types.View{Sequence: 101, Round: 0},
+					ProposedBlock: &types.ProposedBlock{Round: 5},
+				},
+			},
+
+			{
+				name: "validator is proposer",
+				id:   []byte("proposer"),
+				view: &types.View{Sequence: 101, Round: 0},
+				proposal: &types.MsgProposal{
+					View:          &types.View{Sequence: 101, Round: 0},
+					ProposedBlock: &types.ProposedBlock{Round: 0},
+				},
+				verifier: mockVerifier{isProposerFn: func(_ *types.View, from []byte) bool {
+					return bytes.Equal([]byte("proposer"), from)
+				}},
+			},
+
+			{
+				name: "invalid proposer in proposal",
+				id:   []byte("validator"),
+				view: &types.View{Sequence: 101, Round: 0},
+				proposal: &types.MsgProposal{
+					From:          []byte("invalid proposer"),
+					View:          &types.View{Sequence: 101, Round: 0},
+					ProposedBlock: &types.ProposedBlock{Round: 0},
+				},
+				verifier: mockVerifier{isProposerFn: func(_ *types.View, from []byte) bool {
+					return bytes.Equal([]byte("proposer"), from)
+				}},
+			},
+
+			{
+				name: "invalid block",
+				id:   []byte("validator"),
+				view: &types.View{Sequence: 101, Round: 0},
+				proposal: &types.MsgProposal{
+					From:          []byte("proposer"),
+					View:          &types.View{Sequence: 101, Round: 0},
+					ProposedBlock: &types.ProposedBlock{Data: []byte("invalid block"), Round: 0},
+				},
+				verifier: mockVerifier{
+					isProposerFn: func(_ *types.View, from []byte) bool {
+						return bytes.Equal([]byte("proposer"), from)
+					},
+					isValidBlockFn: func(b []byte) bool {
+						return bytes.Equal([]byte("block"), b)
+					},
+				},
+			},
+
+			{
+				name: "invalid proposal hash",
+				id:   []byte("validator"),
+				view: &types.View{Sequence: 101, Round: 0},
+				proposal: &types.MsgProposal{
+					From:          []byte("proposer"),
+					View:          &types.View{Sequence: 101, Round: 0},
+					ProposedBlock: &types.ProposedBlock{Data: []byte("block"), Round: 0},
+					ProposalHash:  []byte("invalid proposal hash"),
+				},
+				verifier: mockVerifier{
+					isProposerFn: func(_ *types.View, from []byte) bool {
+						return bytes.Equal([]byte("proposer"), from)
+					},
+					isValidBlockFn: func(b []byte) bool {
+						return bytes.Equal([]byte("block"), b)
+					},
+					keccakFn: func(_ []byte) []byte {
+						return []byte("proposal hash")
+					},
+				},
+			},
+
+			{
+				name: "valid round 0 proposal",
+				id:   []byte("validator"),
+				view: &types.View{Sequence: 101, Round: 0},
+				proposal: &types.MsgProposal{
+					From:          []byte("proposer"),
+					View:          &types.View{Sequence: 101, Round: 0},
+					ProposedBlock: &types.ProposedBlock{Data: []byte("block"), Round: 0},
+					ProposalHash:  []byte("proposal hash"),
+				},
+				verifier: mockVerifier{
+					isProposerFn: func(_ *types.View, from []byte) bool {
+						return bytes.Equal([]byte("proposer"), from)
+					},
+					isValidBlockFn: func(b []byte) bool {
+						return bytes.Equal([]byte("block"), b)
+					},
+					keccakFn: func(_ []byte) []byte {
+						return []byte("proposal hash")
+					},
+				},
+				isValid: true,
+			},
+		}
+
+		for _, tt := range testTable {
+			tt := tt
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				seq := Sequencer{
+					id:       tt.id,
+					verifier: tt.verifier,
+				}
+
+				assert.Equal(t, tt.isValid, seq.isValidProposal(tt.view, tt.proposal))
 			})
 		}
 	})
