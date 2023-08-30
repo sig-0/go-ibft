@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"bytes"
 	"context"
 	"github.com/madz-lab/go-ibft/message/types"
 	"math"
@@ -69,6 +70,7 @@ type state struct {
 	acceptedProposal            *types.MsgProposal
 	latestPreparedProposedBlock *types.ProposedBlock
 	latestPreparedCertificate   *types.PreparedCertificate
+	roundChangeCertificate      *types.RoundChangeCertificate
 	finalizedBlock              *FinalizedBlock
 }
 
@@ -195,7 +197,7 @@ func (s *Sequencer) runRound(ctx context.Context, view *types.View, feed Message
 		}()
 
 		if s.verifier.IsProposer(view, s.id) {
-			if err := s.propose(ctx, view); err != nil {
+			if err := s.propose(ctx, view, feed); err != nil {
 				return
 			}
 		}
@@ -219,4 +221,110 @@ func (s *Sequencer) runRound(ctx context.Context, view *types.View, feed Message
 	}()
 
 	return c
+}
+
+func (s *Sequencer) getRoundChangeCertificate(ctx context.Context, view *types.View, feed MessageFeed) (*types.RoundChangeCertificate, error) {
+	// a) if the rcc is in state, that means watchForFutureRCC has triggered the round hop
+	// fetch the rcc and proceed with proposal extraction
+	// b) if the rcc is empty in state, that means the round timer expired previously
+	// since we're the proposer, we must build the proposal based on the round change messages
+	// received from other validators
+	if s.state.roundChangeCertificate != nil {
+		return s.state.roundChangeCertificate, nil
+	}
+
+	msgs, err := s.getRoundChangeMessages(ctx, view, feed)
+	_, _ = msgs, err
+
+}
+
+func (s *Sequencer) getRoundChangeMessages(ctx context.Context, view *types.View, feed MessageFeed) ([]*types.MsgRoundChange, error) {
+	sub, cancelSub := feed.SubscribeToRoundChangeMessages(view, false)
+	defer cancelSub()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case unwrap := <-sub:
+			var validMessages []*types.MsgRoundChange
+
+			for _, msg := range unwrap() {
+				if s.isValidRoundChange(view, msg) {
+					validMessages = append(validMessages, msg)
+				}
+			}
+
+			if len(validMessages) == 0 {
+				continue
+			}
+
+			if !s.quorum.HasQuorumRoundChangeMessages(validMessages...) {
+				continue
+			}
+
+			return validMessages, nil
+		}
+	}
+}
+
+func (s *Sequencer) isValidRoundChange(view *types.View, msg *types.MsgRoundChange) bool {
+	pc := msg.LatestPreparedCertificate
+	if s.isValidPreparedCertificate(view, pc) {
+		return false
+	}
+
+	pb := msg.LatestPreparedProposedBlock
+	if pb == nil {
+		return true
+	}
+
+	if !s.proposedBlockMatchesPreparedCertificate(pb, pc) {
+		return false
+	}
+
+	return true
+}
+
+func (s *Sequencer) isValidPreparedCertificate(view *types.View, pc *types.PreparedCertificate) bool {
+	if !pc.IsValid() {
+		return false
+	}
+
+	if pc.ProposalMessage.View.Sequence != view.Sequence {
+		return false
+	}
+
+	if pc.ProposalMessage.View.Round >= view.Round {
+		return false
+	}
+
+	// todo: revisit (+ MsgProposal)
+	if !s.quorum.HasQuorumPrepareMessages(pc.PrepareMessages...) {
+		return false
+	}
+
+	if !bytes.Equal(pc.ProposalMessage.From, s.verifier.RecoverFrom(
+		pc.ProposalMessage.Payload(),
+		pc.ProposalMessage.Signature,
+	)) {
+		return false
+	}
+
+	for _, msg := range pc.PrepareMessages {
+		from := s.verifier.RecoverFrom(msg.Payload(), msg.Signature)
+		if !bytes.Equal(msg.From, from) {
+			return false
+		}
+
+		if s.verifier.IsProposer(msg.View, msg.From) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (s *Sequencer) proposedBlockMatchesPreparedCertificate(pb *types.ProposedBlock, pc *types.PreparedCertificate) bool {
+	return true
 }

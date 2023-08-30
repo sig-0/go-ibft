@@ -7,7 +7,7 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) propose(ctx context.Context, view *types.View) error {
+func (s *Sequencer) propose(ctx context.Context, view *types.View, feed MessageFeed) error {
 	if view.Round == 0 {
 		//	build fresh block
 		block := s.validator.BuildBlock()
@@ -35,6 +35,9 @@ func (s *Sequencer) propose(ctx context.Context, view *types.View) error {
 	}
 
 	// todo: higher rounds
+
+	rcc, err := s.getRoundChangeCertificate(ctx, view, feed)
+	_, _ = rcc, err
 
 	return nil
 }
