@@ -34,10 +34,89 @@ func (s *Sequencer) propose(ctx context.Context, view *types.View, feed MessageF
 		return nil
 	}
 
-	// todo: higher rounds
+	rcc := s.state.roundChangeCertificate
+	if rcc == nil {
+		msgs, err := s.getRoundChangeMessages(ctx, view, feed)
+		if err != nil {
+			return err
+		}
 
-	rcc, err := s.getRoundChangeCertificate(ctx, view, feed)
-	_, _ = rcc, err
+		rcc = &types.RoundChangeCertificate{Messages: msgs}
+	}
+
+	roundsAndPreparedBlocks := make(map[uint64][]byte)
+
+	for _, msg := range rcc.Messages {
+		pb := msg.LatestPreparedProposedBlock
+		pc := msg.LatestPreparedCertificate
+
+		if pb == nil || pc == nil {
+			continue
+		}
+
+		roundsAndPreparedBlocks[pc.ProposalMessage.View.Round] = pb.Data
+	}
+
+	var (
+		maxRound      uint64
+		maxRoundBlock []byte
+	)
+
+	for round, block := range roundsAndPreparedBlocks {
+		if round >= maxRound {
+			maxRound = round
+			maxRoundBlock = block
+		}
+	}
+
+	if maxRoundBlock == nil {
+		// no block found in rcc, build new
+		newBlock := s.validator.BuildBlock()
+
+		pb := &types.ProposedBlock{
+			Data:  newBlock,
+			Round: view.Round,
+		}
+
+		msg := &types.MsgProposal{
+			View:                   view,
+			From:                   s.id,
+			ProposedBlock:          pb,
+			ProposalHash:           s.verifier.Keccak(pb.Bytes()),
+			RoundChangeCertificate: rcc,
+		}
+
+		sig := s.validator.Sign(msg.Payload())
+
+		msg.Signature = sig
+
+		s.state.acceptedProposal = msg
+
+		s.transport.MulticastProposal(msg)
+
+		return nil
+
+	}
+
+	pb := &types.ProposedBlock{
+		Data:  maxRoundBlock,
+		Round: view.Round,
+	}
+
+	msg := &types.MsgProposal{
+		View:                   view,
+		From:                   s.id,
+		ProposedBlock:          pb,
+		ProposalHash:           s.verifier.Keccak(pb.Bytes()),
+		RoundChangeCertificate: rcc,
+	}
+
+	sig := s.validator.Sign(msg.Payload())
+	msg.Signature = sig
+
+	s.state.acceptedProposal = msg
+
+	s.transport.MulticastProposal(msg)
 
 	return nil
 }
@@ -70,12 +149,10 @@ func (s *Sequencer) waitForProposal(ctx context.Context, view *types.View, feed 
 			}
 
 			if len(validProposals) > 1 {
-				//	todo proposer misbehavior
+				//	todo proposer misbehaviorx
 			}
 
-			proposal := validProposals[0]
-
-			s.state.acceptedProposal = proposal
+			s.state.acceptedProposal = validProposals[0]
 
 			s.multicastPrepare(view)
 
@@ -101,6 +178,10 @@ func (s *Sequencer) isValidProposal(view *types.View, msg *types.MsgProposal) bo
 		return false
 	}
 
+	if !s.verifier.IsValidator(msg.From, view.Sequence) {
+		return false
+	}
+
 	if !s.verifier.IsValidBlock(msg.ProposedBlock.Data) {
 		return false
 	}
@@ -114,7 +195,70 @@ func (s *Sequencer) isValidProposal(view *types.View, msg *types.MsgProposal) bo
 		return true
 	}
 
-	// todo higher rounds
+	// verify rcc
+	rcc := msg.RoundChangeCertificate
+	if rcc == nil {
+		return false
+	}
+
+	if !rcc.IsValid(view) {
+		return false
+	}
+
+	if !s.quorum.HasQuorumRoundChangeMessages(rcc.Messages...) {
+		return false
+	}
+
+	// todo: extract
+	for _, msg := range rcc.Messages {
+		// todo: move to types
+		//if !bytes.Equal(msg.From, s.verifier.RecoverFrom(msg.Payload(), msg.Signature)) {
+		//	return false
+		//}
+
+		if !s.verifier.IsValidator(msg.From, view.Sequence) {
+			return false
+		}
+	}
+
+	roundsAndPreparedProposalHashes := make(map[uint64][]byte)
+	for _, msg := range rcc.Messages {
+		pc := msg.LatestPreparedCertificate
+		if pc == nil {
+			continue
+		}
+
+		if !s.isValidPreparedCertificate(view, pc) {
+			continue
+		}
+
+		roundsAndPreparedProposalHashes[pc.ProposalMessage.View.Round] = pc.ProposalMessage.ProposalHash
+	}
+
+	if len(roundsAndPreparedProposalHashes) == 0 {
+		return true
+	}
+
+	var (
+		maxRound             uint64
+		maxRoundProposalHash []byte
+	)
+
+	for round, proposalHash := range roundsAndPreparedProposalHashes {
+		if round >= maxRound {
+			maxRound = round
+			maxRoundProposalHash = proposalHash
+		}
+	}
+
+	pb := &types.ProposedBlock{
+		Data:  msg.ProposedBlock.Data,
+		Round: maxRound,
+	}
+
+	if !bytes.Equal(maxRoundProposalHash, s.verifier.Keccak(pb.Bytes())) {
+		return false
+	}
 
 	return true
 }

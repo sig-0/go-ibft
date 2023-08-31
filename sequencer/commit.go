@@ -25,6 +25,10 @@ func (s *Sequencer) waitForCommit(ctx context.Context, view *types.View, feed Me
 				}
 			}
 
+			if len(validCommits) == 0 {
+				continue
+			}
+
 			if !s.quorum.HasQuorumCommitMessages(validCommits...) {
 				continue
 			}
@@ -56,6 +60,11 @@ func (s *Sequencer) isValidCommit(view *types.View, msg *types.MsgCommit) bool {
 		return false
 	}
 
+	if !s.verifier.IsValidator(msg.From, msg.View.Sequence) {
+		return false
+	}
+
+	// commit_seal = sig(proposal_hash) -> from = recover(proposal_hash, commit_seal)
 	if !bytes.Equal(msg.GetFrom(), s.verifier.RecoverFrom(s.state.acceptedProposal.GetProposalHash(), msg.GetCommitSeal())) {
 		return false
 	}

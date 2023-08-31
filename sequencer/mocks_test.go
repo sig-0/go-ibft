@@ -25,6 +25,7 @@ type mockVerifier struct {
 	isValidBlockFn func([]byte) bool
 	isProposerFn   func(*types.View, []byte) bool
 	recoverFromFn  func([]byte, []byte) []byte
+	isValidatorFn  func([]byte, uint64) bool
 }
 
 func (v mockVerifier) Keccak(bytes []byte) []byte {
@@ -43,44 +44,61 @@ func (v mockVerifier) RecoverFrom(data []byte, sig []byte) []byte {
 	return v.recoverFromFn(data, sig)
 }
 
+func (v mockVerifier) IsValidator(id []byte, height uint64) bool {
+	return v.isValidatorFn(id, height)
+}
+
 type mockMessageeFeed struct {
-	subProposalFn    func() []*types.MsgProposal
-	subPrepareFn     func() []*types.MsgPrepare
-	subCommitFn      func() []*types.MsgCommit
-	subRoundChangeFn func() []*types.MsgRoundChange
+	proposalsByView    map[uint64]map[uint64][]*types.MsgProposal
+	preparesByView     map[uint64]map[uint64][]*types.MsgPrepare
+	commitsByView      map[uint64]map[uint64][]*types.MsgCommit
+	roundChangesByView map[uint64]map[uint64][]*types.MsgRoundChange
+	subProposalFn      func() []*types.MsgProposal
+	subPrepareFn       func() []*types.MsgPrepare
+	subCommitFn        func() []*types.MsgCommit
+	subRoundChangeFn   func() []*types.MsgRoundChange
 }
 
-func (f mockMessageeFeed) SubscribeToProposalMessages(view *types.View, higherRounds bool) (<-chan func() []*types.MsgProposal, func()) {
+func (f mockMessageeFeed) SubscribeToProposalMessages(view *types.View, _ bool) (<-chan func() []*types.MsgProposal, func()) {
 	c := make(chan func() []*types.MsgProposal, 1)
-	c <- f.subProposalFn
+	c <- func() []*types.MsgProposal {
+		return f.proposalsByView[view.Sequence][view.Round]
+	}
 
 	return c, func() {}
 }
 
-func (f mockMessageeFeed) SubscribeToPrepareMessages(view *types.View, higherRounds bool) (<-chan func() []*types.MsgPrepare, func()) {
+func (f mockMessageeFeed) SubscribeToPrepareMessages(view *types.View, _ bool) (<-chan func() []*types.MsgPrepare, func()) {
 	c := make(chan func() []*types.MsgPrepare, 1)
-	c <- f.subPrepareFn
+	c <- func() []*types.MsgPrepare {
+		return f.preparesByView[view.Sequence][view.Round]
+	}
 
 	return c, func() {}
 }
 
-func (f mockMessageeFeed) SubscribeToCommitMessages(view *types.View, higherRounds bool) (<-chan func() []*types.MsgCommit, func()) {
+func (f mockMessageeFeed) SubscribeToCommitMessages(view *types.View, _ bool) (<-chan func() []*types.MsgCommit, func()) {
 	c := make(chan func() []*types.MsgCommit, 1)
-	c <- f.subCommitFn
+	c <- func() []*types.MsgCommit {
+		return f.commitsByView[view.Sequence][view.Round]
+	}
 
 	return c, func() {}
 }
 
-func (f mockMessageeFeed) SubscribeToRoundChangeMessages(view *types.View, higherRounds bool) (<-chan func() []*types.MsgRoundChange, func()) {
+func (f mockMessageeFeed) SubscribeToRoundChangeMessages(view *types.View, _ bool) (<-chan func() []*types.MsgRoundChange, func()) {
 	c := make(chan func() []*types.MsgRoundChange, 1)
-	c <- f.subRoundChangeFn
+	c <- func() []*types.MsgRoundChange {
+		return f.roundChangesByView[view.Sequence][view.Round]
+	}
 
 	return c, func() {}
 }
 
 type mockQuorum struct {
-	quorumPrepare func(...*types.MsgPrepare) bool
-	quorumCommit  func(...*types.MsgCommit) bool
+	quorumPrepare     func(...*types.MsgPrepare) bool
+	quorumCommit      func(...*types.MsgCommit) bool
+	quorumRoundChange func(...*types.MsgRoundChange) bool
 }
 
 func (q mockQuorum) HasQuorumPrepareMessages(prepare ...*types.MsgPrepare) bool {
@@ -89,4 +107,8 @@ func (q mockQuorum) HasQuorumPrepareMessages(prepare ...*types.MsgPrepare) bool 
 
 func (q mockQuorum) HasQuorumCommitMessages(commit ...*types.MsgCommit) bool {
 	return q.quorumCommit(commit...)
+}
+
+func (q mockQuorum) HasQuorumRoundChangeMessages(roundchange ...*types.MsgRoundChange) bool {
+	return q.quorumRoundChange(roundchange...)
 }

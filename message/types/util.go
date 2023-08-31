@@ -38,14 +38,34 @@ func (x *MsgCommit) Payload() []byte {
 	return bz
 }
 
+func (x *MsgRoundChange) Payload() []byte {
+	bz, _ := proto.Marshal(&MsgRoundChange{
+		View:                        x.GetView(),
+		From:                        x.GetFrom(),
+		Signature:                   x.GetSignature(),
+		LatestPreparedProposedBlock: x.GetLatestPreparedProposedBlock(),
+		LatestPreparedCertificate:   x.GetLatestPreparedCertificate(),
+	})
+
+	return bz
+}
+
 func (x *ProposedBlock) Bytes() []byte {
 	bz, _ := proto.Marshal(x)
 
 	return bz
 }
 
-func (pc *PreparedCertificate) IsValid() bool {
+func (pc *PreparedCertificate) IsValid(view *View) bool {
 	if pc.ProposalMessage == nil || pc.PrepareMessages == nil {
+		return false
+	}
+
+	if pc.ProposalMessage.View.Sequence != view.Sequence {
+		return false
+	}
+
+	if pc.ProposalMessage.View.Round >= view.Round {
 		return false
 	}
 
@@ -74,6 +94,33 @@ func (pc *PreparedCertificate) IsValid() bool {
 
 	if len(senders) != 1+len(pc.PrepareMessages) {
 		return false
+	}
+
+	return true
+}
+
+func (rcc *RoundChangeCertificate) IsValid(view *View) bool {
+	if len(rcc.Messages) == 0 {
+		return false
+	}
+
+	senders := make(map[string]struct{})
+	for _, msg := range rcc.Messages {
+		senders[string(msg.From)] = struct{}{}
+	}
+
+	if len(senders) != len(rcc.Messages) {
+		return false
+	}
+
+	for _, msg := range rcc.Messages {
+		if msg.View.Sequence != view.Sequence {
+			return false
+		}
+
+		if msg.View.Round != view.Round {
+			return false
+		}
 	}
 
 	return true

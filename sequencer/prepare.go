@@ -51,6 +51,10 @@ func (s *Sequencer) isValidPrepare(view *types.View, msg *types.MsgPrepare) bool
 		return false
 	}
 
+	if !s.verifier.IsValidator(msg.From, view.Sequence) {
+		return false
+	}
+
 	if !bytes.Equal(msg.ProposalHash, s.state.acceptedProposal.ProposalHash) {
 		return false
 	}

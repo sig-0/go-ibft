@@ -17,22 +17,23 @@ type MessageFeed interface {
 }
 
 type Verifier interface {
-	Keccak([]byte) []byte
-	IsValidBlock([]byte) bool
+	Keccak(data []byte) []byte
+	RecoverFrom(data []byte, sig []byte) []byte // todo: remove with IsValidator and move to message store
 	IsProposer(view *types.View, id []byte) bool
-	RecoverFrom(data []byte, sig []byte) []byte
+	IsValidBlock(block []byte) bool
+	IsValidator(id []byte, height uint64) bool
 }
 
 type Validator interface {
 	ID() []byte
-	Sign([]byte) []byte
+	Sign(data []byte) []byte
 	BuildBlock() []byte
 }
 
 type FinalizedBlock struct {
 	Block       []byte
-	Round       uint64
 	CommitSeals [][]byte
+	Round       uint64
 }
 
 type Sequencer struct {
@@ -125,7 +126,10 @@ func (s *Sequencer) finalize(ctx context.Context, feed MessageFeed) *FinalizedBl
 				return nil
 			}
 
-		//	todo
+			s.state.currentView.Round++
+			s.state.acceptedProposal = nil
+
+			s.multicastRoundChangeMessage(s.state.currentView)
 		case _, ok := <-s.watchForFutureRCC(ctxRound, view):
 			teardown()
 			if !ok {
@@ -223,21 +227,6 @@ func (s *Sequencer) runRound(ctx context.Context, view *types.View, feed Message
 	return c
 }
 
-func (s *Sequencer) getRoundChangeCertificate(ctx context.Context, view *types.View, feed MessageFeed) (*types.RoundChangeCertificate, error) {
-	// a) if the rcc is in state, that means watchForFutureRCC has triggered the round hop
-	// fetch the rcc and proceed with proposal extraction
-	// b) if the rcc is empty in state, that means the round timer expired previously
-	// since we're the proposer, we must build the proposal based on the round change messages
-	// received from other validators
-	if s.state.roundChangeCertificate != nil {
-		return s.state.roundChangeCertificate, nil
-	}
-
-	msgs, err := s.getRoundChangeMessages(ctx, view, feed)
-	_, _ = msgs, err
-
-}
-
 func (s *Sequencer) getRoundChangeMessages(ctx context.Context, view *types.View, feed MessageFeed) ([]*types.MsgRoundChange, error) {
 	sub, cancelSub := feed.SubscribeToRoundChangeMessages(view, false)
 	defer cancelSub()
@@ -269,17 +258,34 @@ func (s *Sequencer) getRoundChangeMessages(ctx context.Context, view *types.View
 }
 
 func (s *Sequencer) isValidRoundChange(view *types.View, msg *types.MsgRoundChange) bool {
-	pc := msg.LatestPreparedCertificate
-	if s.isValidPreparedCertificate(view, pc) {
+	if (msg.View.Sequence != view.Sequence) || (msg.View.Round != view.Round) {
 		return false
 	}
 
-	pb := msg.LatestPreparedProposedBlock
-	if pb == nil {
+	if !s.verifier.IsValidator(msg.From, view.Sequence) {
+		return false
+	}
+
+	var (
+		pb = msg.LatestPreparedProposedBlock
+		pc = msg.LatestPreparedCertificate
+	)
+
+	if pb == nil && pc == nil {
 		return true
 	}
 
-	if !s.proposedBlockMatchesPreparedCertificate(pb, pc) {
+	if (pb == nil && pc != nil) ||
+		(pb != nil && pc == nil) {
+		return false
+	}
+
+	if !s.isValidPreparedCertificate(view, pc) {
+		return false
+	}
+
+	proposalHash := s.verifier.Keccak(pb.Bytes())
+	if !bytes.Equal(proposalHash, pc.ProposalMessage.ProposalHash) {
 		return false
 	}
 
@@ -287,15 +293,7 @@ func (s *Sequencer) isValidRoundChange(view *types.View, msg *types.MsgRoundChan
 }
 
 func (s *Sequencer) isValidPreparedCertificate(view *types.View, pc *types.PreparedCertificate) bool {
-	if !pc.IsValid() {
-		return false
-	}
-
-	if pc.ProposalMessage.View.Sequence != view.Sequence {
-		return false
-	}
-
-	if pc.ProposalMessage.View.Round >= view.Round {
+	if !pc.IsValid(view) {
 		return false
 	}
 
@@ -304,16 +302,26 @@ func (s *Sequencer) isValidPreparedCertificate(view *types.View, pc *types.Prepa
 		return false
 	}
 
-	if !bytes.Equal(pc.ProposalMessage.From, s.verifier.RecoverFrom(
-		pc.ProposalMessage.Payload(),
-		pc.ProposalMessage.Signature,
-	)) {
+	// todo: move to types
+	//if !bytes.Equal(pc.ProposalMessage.From, s.verifier.RecoverFrom(
+	//	pc.ProposalMessage.Payload(),
+	//	pc.ProposalMessage.Signature,
+	//)) {
+	//	return false
+	//}
+
+	if !s.verifier.IsProposer(pc.ProposalMessage.View, pc.ProposalMessage.From) {
 		return false
 	}
 
 	for _, msg := range pc.PrepareMessages {
-		from := s.verifier.RecoverFrom(msg.Payload(), msg.Signature)
-		if !bytes.Equal(msg.From, from) {
+		// todo: move to message
+		//from := s.verifier.RecoverFrom(msg.Payload(), msg.Signature)
+		//if !bytes.Equal(msg.From, from) {
+		//	return false
+		//}
+
+		if !s.verifier.IsValidator(msg.From, view.Sequence) {
 			return false
 		}
 
@@ -325,6 +333,16 @@ func (s *Sequencer) isValidPreparedCertificate(view *types.View, pc *types.Prepa
 	return true
 }
 
-func (s *Sequencer) proposedBlockMatchesPreparedCertificate(pb *types.ProposedBlock, pc *types.PreparedCertificate) bool {
-	return true
+func (s *Sequencer) multicastRoundChangeMessage(view *types.View) {
+	msg := &types.MsgRoundChange{
+		View:                        view,
+		From:                        s.id,
+		LatestPreparedProposedBlock: s.state.latestPreparedProposedBlock,
+		LatestPreparedCertificate:   s.state.latestPreparedCertificate,
+	}
+
+	sig := s.validator.Sign(msg.Payload())
+	msg.Signature = sig
+
+	s.transport.MulticastRoundChange(msg)
 }
