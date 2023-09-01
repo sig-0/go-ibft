@@ -104,15 +104,6 @@ func (rcc *RoundChangeCertificate) IsValid(view *View) bool {
 		return false
 	}
 
-	senders := make(map[string]struct{})
-	for _, msg := range rcc.Messages {
-		senders[string(msg.From)] = struct{}{}
-	}
-
-	if len(senders) != len(rcc.Messages) {
-		return false
-	}
-
 	for _, msg := range rcc.Messages {
 		if msg.View.Sequence != view.Sequence {
 			return false
@@ -121,6 +112,15 @@ func (rcc *RoundChangeCertificate) IsValid(view *View) bool {
 		if msg.View.Round != view.Round {
 			return false
 		}
+	}
+
+	senders := make(map[string]struct{})
+	for _, msg := range rcc.Messages {
+		senders[string(msg.From)] = struct{}{}
+	}
+
+	if len(senders) != len(rcc.Messages) {
+		return false
 	}
 
 	return true

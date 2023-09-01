@@ -146,3 +146,89 @@ func TestIsValidPreparedCertificate(t *testing.T) {
 		})
 	}
 }
+
+func TestIsValidRoundChangeCertificate(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		name    string
+		view    *View
+		rcc     *RoundChangeCertificate
+		isValid bool
+	}{
+		{
+			name: "no round change messages",
+			rcc: &RoundChangeCertificate{
+				Messages: nil,
+			},
+		},
+
+		{
+			name: "invalid sequence in message",
+			view: &View{Sequence: 101, Round: 0},
+			rcc: &RoundChangeCertificate{
+				Messages: []*MsgRoundChange{
+					{
+						View: &View{Sequence: 102, Round: 0},
+					},
+				},
+			},
+		},
+
+		{
+			name: "invalid round in message",
+			view: &View{Sequence: 101, Round: 0},
+			rcc: &RoundChangeCertificate{
+				Messages: []*MsgRoundChange{
+					{
+						View: &View{Sequence: 101, Round: 1},
+					},
+				},
+			},
+		},
+
+		{
+			name: "duplicate senders in messages",
+			view: &View{Sequence: 101, Round: 0},
+			rcc: &RoundChangeCertificate{
+				Messages: []*MsgRoundChange{
+					{
+						View: &View{Sequence: 101, Round: 0},
+						From: []byte("some validator"),
+					},
+					{
+						View: &View{Sequence: 101, Round: 0},
+						From: []byte("some validator"),
+					},
+				},
+			},
+		},
+
+		{
+			name:    "valid rcc",
+			view:    &View{Sequence: 101, Round: 0},
+			isValid: true,
+			rcc: &RoundChangeCertificate{
+				Messages: []*MsgRoundChange{
+					{
+						View: &View{Sequence: 101, Round: 0},
+						From: []byte("some validator"),
+					},
+					{
+						View: &View{Sequence: 101, Round: 0},
+						From: []byte("some othre validator"),
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range testTable {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.isValid, tt.rcc.IsValid(tt.view))
+		})
+	}
+}
