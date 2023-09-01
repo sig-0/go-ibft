@@ -164,7 +164,7 @@ func (i *IBFT) signalRoundDone(ctx context.Context) {
 }
 
 // signalNewRCC notifies the sequence routine (RunSequence) that
-// a valid Round Change Certificate for a higher round appeared
+// a valid CurrentRound Change Certificate for a higher round appeared
 func (i *IBFT) signalNewRCC(ctx context.Context, round uint64) {
 	select {
 	case i.roundCertificate <- round:
@@ -234,7 +234,7 @@ func (i *IBFT) watchForFutureProposal(ctx context.Context) {
 }
 
 // watchForRoundChangeCertificates is a routine that waits
-// for future valid Round Change Certificates that could
+// for future valid CurrentRound Change Certificates that could
 // trigger a round hop
 func (i *IBFT) watchForRoundChangeCertificates(ctx context.Context) {
 	defer i.wg.Done()
@@ -541,7 +541,7 @@ func (i *IBFT) runStates(ctx context.Context) {
 	}
 }
 
-// runNewRound runs the New Round IBFT state
+// runNewRound runs the New CurrentRound IBFT state
 func (i *IBFT) runNewRound(ctx context.Context) error {
 	i.log.Debug("enter: new round state")
 	defer i.log.Debug("exit: new round state")
@@ -704,9 +704,9 @@ func (i *IBFT) validateRoundChangeCertificate(
 		return fmt.Errorf("no unique senders in certificate")
 	}
 
-	// Make sure all messages in the RCC are valid Round Change messages
+	// Make sure all messages in the RCC are valid CurrentRound Change messages
 	for _, rc := range certificate.RoundChangeMessages {
-		// Make sure the message is a Round Change message
+		// Make sure the message is a CurrentRound Change message
 		if rc.Type != proto.MessageType_ROUND_CHANGE {
 			return fmt.Errorf("invalid message type in certificate: %s", rc.Type.String())
 		}

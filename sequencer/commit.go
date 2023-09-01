@@ -3,60 +3,48 @@ package sequencer
 import (
 	"bytes"
 	"context"
-
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) waitForCommit(ctx context.Context, view *types.View, feed MessageFeed) error {
-	sub, cancelSub := feed.SubscribeToCommitMessages(view, false)
+func (s *Sequencer) awaitCommit(ctx context.Context, feed MessageFeed) error {
+	commits, err := s.awaitQuorumCommits(ctx, feed)
+	if err != nil {
+		return err
+	}
+
+	for _, commit := range commits {
+		s.state.AcceptSeal(commit.From, commit.CommitSeal)
+	}
+
+	return nil
+}
+
+func (s *Sequencer) awaitQuorumCommits(ctx context.Context, feed MessageFeed) ([]*types.MsgCommit, error) {
+	sub, cancelSub := feed.SubscribeToCommitMessages(s.state.currentView, false)
 	defer cancelSub()
 
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
-		case unwrapCommits := <-sub:
-			msgs := unwrapCommits()
-
-			var validCommits []*types.MsgCommit
-			for _, msg := range msgs {
-				if s.isValidCommit(view, msg) {
-					validCommits = append(validCommits, msg)
-				}
-			}
-
+			return nil, ctx.Err()
+		case unwrapMessages := <-sub:
+			validCommits := types.Filter(unwrapMessages(), s.isValidCommit)
 			if len(validCommits) == 0 {
 				continue
 			}
 
-			if !s.quorum.HasQuorumCommitMessages(validCommits...) {
+			if !s.quorum.HasQuorum(types.ToMsg(validCommits)) {
 				continue
 			}
 
-			var commitSeals [][]byte
-			for _, msgCommit := range validCommits {
-				commitSeals = append(commitSeals, msgCommit.CommitSeal)
-			}
-
-			fb := &FinalizedBlock{
-				Block:       s.state.acceptedProposal.GetProposedBlock().GetData(),
-				Round:       view.Round,
-				CommitSeals: commitSeals,
-			}
-
-			s.state.finalizedBlock = fb
-
-			return nil
+			return validCommits, nil
 		}
 	}
 }
 
-func (s *Sequencer) isValidCommit(view *types.View, msg *types.MsgCommit) bool {
-	if msg.GetView().GetSequence() != view.GetSequence() || msg.GetView().GetRound() != view.GetRound() {
-		return false
-	}
-
-	if !bytes.Equal(msg.GetProposalHash(), s.state.acceptedProposal.GetProposalHash()) {
+func (s *Sequencer) isValidCommit(msg *types.MsgCommit) bool {
+	acceptedBlockHash := s.state.AcceptedBlockHash()
+	if !bytes.Equal(msg.BlockHash, acceptedBlockHash) {
 		return false
 	}
 
@@ -64,10 +52,26 @@ func (s *Sequencer) isValidCommit(view *types.View, msg *types.MsgCommit) bool {
 		return false
 	}
 
-	// commit_seal = sig(proposal_hash) -> from = recover(proposal_hash, commit_seal)
-	if !bytes.Equal(msg.GetFrom(), s.verifier.RecoverFrom(s.state.acceptedProposal.GetProposalHash(), msg.GetCommitSeal())) {
+	if !bytes.Equal(msg.From, s.cdc.RecoverFrom(acceptedBlockHash, msg.CommitSeal)) {
 		return false
 	}
 
 	return true
+}
+
+func (s *Sequencer) seal() []byte {
+	return s.validator.Sign(s.hash(s.state.AcceptedProposedBlock()))
+}
+
+func (s *Sequencer) buildMsgCommit() *types.MsgCommit {
+	msg := &types.MsgCommit{
+		View:       s.state.currentView,
+		From:       s.id,
+		BlockHash:  s.state.AcceptedBlockHash(),
+		CommitSeal: s.seal(),
+	}
+
+	msg.Signature = s.validator.Sign(msg.Payload())
+
+	return msg
 }

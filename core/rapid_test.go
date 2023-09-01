@@ -91,7 +91,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 				return nodes[nodeIndex]
 			}
 
-			// Make sure the only proposer is picked using Round Robin
+			// Make sure the only proposer is picked using CurrentRound Robin
 			backend.isProposerFn = func(from []byte, height uint64, _ uint64) bool {
 				return bytes.Equal(from, nodes[height%numNodes])
 			}
@@ -280,7 +280,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 				return nodes[nodeIndex]
 			}
 
-			// Make sure the only proposer is picked using Round Robin
+			// Make sure the only proposer is picked using CurrentRound Robin
 			backend.isProposerFn = func(from []byte, height uint64, round uint64) bool {
 				return bytes.Equal(
 					from,

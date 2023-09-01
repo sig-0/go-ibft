@@ -11,7 +11,7 @@ message View {
 
 // ProposedBlock is a block constructed by the proposer in a specific round
 message ProposedBlock {
-  bytes data = 1;
+  bytes block = 1;
   uint64 round = 2;
 }
 
@@ -33,7 +33,7 @@ message MsgProposal {
   bytes from = 2;
   bytes signature = 3;
   ProposedBlock proposed_block = 4;
-  bytes proposal_hash = 5;
+  bytes block_hash = 5;
   RoundChangeCertificate round_change_certificate = 6;
 }
 
@@ -42,7 +42,7 @@ message MsgPrepare {
   View view = 1;
   bytes from = 2;
   bytes signature = 3;
-  bytes proposal_hash = 4;
+  bytes block_hash = 4;
 }
 
 // MsgCommit is a validator's seal(signature) over a proposed block in a specific view
@@ -50,7 +50,7 @@ message MsgCommit {
   View view = 1;
   bytes from = 2;
   bytes signature = 3;
-  bytes proposal_hash = 4;
+  bytes block_hash = 4;
   bytes commit_seal = 5;
 }
 

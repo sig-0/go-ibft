@@ -191,7 +191,7 @@ func (s *state) newRound() {
 	defer s.Unlock()
 
 	if !s.roundStarted {
-		// Round is not yet started, kick the round off
+		// CurrentRound is not yet started, kick the round off
 		s.name = newRound
 		s.roundStarted = true
 	}

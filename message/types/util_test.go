@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// todo: refactor
 func TestIsValidPreparedCertificate(t *testing.T) {
 	t.Parallel()
 
@@ -85,13 +86,13 @@ func TestIsValidPreparedCertificate(t *testing.T) {
 			view: &View{Sequence: 101, Round: 1},
 			pc: &PreparedCertificate{
 				ProposalMessage: &MsgProposal{
-					View:         &View{Sequence: 101, Round: 0},
-					ProposalHash: []byte("proposal hash"),
+					View:      &View{Sequence: 101, Round: 0},
+					BlockHash: []byte("proposal hash"),
 				},
 				PrepareMessages: []*MsgPrepare{
 					{
-						View:         &View{Sequence: 101, Round: 0},
-						ProposalHash: []byte("invalid proposal hash"),
+						View:      &View{Sequence: 101, Round: 0},
+						BlockHash: []byte("invalid proposal hash"),
 					},
 				},
 			},
@@ -102,15 +103,15 @@ func TestIsValidPreparedCertificate(t *testing.T) {
 			view: &View{Sequence: 101, Round: 1},
 			pc: &PreparedCertificate{
 				ProposalMessage: &MsgProposal{
-					View:         &View{Sequence: 101, Round: 0},
-					From:         []byte("proposer"),
-					ProposalHash: []byte("proposal hash"),
+					View:      &View{Sequence: 101, Round: 0},
+					From:      []byte("proposer"),
+					BlockHash: []byte("proposal hash"),
 				},
 				PrepareMessages: []*MsgPrepare{
 					{
-						View:         &View{Sequence: 101, Round: 0},
-						From:         []byte("proposer"),
-						ProposalHash: []byte("proposal hash"),
+						View:      &View{Sequence: 101, Round: 0},
+						From:      []byte("proposer"),
+						BlockHash: []byte("proposal hash"),
 					},
 				},
 			},
@@ -121,15 +122,15 @@ func TestIsValidPreparedCertificate(t *testing.T) {
 			view: &View{Sequence: 101, Round: 1},
 			pc: &PreparedCertificate{
 				ProposalMessage: &MsgProposal{
-					View:         &View{Sequence: 101, Round: 0},
-					From:         []byte("proposer"),
-					ProposalHash: []byte("proposal hash"),
+					View:      &View{Sequence: 101, Round: 0},
+					From:      []byte("proposer"),
+					BlockHash: []byte("proposal hash"),
 				},
 				PrepareMessages: []*MsgPrepare{
 					{
-						View:         &View{Sequence: 101, Round: 0},
-						From:         []byte("some validator"),
-						ProposalHash: []byte("proposal hash"),
+						View:      &View{Sequence: 101, Round: 0},
+						From:      []byte("some validator"),
+						BlockHash: []byte("proposal hash"),
 					},
 				},
 			},
@@ -147,6 +148,7 @@ func TestIsValidPreparedCertificate(t *testing.T) {
 	}
 }
 
+// todo: refactor
 func TestIsValidRoundChangeCertificate(t *testing.T) {
 	t.Parallel()
 

@@ -7,76 +7,57 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) waitForPrepare(ctx context.Context, view *types.View, feed MessageFeed) error {
-	sub, cancelSub := feed.SubscribeToPrepareMessages(view, false)
+func (s *Sequencer) awaitPrepare(ctx context.Context, feed MessageFeed) error {
+	messages, err := s.awaitQuorumPrepareMessages(ctx, feed)
+	if err != nil {
+		return err
+	}
+
+	s.state.PrepareCertificate(messages)
+	s.transport.Multicast(s.buildMsgCommit())
+
+	return nil
+}
+
+func (s *Sequencer) awaitQuorumPrepareMessages(ctx context.Context, feed MessageFeed) ([]*types.MsgPrepare, error) {
+	sub, cancelSub := feed.SubscribeToPrepareMessages(s.state.currentView, false)
 	defer cancelSub()
 
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
-		case unwrapPrepares := <-sub:
-			msgs := unwrapPrepares()
-
-			var validPrepares []*types.MsgPrepare
-			for _, msg := range msgs {
-				if s.isValidPrepare(view, msg) {
-					validPrepares = append(validPrepares, msg)
-				}
-			}
-
-			if !s.quorum.HasQuorumPrepareMessages(validPrepares...) {
+			return nil, ctx.Err()
+		case unwrapMessages := <-sub:
+			validPrepares := types.Filter(unwrapMessages(), s.isValidMsgPrepare)
+			if !s.quorum.HasQuorum(types.ToMsg(validPrepares)) {
 				continue
 			}
 
-			pc := &types.PreparedCertificate{
-				ProposalMessage: s.state.acceptedProposal,
-				PrepareMessages: validPrepares,
-			}
-
-			pb := s.state.acceptedProposal.GetProposedBlock()
-
-			s.state.latestPreparedCertificate = pc
-			s.state.latestPreparedProposedBlock = pb
-
-			s.multicastCommit(view)
-
-			return nil
+			return validPrepares, nil
 		}
 	}
 }
 
-func (s *Sequencer) isValidPrepare(view *types.View, msg *types.MsgPrepare) bool {
-	if msg.View.Sequence != view.Sequence || msg.View.Round != view.Round {
+func (s *Sequencer) isValidMsgPrepare(msg *types.MsgPrepare) bool {
+	if !s.verifier.IsValidator(msg.From, msg.View.Sequence) {
 		return false
 	}
 
-	if !s.verifier.IsValidator(msg.From, view.Sequence) {
-		return false
-	}
-
-	if !bytes.Equal(msg.ProposalHash, s.state.acceptedProposal.ProposalHash) {
+	if !bytes.Equal(msg.BlockHash, s.state.AcceptedBlockHash()) {
 		return false
 	}
 
 	return true
 }
 
-func (s *Sequencer) multicastCommit(view *types.View) {
-	msg := &types.MsgCommit{
-		View:         view,
-		From:         s.validator.ID(),
-		ProposalHash: s.state.acceptedProposal.GetProposalHash(),
+func (s *Sequencer) buildMsgPrepare() *types.MsgPrepare {
+	msg := &types.MsgPrepare{
+		View:      s.state.currentView,
+		From:      s.id,
+		BlockHash: s.state.AcceptedBlockHash(),
 	}
 
-	pb := s.state.acceptedProposal.GetProposedBlock()
-	cs := s.validator.Sign(s.verifier.Keccak(pb.Bytes()))
+	msg.Signature = s.validator.Sign(msg.Payload())
 
-	msg.CommitSeal = cs
-
-	sig := s.validator.Sign(msg.Payload())
-
-	msg.Signature = sig
-
-	s.transport.MulticastCommit(msg)
+	return msg
 }
