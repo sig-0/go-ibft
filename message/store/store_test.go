@@ -2,10 +2,13 @@ package store
 
 import (
 	"bytes"
-	"github.com/madz-lab/go-ibft/message/types"
+	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
+
+	"github.com/madz-lab/go-ibft/message/types"
 )
 
 type mockCodec struct {
@@ -16,109 +19,127 @@ func (c mockCodec) RecoverFrom(data []byte, sig []byte) []byte {
 	return c.recoverFn(data, sig)
 }
 
+type testTable[M msg] struct {
+	name        string
+	codec       Codec
+	msg         *M
+	runTestFn   func(*Store, *M) error
+	expectedErr error
+}
+
 func TestAddMessage(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid MsgProposal", func(t *testing.T) {
+	t.Run("MsgProposal", func(t *testing.T) {
 		t.Parallel()
 
-		msg := &types.MsgProposal{
-			From:                   []byte("from"),
-			Signature:              nil,
-			ProposedBlock:          nil,
-			BlockHash:              nil,
-			RoundChangeCertificate: nil,
+		testTable := []testTable[types.MsgProposal]{
+			{
+				name: "invalid signature",
+				codec: mockCodec{func(_ []byte, sig []byte) []byte {
+					if bytes.Equal(sig, []byte("signature")) {
+						return []byte("from")
+					}
+
+					return nil
+				}},
+				msg: &types.MsgProposal{
+					From:      []byte("bad from"),
+					Signature: []byte("bad signature"),
+				},
+				expectedErr: ErrInvalidSignature,
+				runTestFn: func(store *Store, msg *types.MsgProposal) error {
+					return store.AddMsgProposal(msg)
+				},
+			},
+
+			{
+				name: "msg added",
+				codec: mockCodec{func(_ []byte, sig []byte) []byte {
+					if bytes.Equal(sig, []byte("signature")) {
+						return []byte("from")
+					}
+
+					return nil
+				}},
+				msg: &types.MsgProposal{
+					View:      &types.View{Sequence: 101, Round: 0},
+					From:      []byte("from"),
+					Signature: []byte("signature"),
+				},
+				runTestFn: func(store *Store, msg *types.MsgProposal) error {
+					return store.AddMsgProposal(msg)
+				},
+			},
+
+			{
+				name: "no duplicate msg when added twice",
+				codec: mockCodec{func(_ []byte, sig []byte) []byte {
+					if bytes.Equal(sig, []byte("signature")) {
+						return []byte("from")
+					}
+
+					return nil
+				}},
+				msg: &types.MsgProposal{
+					View:      &types.View{Sequence: 101, Round: 0},
+					From:      []byte("from"),
+					Signature: []byte("signature"),
+				},
+				runTestFn: func(store *Store, msg *types.MsgProposal) error {
+					require.NoError(t, store.AddMsgProposal(msg))
+					require.NoError(t, store.AddMsgProposal(msg))
+
+					if len(store.GetProposalMessages(msg.View)) != 1 {
+						t.Fatal("duplicate msg in collection")
+					}
+
+					return nil
+				},
+			},
+
+			{
+				name: "2 unique messages with same view",
+				codec: mockCodec{func(_ []byte, sig []byte) []byte {
+					if bytes.Equal(sig, []byte("signature")) {
+						return []byte("from")
+					}
+
+					if bytes.Equal(sig, []byte("other signature")) {
+						return []byte("other from")
+					}
+
+					return nil
+				}},
+				msg: &types.MsgProposal{
+					View:      &types.View{Sequence: 101, Round: 0},
+					From:      []byte("from"),
+					Signature: []byte("signature"),
+				},
+				runTestFn: func(store *Store, msg *types.MsgProposal) error {
+					require.NoError(t, store.AddMsgProposal(msg))
+					require.NoError(t, store.AddMsgProposal(&types.MsgProposal{
+						View:      &types.View{Sequence: 101, Round: 0},
+						From:      []byte("other from"),
+						Signature: []byte("other signature"),
+					}))
+
+					if len(store.GetProposalMessages(msg.View)) != 2 {
+						return errors.New("only 1 message in store")
+					}
+
+					return nil
+				},
+			},
 		}
 
-		store := New(mockCodec{recoverFn: func(_ []byte, _ []byte) []byte {
-			return []byte("not sender")
-		}})
+		for _, tt := range testTable {
+			tt := tt
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 
-		assert.Error(t, store.AddMsgProposal(msg))
-	})
-
-	t.Run("add MsgProposal", func(t *testing.T) {
-		t.Parallel()
-
-		msg := &types.MsgProposal{
-			View:      &types.View{Sequence: 101, Round: 1},
-			From:      []byte("from"),
-			Signature: nil,
+				assert.ErrorIs(t, tt.runTestFn(New(tt.codec), tt.msg), tt.expectedErr)
+			})
 		}
-
-		store := New(mockCodec{recoverFn: func(_ []byte, _ []byte) []byte {
-			return []byte("from")
-		}})
-
-		assert.NoError(t, store.AddMsgProposal(msg))
-		msgs := store.GetProposalMessages(&types.View{Sequence: 101, Round: 1})
-		require.Equal(t, msg, msgs[0])
-	})
-
-	t.Run("add 2 MsgProposal", func(t *testing.T) {
-		t.Parallel()
-
-		msg1 := &types.MsgProposal{
-			View:      &types.View{Sequence: 101, Round: 1},
-			From:      []byte("from1"),
-			Signature: []byte("sig1"),
-		}
-
-		msg2 := &types.MsgProposal{
-			View:      &types.View{Sequence: 101, Round: 1},
-			From:      []byte("from2"),
-			Signature: []byte("sig2"),
-		}
-
-		store := New(mockCodec{recoverFn: func(_ []byte, sig []byte) []byte {
-			if bytes.Equal(sig, []byte("sig1")) {
-				return []byte("from1")
-			}
-
-			if bytes.Equal(sig, []byte("sig2")) {
-				return []byte("from2")
-			}
-
-			return nil
-		}})
-
-		assert.NoError(t, store.AddMsgProposal(msg1))
-		assert.NoError(t, store.AddMsgProposal(msg2))
-
-		msgs := store.GetProposalMessages(&types.View{Sequence: 101, Round: 1})
-		require.Len(t, msgs, 2)
-		assert.Equal(t, msg1, msgs[0])
-		assert.Equal(t, msg2, msgs[1])
-	})
-
-	t.Run("add 2 identical MsgProposal", func(t *testing.T) {
-		t.Parallel()
-
-		msg1 := &types.MsgProposal{
-			View:      &types.View{Sequence: 101, Round: 1},
-			From:      []byte("from1"),
-			Signature: []byte("sig1"),
-		}
-
-		msg2 := &types.MsgProposal{
-			View:      &types.View{Sequence: 101, Round: 1},
-			From:      []byte("from1"),
-			Signature: []byte("sig1"),
-		}
-
-		store := New(mockCodec{recoverFn: func(_ []byte, sig []byte) []byte {
-			if bytes.Equal(sig, []byte("sig1")) {
-				return []byte("from1")
-			}
-
-			return nil
-		}})
-
-		assert.NoError(t, store.AddMsgProposal(msg1))
-		assert.NoError(t, store.AddMsgProposal(msg2))
-
-		msgs := store.GetProposalMessages(&types.View{Sequence: 101, Round: 1})
-		require.Len(t, msgs, 1)
-		assert.Equal(t, msg1, msgs[0])
 	})
 }

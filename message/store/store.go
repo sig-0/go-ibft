@@ -6,6 +6,10 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
+var (
+	ErrInvalidSignature = errors.New("invalid signature")
+)
+
 type Codec interface {
 	RecoverFrom(data []byte, sig []byte) []byte
 }
@@ -27,7 +31,7 @@ func New(cdc Codec) *Store {
 
 func (s *Store) AddMsgProposal(msg *types.MsgProposal) error {
 	if !bytes.Equal(msg.From, s.cdc.RecoverFrom(msg.Payload(), msg.Signature)) {
-		return errors.New("invalid signature")
+		return ErrInvalidSignature
 	}
 
 	s.proposal.addMessage(msg, msg.View, msg.From)
