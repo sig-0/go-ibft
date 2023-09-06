@@ -1,8 +1,8 @@
 package types
 
 type Msg interface {
-	GetFrom() []byte
 	Bytes() []byte
+	GetFrom() []byte
 	Payload() []byte
 }
 
