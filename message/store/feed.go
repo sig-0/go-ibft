@@ -82,7 +82,11 @@ func (f Feed) SubscribeToProposalMessages(view *types.View, futureRounds bool) (
 	sub := newSubscription[types.MsgProposal](view, futureRounds)
 	id := f.Store.proposalSubs.add(sub)
 	sub.Channel <- func() []*types.MsgProposal {
-		return f.Store.GetProposalMessages(view)
+		if !futureRounds {
+			return f.Store.GetProposalMessages(view)
+		}
+
+		return f.Store.proposal.getMaxRoundMessages(view)
 	}
 
 	return sub.Channel, func() { f.Store.proposalSubs.remove(id) }

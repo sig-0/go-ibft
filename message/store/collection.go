@@ -42,6 +42,21 @@ func (c *collection[M]) getMessages(view *types.View) []*M {
 	return sameRoundMessages.messages()
 }
 
+func (c *collection[M]) getMaxRoundMessages(view *types.View) []*M {
+	var maxRound uint64
+	for round := range (*c)[view.Sequence] {
+		if maxRound < view.Round {
+			continue
+		}
+
+		if round > maxRound {
+			maxRound = round
+		}
+	}
+
+	return c.getMessages(&types.View{Sequence: view.Sequence, Round: maxRound})
+}
+
 type msgSet[M msg] map[string]*M
 
 func (s msgSet[M]) messages() []*M {
