@@ -17,13 +17,15 @@ type Codec interface {
 type Store struct {
 	cdc Codec
 
-	proposal collection[types.MsgProposal]
+	proposal     collection[types.MsgProposal]
+	proposalSubs subscriptions[types.MsgProposal]
 }
 
 func New(cdc Codec) *Store {
 	s := &Store{
-		cdc:      cdc,
-		proposal: newCollection[types.MsgProposal](),
+		cdc:          cdc,
+		proposal:     newCollection[types.MsgProposal](),
+		proposalSubs: newSubscriptions[types.MsgProposal](),
 	}
 
 	return s

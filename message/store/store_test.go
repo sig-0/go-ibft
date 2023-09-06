@@ -27,6 +27,8 @@ type testTable[M msg] struct {
 	expectedErr error
 }
 
+// TODO: remove cases
+
 func TestStore_MsgProposal(t *testing.T) {
 	t.Parallel()
 
