@@ -22,6 +22,10 @@ type SigRecover interface {
 	From(data []byte, sig []byte) []byte
 }
 
+type Signer interface {
+	Sign([]byte) []byte
+}
+
 type ibft interface {
 	MsgProposal | MsgPrepare | MsgCommit | MsgRoundChange
 }
