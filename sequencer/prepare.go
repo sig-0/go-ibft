@@ -2,25 +2,35 @@ package sequencer
 
 import (
 	"bytes"
-	"context"
+	ibft "github.com/madz-lab/go-ibft"
 
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) awaitPrepare(ctx context.Context, feed MessageFeed) error {
-	messages, err := s.awaitQuorumPrepareMessages(ctx, feed)
+func (s *Sequencer) awaitPrepare(ctx ibft.Context) error {
+	messages, err := s.awaitQuorumPrepareMessages(ctx)
 	if err != nil {
 		return err
 	}
 
 	s.state.PrepareCertificate(messages)
-	s.transport.Multicast(s.buildMsgCommit())
+
+	msg := &types.MsgCommit{
+		From:       s.ID(),
+		View:       s.state.currentView,
+		BlockHash:  s.state.AcceptedBlockHash(),
+		CommitSeal: s.Sign(ctx.Keccak().Hash(s.state.AcceptedBlockHash())),
+	}
+
+	msg.Signature = s.Sign(msg.Payload())
+
+	ctx.Transport().Multicast(msg)
 
 	return nil
 }
 
-func (s *Sequencer) awaitQuorumPrepareMessages(ctx context.Context, feed MessageFeed) ([]*types.MsgPrepare, error) {
-	sub, cancelSub := feed.SubscribeToPrepareMessages(s.state.currentView, false)
+func (s *Sequencer) awaitQuorumPrepareMessages(ctx ibft.Context) ([]*types.MsgPrepare, error) {
+	sub, cancelSub := ctx.Feed().Prepare(s.state.currentView, false)
 	defer cancelSub()
 
 	for {
@@ -29,7 +39,7 @@ func (s *Sequencer) awaitQuorumPrepareMessages(ctx context.Context, feed Message
 			return nil, ctx.Err()
 		case unwrapMessages := <-sub:
 			validPrepares := types.Filter(unwrapMessages(), s.isValidMsgPrepare)
-			if !s.quorum.HasQuorum(types.ToMsg(validPrepares)) {
+			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), types.ToMsg(validPrepares)) {
 				continue
 			}
 
@@ -48,16 +58,4 @@ func (s *Sequencer) isValidMsgPrepare(msg *types.MsgPrepare) bool {
 	}
 
 	return true
-}
-
-func (s *Sequencer) buildMsgPrepare() *types.MsgPrepare {
-	msg := &types.MsgPrepare{
-		View:      s.state.currentView,
-		From:      s.ID(),
-		BlockHash: s.state.AcceptedBlockHash(),
-	}
-
-	msg.Signature = s.Sign(msg.Payload())
-
-	return msg
 }

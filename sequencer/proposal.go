@@ -2,42 +2,55 @@ package sequencer
 
 import (
 	"bytes"
-	"context"
+	ibft "github.com/madz-lab/go-ibft"
 
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) awaitProposal(ctx context.Context, feed MessageFeed) error {
+func (s *Sequencer) awaitProposal(ctx ibft.Context) error {
 	if s.state.ProposalAccepted() {
 		return nil
 	}
 
-	msg, err := s.awaitValidProposal(ctx, feed)
+	proposal, err := s.awaitValidProposal(ctx)
 	if err != nil {
 		return err
 	}
 
-	s.state.acceptedProposal = msg
-	s.transport.Multicast(s.buildMsgPrepare())
+	s.state.acceptedProposal = proposal
+
+	msg := &types.MsgPrepare{
+		From:      s.ID(),
+		View:      s.state.currentView,
+		BlockHash: s.state.AcceptedBlockHash(),
+	}
+
+	msg.Signature = s.Sign(msg.Payload())
+
+	ctx.Transport().Multicast(msg)
 
 	return nil
 }
 
-func (s *Sequencer) awaitFutureProposal(ctx context.Context, feed MessageFeed) (*types.MsgProposal, error) {
+func (s *Sequencer) awaitFutureProposal(ctx ibft.Context) (*types.MsgProposal, error) {
 	nextView := &types.View{
 		Sequence: s.state.CurrentSequence(),
 		Round:    s.state.CurrentRound() + 1,
 	}
 
-	sub, cancelSub := feed.SubscribeToProposalMessages(nextView, true)
+	sub, cancelSub := ctx.Feed().Proposal(nextView, true)
 	defer cancelSub()
+
+	isValid := func(msg *types.MsgProposal) bool {
+		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case unwrapMessages := <-sub:
-			validFutureProposals := types.Filter(unwrapMessages(), s.isValidMsgProposal)
+			validFutureProposals := types.Filter(unwrapMessages(), isValid)
 			if len(validFutureProposals) == 0 {
 				continue
 			}
@@ -51,16 +64,20 @@ func (s *Sequencer) awaitFutureProposal(ctx context.Context, feed MessageFeed) (
 	}
 }
 
-func (s *Sequencer) awaitValidProposal(ctx context.Context, feed MessageFeed) (*types.MsgProposal, error) {
-	sub, cancelSub := feed.SubscribeToProposalMessages(s.state.currentView, false)
+func (s *Sequencer) awaitValidProposal(ctx ibft.Context) (*types.MsgProposal, error) {
+	sub, cancelSub := ctx.Feed().Proposal(s.state.currentView, false)
 	defer cancelSub()
+
+	isValid := func(msg *types.MsgProposal) bool {
+		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case unwrapMessages := <-sub:
-			validProposals := types.Filter(unwrapMessages(), s.isValidMsgProposal)
+			validProposals := types.Filter(unwrapMessages(), isValid)
 			if len(validProposals) == 0 {
 				continue
 			}
@@ -74,7 +91,7 @@ func (s *Sequencer) awaitValidProposal(ctx context.Context, feed MessageFeed) (*
 	}
 }
 
-func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal) bool {
+func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quorum, keccak ibft.Keccak) bool {
 	if msg.ProposedBlock.Round != msg.View.Round {
 		return false
 	}
@@ -87,12 +104,12 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal) bool {
 		return false
 	}
 
-	if !bytes.Equal(msg.BlockHash, s.hash(msg.ProposedBlock)) {
+	if !bytes.Equal(msg.BlockHash, keccak.Hash(msg.ProposedBlock.Bytes())) {
 		return false
 	}
 
 	if msg.View.Round == 0 {
-		if !s.IsValidBlock(msg.ProposedBlock.Block, 0) {
+		if !s.IsValidBlock(msg.ProposedBlock.Block, msg.View.Sequence) {
 			return false
 		}
 
@@ -101,15 +118,27 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal) bool {
 	}
 
 	rcc := msg.RoundChangeCertificate
-	if !s.isValidRCC(rcc, msg.View.Sequence, msg.View.Round) {
+	if !s.isValidRCC(rcc, msg, quorum) {
 		return false
 	}
 
-	rcc = s.filterInvalidPC(rcc)
+	valid := make([]*types.MsgRoundChange, 0, len(rcc.Messages))
+	for _, msg := range rcc.Messages {
+		pc := msg.LatestPreparedCertificate
+		if pc == nil {
+			continue
+		}
 
-	blockHash, round := rcc.HighestRoundBlockHash()
+		if s.isValidPC(pc, msg, quorum) {
+			valid = append(valid, msg)
+		}
+	}
+
+	trimmedRCC := &types.RoundChangeCertificate{Messages: valid}
+
+	blockHash, round := trimmedRCC.HighestRoundBlockHash()
 	if blockHash == nil {
-		if !s.IsValidBlock(msg.ProposedBlock.Block, 0) {
+		if !s.IsValidBlock(msg.ProposedBlock.Block, msg.View.Sequence) {
 			return false
 		}
 
@@ -121,28 +150,9 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal) bool {
 		Round: round,
 	}
 
-	if !bytes.Equal(blockHash, s.hash(pb)) {
+	if !bytes.Equal(blockHash, keccak.Hash(pb.Bytes())) {
 		return false
 	}
 
 	return true
-}
-
-func (s *Sequencer) buildMsgProposal(block []byte) *types.MsgProposal {
-	pb := &types.ProposedBlock{
-		Block: block,
-		Round: s.state.CurrentRound(),
-	}
-
-	msg := &types.MsgProposal{
-		View:                   s.state.currentView,
-		From:                   s.ID(),
-		ProposedBlock:          pb,
-		BlockHash:              s.hash(pb),
-		RoundChangeCertificate: s.state.roundChangeCertificate,
-	}
-
-	msg.Signature = s.Sign(msg.Payload())
-
-	return msg
 }

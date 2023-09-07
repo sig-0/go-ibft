@@ -18,6 +18,13 @@ type Msg interface {
 	Payload() []byte
 }
 
+type MsgFeed interface {
+	Proposal(view *View, futureRounds bool) (<-chan func() []*MsgProposal, func())
+	Prepare(view *View, futureRounds bool) (<-chan func() []*MsgPrepare, func())
+	Commit(view *View, futureRounds bool) (<-chan func() []*MsgCommit, func())
+	RoundChange(view *View, futureRounds bool) (<-chan func() []*MsgRoundChange, func())
+}
+
 type SigRecover interface {
 	From(data []byte, sig []byte) []byte
 }

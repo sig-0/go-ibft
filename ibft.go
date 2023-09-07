@@ -9,6 +9,7 @@ import (
 type (
 	Signer     = types.Signer
 	SigRecover = types.SigRecover
+	Feed       = types.MsgFeed
 
 	Transport interface {
 		Multicast(types.Msg)
@@ -43,12 +44,25 @@ func NewIBFTContext(ctx context.Context) Context {
 	return Context{ctx}
 }
 
+func (c Context) WithCancel() (Context, func()) {
+	subCtx, cancelFn := context.WithCancel(c)
+	return Context{subCtx}, cancelFn
+}
+
 func (c Context) WithTransport(t Transport) Context {
 	return Context{context.WithValue(c, "transport", t)}
 }
 
 func (c Context) Transport() Transport {
 	return c.Value("transport").(Transport)
+}
+
+func (c Context) WithFeed(f Feed) Context {
+	return Context{context.WithValue(c, "feed", f)}
+}
+
+func (c Context) Feed() Feed {
+	return c.Value("feed").(Feed)
 }
 
 func (c Context) WithQuorum(q Quorum) Context {

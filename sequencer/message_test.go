@@ -21,23 +21,19 @@ func TestIsValidMsgProposal(t *testing.T) {
 		// setup
 		validator ibft.Validator
 		verifier  ibft.Verifier
-		options   []Option
+		quorum    ibft.Quorum
+		keccak    ibft.Keccak
 	}{
 		{
 			name: "invalid round in proposed block",
 			msg: &types.MsgProposal{
-				View: &types.View{Sequence: 101, Round: 5},
-				ProposedBlock: &types.ProposedBlock{
-					Block: []byte("block"),
-					Round: 0,
-				},
+				View:          &types.View{Round: 5},
+				ProposedBlock: &types.ProposedBlock{Round: 0},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte {
-					return []byte("my validator")
-				},
-			},
+			validator: mockValidator{idFn: func() []byte {
+				return []byte("my validator")
+			}},
 		},
 
 		{
@@ -100,9 +96,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -129,9 +123,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -159,9 +151,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -189,9 +179,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -219,9 +207,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -253,9 +239,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -287,9 +271,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -325,9 +307,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -367,9 +347,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -405,13 +383,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-
-				WithQuorum(QuorumFn(func(_ []types.Msg) bool {
-					return false
-				})),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return false }),
 		},
 
 		{
@@ -448,12 +421,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-				WithQuorum(QuorumFn(func(_ []types.Msg) bool {
-					return true
-				})),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
 		},
 
 		{
@@ -490,12 +459,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			options: []Option{
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
-				WithQuorum(QuorumFn(func(_ []types.Msg) bool {
-					return true
-				})),
-			},
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
 		},
 	}
 
@@ -504,8 +469,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			seq := New(tt.validator, tt.verifier, tt.options...)
-			assert.Equal(t, tt.isValid, seq.isValidMsgProposal(tt.msg))
+			seq := New(tt.validator, tt.verifier, 0)
+			assert.Equal(t, tt.isValid, seq.isValidMsgProposal(tt.msg, tt.quorum, tt.keccak))
 		})
 	}
 }
@@ -570,11 +535,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			seq := New(
-				mockValidator{idFn: func() []byte { return []byte("my validator") }},
-				tt.verifier,
-			)
-
+			seq := New(nil, tt.verifier, 0)
 			seq.state.acceptedProposal = tt.acceptedProposal
 
 			assert.Equal(t, tt.isValid, seq.isValidMsgPrepare(tt.msg))
@@ -671,15 +632,10 @@ func TestIsValidMsgCommit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			seq := New(
-				mockValidator{idFn: func() []byte { return []byte("my validator") }},
-				tt.verifier,
-				WithSigRecover(tt.recover),
-			)
+			s := New(nil, tt.verifier, 0)
+			s.state.acceptedProposal = tt.acceptedProposal
 
-			seq.state.acceptedProposal = tt.acceptedProposal
-
-			assert.Equal(t, tt.isValid, seq.isValidCommit(tt.msg))
+			assert.Equal(t, tt.isValid, s.isValidCommit(tt.msg, tt.recover))
 		})
 	}
 }
@@ -694,7 +650,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 
 		// setup
 		verifier ibft.Verifier
-		options  []Option
+		quorum   ibft.Quorum
+		keccak   ibft.Keccak
 	}{
 		{
 			name: "invalid sender",
@@ -708,7 +665,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name:    "valid round change msg (pb and pc are nil)",
+			name:    "valid msg (pb and pc are nil)",
 			isValid: true,
 			msg: &types.MsgRoundChange{
 				View: &types.View{Sequence: 101},
@@ -751,7 +708,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: nil,
-					PrepareMessages: []*types.MsgPrepare{},
 				},
 			},
 			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
@@ -760,7 +716,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "(invalid pc) nil prepare msgs",
+			name: "(invalid pc) nil prepare messages",
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101},
 				From:                        []byte("validator"),
@@ -794,64 +750,19 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "(invalid pc) proposal and prepare sequence mismatch",
-			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101},
-				From:                        []byte("validator"),
-				LatestPreparedProposedBlock: &types.ProposedBlock{},
-				LatestPreparedCertificate: &types.PreparedCertificate{
-					ProposalMessage: &types.MsgProposal{
-						View: &types.View{Sequence: 101, Round: 1},
-					},
-					PrepareMessages: []*types.MsgPrepare{
-						{
-							View: &types.View{Sequence: 102},
-						},
-					},
-				},
-			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
-				return bytes.Equal(from, []byte("validator"))
-			}},
-		},
-
-		{
-			name: "(invalid pc) proposal and prepare sequence mismatch",
-			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101},
-				From:                        []byte("validator"),
-				LatestPreparedProposedBlock: &types.ProposedBlock{},
-				LatestPreparedCertificate: &types.PreparedCertificate{
-					ProposalMessage: &types.MsgProposal{
-						View: &types.View{Sequence: 101, Round: 1},
-					},
-					PrepareMessages: []*types.MsgPrepare{
-						{
-							View: &types.View{Sequence: 101, Round: 0},
-						},
-					},
-				},
-			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
-				return bytes.Equal(from, []byte("validator"))
-			}},
-		},
-
-		{
-			name: "(invalid pc) invalid proposal msg round",
+			name: "(invalid pc) invalid round in proposal msg",
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 1},
 				From:                        []byte("validator"),
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						View: &types.View{Sequence: 101, Round: 1},
-					},
-					PrepareMessages: []*types.MsgPrepare{
-						{
-							View: &types.View{Sequence: 101, Round: 1},
+						View: &types.View{
+							Sequence: 101,
+							Round:    5,
 						},
 					},
+					PrepareMessages: []*types.MsgPrepare{},
 				},
 			},
 			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
@@ -860,89 +771,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "(invalid pc) invalid block hash in prepare msg",
-			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 1},
-				From:                        []byte("validator"),
-				LatestPreparedProposedBlock: &types.ProposedBlock{},
-				LatestPreparedCertificate: &types.PreparedCertificate{
-					ProposalMessage: &types.MsgProposal{
-						View:      &types.View{Sequence: 101, Round: 0},
-						BlockHash: []byte("block hash"),
-					},
-					PrepareMessages: []*types.MsgPrepare{
-						{
-							View:      &types.View{Sequence: 101, Round: 0},
-							BlockHash: []byte("invalid block hash"),
-						},
-					},
-				},
-			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
-				return bytes.Equal(from, []byte("validator"))
-			}},
-		},
-
-		{
-			name: "(invalid pc) duplicate sender in prepare msgs",
-			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 1},
-				From:                        []byte("validator"),
-				LatestPreparedProposedBlock: &types.ProposedBlock{},
-				LatestPreparedCertificate: &types.PreparedCertificate{
-					ProposalMessage: &types.MsgProposal{
-						View:      &types.View{Sequence: 101, Round: 0},
-						BlockHash: []byte("block hash"),
-					},
-					PrepareMessages: []*types.MsgPrepare{
-						{
-							View:      &types.View{Sequence: 101, Round: 0},
-							From:      []byte("validator"),
-							BlockHash: []byte("block hash"),
-						},
-						{
-							View:      &types.View{Sequence: 101, Round: 0},
-							From:      []byte("validator"),
-							BlockHash: []byte("block hash"),
-						},
-					},
-				},
-			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
-				return bytes.Equal(from, []byte("validator"))
-			}},
-		},
-
-		{
-			name: "(invalid pc) no quorum",
-			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 1},
-				From:                        []byte("validator"),
-				LatestPreparedProposedBlock: &types.ProposedBlock{},
-				LatestPreparedCertificate: &types.PreparedCertificate{
-					ProposalMessage: &types.MsgProposal{
-						View:      &types.View{Sequence: 101, Round: 0},
-						BlockHash: []byte("block hash"),
-					},
-					PrepareMessages: []*types.MsgPrepare{
-						{
-							View:      &types.View{Sequence: 101, Round: 0},
-							From:      []byte("validator"),
-							BlockHash: []byte("block hash"),
-						},
-					},
-				},
-			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
-				return bytes.Equal(from, []byte("validator"))
-			}},
-			options: []Option{
-				WithQuorum(QuorumFn(func(_ []types.Msg) bool { return false })),
-			},
-		},
-
-		{
-			name: "(invalid pc) invalid sender in proposal msg",
+			name: "(invalid pc) invalid proposer in proposal msg",
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 1},
 				From:                        []byte("validator"),
@@ -970,8 +799,91 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
-			options: []Option{
-				WithQuorum(QuorumFn(func(_ []types.Msg) bool { return true })),
+		},
+
+		{
+			name: "(invalid pc) proposal and prepare sequence mismatch",
+			msg: &types.MsgRoundChange{
+				View:                        &types.View{Sequence: 101, Round: 2},
+				From:                        []byte("validator"),
+				LatestPreparedProposedBlock: &types.ProposedBlock{},
+				LatestPreparedCertificate: &types.PreparedCertificate{
+					ProposalMessage: &types.MsgProposal{
+						From: []byte("proposer"),
+						View: &types.View{Sequence: 101, Round: 1},
+					},
+					PrepareMessages: []*types.MsgPrepare{
+						{
+							View: &types.View{Sequence: 102},
+						},
+					},
+				},
+			},
+			verifier: mockVerifier{
+				isValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				},
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+					return bytes.Equal(from, []byte("proposer"))
+				},
+			},
+		},
+
+		{
+			name: "(invalid pc) proposal and prepare round mismatch",
+			msg: &types.MsgRoundChange{
+				View:                        &types.View{Sequence: 101, Round: 2},
+				From:                        []byte("validator"),
+				LatestPreparedProposedBlock: &types.ProposedBlock{},
+				LatestPreparedCertificate: &types.PreparedCertificate{
+					ProposalMessage: &types.MsgProposal{
+						From: []byte("proposer"),
+						View: &types.View{Sequence: 101, Round: 1},
+					},
+					PrepareMessages: []*types.MsgPrepare{
+						{
+							View: &types.View{Sequence: 101, Round: 0},
+						},
+					},
+				},
+			},
+			verifier: mockVerifier{
+				isValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				},
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+					return bytes.Equal(from, []byte("proposer"))
+				},
+			},
+		},
+
+		{
+			name: "(invalid pc) invalid block hash in prepare msg",
+			msg: &types.MsgRoundChange{
+				View:                        &types.View{Sequence: 101, Round: 2},
+				From:                        []byte("validator"),
+				LatestPreparedProposedBlock: &types.ProposedBlock{},
+				LatestPreparedCertificate: &types.PreparedCertificate{
+					ProposalMessage: &types.MsgProposal{
+						From:      []byte("proposer"),
+						View:      &types.View{Sequence: 101, Round: 0},
+						BlockHash: []byte("block hash"),
+					},
+					PrepareMessages: []*types.MsgPrepare{
+						{
+							View:      &types.View{Sequence: 101, Round: 0},
+							BlockHash: []byte("invalid block hash"),
+						},
+					},
+				},
+			},
+			verifier: mockVerifier{
+				isValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				},
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+					return bytes.Equal(from, []byte("proposer"))
+				},
 			},
 		},
 
@@ -1004,13 +916,79 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
-			options: []Option{
-				WithQuorum(QuorumFn(func(_ []types.Msg) bool { return true })),
+		},
+
+		{
+			name: "(invalid pc) duplicate sender in prepare msgs",
+			msg: &types.MsgRoundChange{
+				View:                        &types.View{Sequence: 101, Round: 1},
+				From:                        []byte("validator"),
+				LatestPreparedProposedBlock: &types.ProposedBlock{},
+				LatestPreparedCertificate: &types.PreparedCertificate{
+					ProposalMessage: &types.MsgProposal{
+						From:      []byte("proposer"),
+						View:      &types.View{Sequence: 101, Round: 0},
+						BlockHash: []byte("block hash"),
+					},
+					PrepareMessages: []*types.MsgPrepare{
+						{
+							View:      &types.View{Sequence: 101, Round: 0},
+							From:      []byte("validator"),
+							BlockHash: []byte("block hash"),
+						},
+						{
+							View:      &types.View{Sequence: 101, Round: 0},
+							From:      []byte("validator"),
+							BlockHash: []byte("block hash"),
+						},
+					},
+				},
+			},
+			verifier: mockVerifier{
+				isValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				},
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+					return bytes.Equal(from, []byte("proposer"))
+				},
 			},
 		},
 
 		{
-			name: "hash of latest ppb does not match proposal msg block hash",
+			name: "(invalid pc) no quorum",
+			msg: &types.MsgRoundChange{
+				View:                        &types.View{Sequence: 101, Round: 1},
+				From:                        []byte("validator"),
+				LatestPreparedProposedBlock: &types.ProposedBlock{},
+				LatestPreparedCertificate: &types.PreparedCertificate{
+					ProposalMessage: &types.MsgProposal{
+						From:      []byte("proposer"),
+						View:      &types.View{Sequence: 101, Round: 0},
+						BlockHash: []byte("block hash"),
+					},
+					PrepareMessages: []*types.MsgPrepare{
+						{
+							View:      &types.View{Sequence: 101, Round: 0},
+							From:      []byte("validator"),
+							BlockHash: []byte("block hash"),
+						},
+					},
+				},
+			},
+			verifier: mockVerifier{
+				isValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				},
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+					return bytes.Equal(from, []byte("proposer"))
+				},
+			},
+
+			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return false }),
+		},
+
+		{
+			name: "latest ppb hash does not match proposal block hash",
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 1},
 				From:                        []byte("validator"),
@@ -1038,12 +1016,9 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
-			options: []Option{
-				WithQuorum(QuorumFn(func(_ []types.Msg) bool { return true })),
-				WithKeccak(KeccakFn(func(_ []byte) []byte {
-					return []byte("block hash")
-				})),
-			},
+
+			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 
 		{
@@ -1068,6 +1043,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					},
 				},
 			},
+
 			verifier: mockVerifier{
 				isValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
@@ -1076,12 +1052,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
-			options: []Option{
-				WithQuorum(QuorumFn(func(_ []types.Msg) bool { return true })),
-				WithKeccak(KeccakFn(func(_ []byte) []byte {
-					return []byte("block hash")
-				})),
-			},
+			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
 		},
 	}
 
@@ -1090,13 +1062,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			seq := New(
-				mockValidator{idFn: func() []byte { return []byte("my validator") }},
-				tt.verifier,
-				tt.options...,
-			)
-
-			assert.Equal(t, tt.isValid, seq.isValidMsgRoundChange(tt.msg))
+			s := New(nil, tt.verifier, 0)
+			assert.Equal(t, tt.isValid, s.isValidMsgRoundChange(tt.msg, tt.quorum, tt.keccak))
 		})
 	}
 }

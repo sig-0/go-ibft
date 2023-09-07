@@ -1,7 +1,6 @@
 package sequencer
 
 import (
-	"context"
 	"math"
 	"sync"
 	"time"
@@ -14,49 +13,32 @@ type Sequencer struct {
 	ibft.Validator
 	ibft.Verifier
 
-	transport Transport
-
-	quorum Quorum
-
-	recover ibft.SigRecover
-
-	keccak ibft.Keccak
-
-	state state
-
-	round0Duration time.Duration
 	wg             sync.WaitGroup
+	state          state
+	round0Duration time.Duration
 }
 
-func New(val ibft.Validator, vrf ibft.Verifier, opts ...Option) *Sequencer {
+func New(val ibft.Validator, vrf ibft.Verifier, round0Duration time.Duration) *Sequencer {
 	s := &Sequencer{
 		Validator:      val,
 		Verifier:       vrf,
-		transport:      DummyTransport,
-		quorum:         TrueQuorum,
-		round0Duration: DefaultRound0Duration,
-	}
-
-	for _, opt := range opts {
-		opt(s)
+		round0Duration: round0Duration,
 	}
 
 	return s
 }
 
-func (s *Sequencer) FinalizeSequence(ctx context.Context, sequence uint64, feed MessageFeed) *types.FinalizedBlock {
-	s.state = state{
-		currentView: &types.View{
-			Sequence: sequence,
-			Round:    0,
-		},
-	}
+func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.FinalizedBlock {
+	s.state = state{currentView: &types.View{
+		Sequence: sequence,
+		Round:    0,
+	}}
 
 	c := make(chan *types.FinalizedBlock, 1)
 	go func() {
 		defer close(c)
 
-		fb := s.finalize(ctx, feed)
+		fb := s.finalize(ctx)
 		if fb == nil {
 			return
 		}
@@ -73,9 +55,9 @@ func (s *Sequencer) FinalizeSequence(ctx context.Context, sequence uint64, feed 
 	}
 }
 
-func (s *Sequencer) finalize(ctx context.Context, feed MessageFeed) *types.FinalizedBlock {
+func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedBlock {
 	for {
-		ctxRound, cancelRound := context.WithCancel(ctx)
+		ctxRound, cancelRound := ctx.WithCancel()
 		teardown := func() {
 			cancelRound()
 			s.wg.Wait()
@@ -89,10 +71,20 @@ func (s *Sequencer) finalize(ctx context.Context, feed MessageFeed) *types.Final
 			}
 
 			s.state.MoveToRound(s.state.CurrentRound() + 1)
-			s.transport.Multicast(s.buildMsgRoundChange())
+
+			msg := &types.MsgRoundChange{
+				View:                        s.state.currentView,
+				From:                        s.ID(),
+				LatestPreparedProposedBlock: s.state.latestPreparedProposedBlock,
+				LatestPreparedCertificate:   s.state.latestPreparedCertificate,
+			}
+
+			msg.Signature = s.Sign(msg.Payload())
+
+			ctx.Transport().Multicast(msg)
 
 			println("round timer expired")
-		case rcc, ok := <-s.watchForFutureRCC(ctxRound, feed):
+		case rcc, ok := <-s.watchForFutureRCC(ctxRound):
 			teardown()
 			if !ok {
 				return nil
@@ -102,7 +94,7 @@ func (s *Sequencer) finalize(ctx context.Context, feed MessageFeed) *types.Final
 			s.state.roundChangeCertificate = rcc
 
 			println("future rcc")
-		case proposal, ok := <-s.watchForFutureProposal(ctxRound, feed):
+		case proposal, ok := <-s.watchForFutureProposal(ctxRound):
 			teardown()
 			if !ok {
 				return nil
@@ -110,10 +102,19 @@ func (s *Sequencer) finalize(ctx context.Context, feed MessageFeed) *types.Final
 
 			s.state.MoveToRound(proposal.View.Round)
 			s.state.acceptedProposal = proposal
-			s.transport.Multicast(s.buildMsgPrepare())
+
+			msg := &types.MsgPrepare{
+				From:      s.ID(),
+				View:      s.state.currentView,
+				BlockHash: s.state.AcceptedBlockHash(),
+			}
+
+			msg.Signature = s.Sign(msg.Payload())
+
+			ctx.Transport().Multicast(msg)
 
 			println("future proposal")
-		case fb, ok := <-s.finalizeBlockInCurrentRound(ctxRound, feed):
+		case fb, ok := <-s.finalizeBlockInCurrentRound(ctxRound):
 			teardown()
 			if !ok {
 				return nil
@@ -126,7 +127,7 @@ func (s *Sequencer) finalize(ctx context.Context, feed MessageFeed) *types.Final
 	}
 }
 
-func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
+func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
 	c := make(chan struct{}, 1)
 
 	s.wg.Add(1)
@@ -149,7 +150,7 @@ func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
 	return c
 }
 
-func (s *Sequencer) watchForFutureProposal(ctx context.Context, feed MessageFeed) <-chan *types.MsgProposal {
+func (s *Sequencer) watchForFutureProposal(ctx ibft.Context) <-chan *types.MsgProposal {
 	c := make(chan *types.MsgProposal, 1)
 
 	s.wg.Add(1)
@@ -159,7 +160,7 @@ func (s *Sequencer) watchForFutureProposal(ctx context.Context, feed MessageFeed
 			s.wg.Done()
 		}()
 
-		proposal, err := s.awaitFutureProposal(ctx, feed)
+		proposal, err := s.awaitFutureProposal(ctx)
 		if err != nil {
 			return
 		}
@@ -170,7 +171,7 @@ func (s *Sequencer) watchForFutureProposal(ctx context.Context, feed MessageFeed
 	return c
 }
 
-func (s *Sequencer) watchForFutureRCC(ctx context.Context, feed MessageFeed) <-chan *types.RoundChangeCertificate {
+func (s *Sequencer) watchForFutureRCC(ctx ibft.Context) <-chan *types.RoundChangeCertificate {
 	c := make(chan *types.RoundChangeCertificate, 1)
 
 	s.wg.Add(1)
@@ -180,7 +181,7 @@ func (s *Sequencer) watchForFutureRCC(ctx context.Context, feed MessageFeed) <-c
 			s.wg.Done()
 		}()
 
-		rcc, err := s.awaitFutureRCC(ctx, feed)
+		rcc, err := s.awaitFutureRCC(ctx)
 		if err != nil {
 			return
 		}
@@ -191,7 +192,7 @@ func (s *Sequencer) watchForFutureRCC(ctx context.Context, feed MessageFeed) <-c
 	return c
 }
 
-func (s *Sequencer) finalizeBlockInCurrentRound(ctx context.Context, feed MessageFeed) <-chan *types.FinalizedBlock {
+func (s *Sequencer) finalizeBlockInCurrentRound(ctx ibft.Context) <-chan *types.FinalizedBlock {
 	c := make(chan *types.FinalizedBlock, 1)
 
 	s.wg.Add(1)
@@ -202,20 +203,20 @@ func (s *Sequencer) finalizeBlockInCurrentRound(ctx context.Context, feed Messag
 		}()
 
 		if s.shouldPropose() {
-			if err := s.propose(ctx, feed); err != nil {
+			if err := s.propose(ctx); err != nil {
 				return
 			}
 		}
 
-		if err := s.awaitProposal(ctx, feed); err != nil {
+		if err := s.awaitProposal(ctx); err != nil {
 			return
 		}
 
-		if err := s.awaitPrepare(ctx, feed); err != nil {
+		if err := s.awaitPrepare(ctx); err != nil {
 			return
 		}
 
-		if err := s.awaitCommit(ctx, feed); err != nil {
+		if err := s.awaitCommit(ctx); err != nil {
 			return
 		}
 
@@ -233,29 +234,43 @@ func (s *Sequencer) shouldPropose() bool {
 	return s.IsProposer(s.ID(), s.state.CurrentSequence(), s.state.CurrentRound())
 }
 
-func (s *Sequencer) propose(ctx context.Context, feed MessageFeed) error {
-	block, err := s.buildBlock(ctx, feed)
+func (s *Sequencer) propose(ctx ibft.Context) error {
+	block, err := s.buildBlock(ctx)
 	if err != nil {
 		return err
 	}
 
-	msg := s.buildMsgProposal(block)
+	pb := &types.ProposedBlock{
+		Block: block,
+		Round: s.state.CurrentRound(),
+	}
+
+	msg := &types.MsgProposal{
+		From:                   s.ID(),
+		View:                   s.state.currentView,
+		ProposedBlock:          pb,
+		BlockHash:              ctx.Keccak().Hash(pb.Bytes()),
+		RoundChangeCertificate: s.state.roundChangeCertificate,
+	}
+
+	msg.Signature = s.Sign(msg.Payload())
 
 	s.state.acceptedProposal = msg
-	s.transport.Multicast(msg)
+
+	ctx.Transport().Multicast(msg)
 
 	return nil
 }
 
-func (s *Sequencer) buildBlock(ctx context.Context, feed MessageFeed) ([]byte, error) {
+func (s *Sequencer) buildBlock(ctx ibft.Context) ([]byte, error) {
 	if s.state.CurrentRound() == 0 {
-		return s.BuildBlock(0), nil
+		return s.BuildBlock(s.state.CurrentSequence()), nil
 	}
 
 	rcc := s.state.roundChangeCertificate
 	if rcc == nil {
-		// round hop triggered by round timer, justify proposal message with rcc
-		rCc, err := s.awaitRCC(ctx, feed)
+		// round jump triggered by round timer, justify proposal with rcc
+		rCc, err := s.awaitRCC(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -265,12 +280,8 @@ func (s *Sequencer) buildBlock(ctx context.Context, feed MessageFeed) ([]byte, e
 
 	block, _ := rcc.HighestRoundBlock()
 	if block == nil {
-		return s.BuildBlock(0), nil
+		return s.BuildBlock(s.state.CurrentSequence()), nil
 	}
 
 	return block, nil
-}
-
-func (s *Sequencer) hash(pb *types.ProposedBlock) []byte {
-	return s.keccak.Hash(pb.Bytes())
 }
