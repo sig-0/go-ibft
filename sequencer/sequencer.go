@@ -6,45 +6,32 @@ import (
 	"sync"
 	"time"
 
+	ibft "github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type Verifier interface {
-	IsProposer(id []byte, sequence uint64, round uint64) bool
-	IsValidator(id []byte, height uint64) bool
-	IsValidBlock(block []byte) bool
-}
-
-type Validator interface {
-	ID() []byte
-	Sign([]byte) []byte
-	BuildBlock() []byte
-}
-
 type Sequencer struct {
-	validator Validator
-
-	verifier Verifier
+	ibft.Validator
+	ibft.Verifier
 
 	transport Transport
 
 	quorum Quorum
 
-	cdc Codec
+	recover ibft.SigRecover
+
+	keccak ibft.Keccak
 
 	state state
 
 	round0Duration time.Duration
 	wg             sync.WaitGroup
-
-	id []byte
 }
 
-func New(val Validator, vrf Verifier, opts ...Option) *Sequencer {
+func New(val ibft.Validator, vrf ibft.Verifier, opts ...Option) *Sequencer {
 	s := &Sequencer{
-		id:             val.ID(),
-		validator:      val,
-		verifier:       vrf,
+		Validator:      val,
+		Verifier:       vrf,
 		transport:      DummyTransport,
 		quorum:         TrueQuorum,
 		round0Duration: DefaultRound0Duration,
@@ -243,7 +230,7 @@ func (s *Sequencer) getRoundTimer() *time.Timer {
 }
 
 func (s *Sequencer) shouldPropose() bool {
-	return s.verifier.IsProposer(s.id, s.state.CurrentSequence(), s.state.CurrentRound())
+	return s.IsProposer(s.ID(), s.state.CurrentSequence(), s.state.CurrentRound())
 }
 
 func (s *Sequencer) propose(ctx context.Context, feed MessageFeed) error {
@@ -262,7 +249,7 @@ func (s *Sequencer) propose(ctx context.Context, feed MessageFeed) error {
 
 func (s *Sequencer) buildBlock(ctx context.Context, feed MessageFeed) ([]byte, error) {
 	if s.state.CurrentRound() == 0 {
-		return s.validator.BuildBlock(), nil
+		return s.BuildBlock(0), nil
 	}
 
 	rcc := s.state.roundChangeCertificate
@@ -278,12 +265,12 @@ func (s *Sequencer) buildBlock(ctx context.Context, feed MessageFeed) ([]byte, e
 
 	block, _ := rcc.HighestRoundBlock()
 	if block == nil {
-		return s.validator.BuildBlock(), nil
+		return s.BuildBlock(0), nil
 	}
 
 	return block, nil
 }
 
 func (s *Sequencer) hash(pb *types.ProposedBlock) []byte {
-	return s.cdc.Keccak(pb.Bytes())
+	return s.keccak.Hash(pb.Bytes())
 }

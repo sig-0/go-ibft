@@ -24,7 +24,7 @@ type (
 
 	Validator interface {
 		Signer
-		ID() byte
+		ID() []byte
 		BuildBlock(uint64) []byte
 	}
 
@@ -65,14 +65,6 @@ func (c Context) WithKeccak(k Keccak) Context {
 
 func (c Context) Keccak() Keccak {
 	return c.Value("keccak").(Keccak)
-}
-
-func (c Context) WithSigner(s Signer) Context {
-	return Context{context.WithValue(c, "signer", s)}
-}
-
-func (c Context) Signer() Signer {
-	return c.Value("signer").(Signer)
 }
 
 func (c Context) WithSigRecover(s SigRecover) Context {

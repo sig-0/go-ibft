@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	ibft "github.com/madz-lab/go-ibft"
 	"time"
 
 	"github.com/madz-lab/go-ibft/message/types"
@@ -14,9 +15,15 @@ var (
 
 type Option func(*Sequencer)
 
-func WithCodec(cdc Codec) Option {
+func WithKeccak(k ibft.Keccak) Option {
 	return func(s *Sequencer) {
-		s.cdc = cdc
+		s.keccak = k
+	}
+}
+
+func WithSigRecover(r ibft.SigRecover) Option {
+	return func(s *Sequencer) {
+		s.recover = r
 	}
 }
 

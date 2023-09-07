@@ -39,7 +39,7 @@ func (s *Sequencer) awaitQuorumPrepareMessages(ctx context.Context, feed Message
 }
 
 func (s *Sequencer) isValidMsgPrepare(msg *types.MsgPrepare) bool {
-	if !s.verifier.IsValidator(msg.From, msg.View.Sequence) {
+	if !s.IsValidator(msg.From, msg.View.Sequence) {
 		return false
 	}
 
@@ -53,11 +53,11 @@ func (s *Sequencer) isValidMsgPrepare(msg *types.MsgPrepare) bool {
 func (s *Sequencer) buildMsgPrepare() *types.MsgPrepare {
 	msg := &types.MsgPrepare{
 		View:      s.state.currentView,
-		From:      s.id,
+		From:      s.ID(),
 		BlockHash: s.state.AcceptedBlockHash(),
 	}
 
-	msg.Signature = s.validator.Sign(msg.Payload())
+	msg.Signature = s.Sign(msg.Payload())
 
 	return msg
 }

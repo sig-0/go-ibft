@@ -78,7 +78,7 @@ func (s *Sequencer) awaitQuorumRoundChangeMessages(ctx context.Context, feed Mes
 }
 
 func (s *Sequencer) isValidMsgRoundChange(msg *types.MsgRoundChange) bool {
-	if !s.verifier.IsValidator(msg.From, msg.View.Sequence) {
+	if !s.IsValidator(msg.From, msg.View.Sequence) {
 		return false
 	}
 
@@ -149,12 +149,12 @@ func (s *Sequencer) isValidPC(pc *types.PreparedCertificate, sequence, roundLimi
 		return false
 	}
 
-	if !s.verifier.IsProposer(pc.ProposalMessage.From, pc.ProposalMessage.View.Sequence, pc.ProposalMessage.View.Round) {
+	if !s.IsProposer(pc.ProposalMessage.From, pc.ProposalMessage.View.Sequence, pc.ProposalMessage.View.Round) {
 		return false
 	}
 
 	for _, msg := range pc.PrepareMessages {
-		if !s.verifier.IsValidator(msg.From, msg.View.Sequence) {
+		if !s.IsValidator(msg.From, msg.View.Sequence) {
 			return false
 		}
 	}
@@ -165,12 +165,12 @@ func (s *Sequencer) isValidPC(pc *types.PreparedCertificate, sequence, roundLimi
 func (s *Sequencer) buildMsgRoundChange() *types.MsgRoundChange {
 	msg := &types.MsgRoundChange{
 		View:                        s.state.currentView,
-		From:                        s.id,
+		From:                        s.ID(),
 		LatestPreparedProposedBlock: s.state.latestPreparedProposedBlock,
 		LatestPreparedCertificate:   s.state.latestPreparedCertificate,
 	}
 
-	msg.Signature = s.validator.Sign(msg.Payload())
+	msg.Signature = s.Sign(msg.Payload())
 
 	return msg
 }
@@ -195,7 +195,7 @@ func (s *Sequencer) isValidRCC(rcc *types.RoundChangeCertificate, sequence, roun
 			return false
 		}
 
-		if !s.verifier.IsValidator(msg.From, sequence) {
+		if !s.IsValidator(msg.From, sequence) {
 			return false
 		}
 

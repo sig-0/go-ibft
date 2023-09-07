@@ -3,6 +3,7 @@ package sequencer
 import (
 	"bytes"
 	"context"
+	ibft "github.com/madz-lab/go-ibft"
 	"reflect"
 	"testing"
 	"time"
@@ -18,8 +19,8 @@ type testTable struct {
 	expectedFinalizedBlock *types.FinalizedBlock
 
 	// setup
-	validator Validator
-	verifier  Verifier
+	validator ibft.Validator
+	verifier  ibft.Verifier
 	options   []Option
 
 	feed MessageFeed
@@ -79,10 +80,8 @@ func TestHappyFlow(t *testing.T) {
 
 			options: []Option{
 				WithTransport(DummyTransport),
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("proposal hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("proposal hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool {
 					return len(msgs) != 0
 				})),
@@ -151,10 +150,8 @@ func TestHappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool {
 					return len(msgs) != 0
 				})),
@@ -235,10 +232,8 @@ func TestUnhappyFlow(t *testing.T) {
 
 			options: []Option{
 				WithTransport(DummyTransport),
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("my validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("my validator") })),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool { return len(msgs) != 0 })),
 			},
 
@@ -314,10 +309,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("proposal hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("proposal hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool {
 					return len(msgs) != 0
 				})),
@@ -422,10 +415,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool {
 					return len(msgs) != 0
@@ -503,16 +494,14 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, sig []byte) []byte {
-						if bytes.Equal(sig, []byte("commit seal")) {
-							return []byte("some validator")
-						}
+				WithSigRecover(SigRecoverFn(func(_ []byte, sig []byte) []byte {
+					if bytes.Equal(sig, []byte("commit seal")) {
+						return []byte("some validator")
+					}
 
-						return []byte("proposer")
-					},
-				}),
+					return []byte("proposer")
+				})),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool {
 					return len(msgs) != 0
 				})),
@@ -607,10 +596,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("round 3 block hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("round 3 block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool { return len(msgs) != 0 })),
 			},
@@ -704,14 +691,12 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte {
-						return []byte("block hash")
-					},
-					recoverFromFn: func(_ []byte, _ []byte) []byte {
-						return []byte("some validator")
-					},
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte {
+					return []byte("some validator")
+				})),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool {
 					return len(msgs) != 0
@@ -796,10 +781,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool {
 					return len(msgs) != 0
@@ -871,10 +854,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool {
 					return len(msgs) != 0
@@ -963,10 +944,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool { return len(msgs) != 0 })),
 			},
@@ -1060,10 +1039,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn:      func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, _ []byte) []byte { return []byte("some validator") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool { return len(msgs) != 0 })),
 			},
@@ -1161,20 +1138,18 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, cs []byte) []byte {
-						if bytes.Equal(cs, []byte("commit seal")) {
-							return []byte("validator")
-						}
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
+					if bytes.Equal(cs, []byte("commit seal")) {
+						return []byte("validator")
+					}
 
-						if bytes.Equal(cs, []byte("other commit seal")) {
-							return []byte("other validator")
-						}
+					if bytes.Equal(cs, []byte("other commit seal")) {
+						return []byte("other validator")
+					}
 
-						return nil
-					},
-				}),
+					return nil
+				})),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool { return len(msgs) == 2 })),
 			},
@@ -1295,20 +1270,18 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, cs []byte) []byte {
-						if bytes.Equal(cs, []byte("commit seal")) {
-							return []byte("validator")
-						}
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
+					if bytes.Equal(cs, []byte("commit seal")) {
+						return []byte("validator")
+					}
 
-						if bytes.Equal(cs, []byte("other commit seal")) {
-							return []byte("other validator")
-						}
+					if bytes.Equal(cs, []byte("other commit seal")) {
+						return []byte("other validator")
+					}
 
-						return nil
-					},
-				}),
+					return nil
+				})),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool { return len(msgs) == 2 })),
 			},
@@ -1435,20 +1408,18 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, cs []byte) []byte {
-						if bytes.Equal(cs, []byte("commit seal")) {
-							return []byte("validator")
-						}
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
+					if bytes.Equal(cs, []byte("commit seal")) {
+						return []byte("validator")
+					}
 
-						if bytes.Equal(cs, []byte("other commit seal")) {
-							return []byte("other validator")
-						}
+					if bytes.Equal(cs, []byte("other commit seal")) {
+						return []byte("other validator")
+					}
 
-						return nil
-					},
-				}),
+					return nil
+				})),
 				WithTransport(DummyTransport),
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool { return len(msgs) == 2 })),
 			},
@@ -1585,20 +1556,18 @@ func TestUnhappyFlow(t *testing.T) {
 			options: []Option{
 				WithQuorum(QuorumFn(func(msgs []types.Msg) bool { return len(msgs) == 2 })),
 				WithTransport(DummyTransport),
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-					recoverFromFn: func(_ []byte, cs []byte) []byte {
-						if bytes.Equal(cs, []byte("commit seal")) {
-							return []byte("validator")
-						}
+				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
+					if bytes.Equal(cs, []byte("commit seal")) {
+						return []byte("validator")
+					}
 
-						if bytes.Equal(cs, []byte("other commit seal")) {
-							return []byte("other validator")
-						}
+					if bytes.Equal(cs, []byte("other commit seal")) {
+						return []byte("other validator")
+					}
 
-						return nil
-					},
-				}),
+					return nil
+				})),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 			feed: singleRoundFeed(feed{
 				proposal: messagesByView[types.MsgProposal]{

@@ -190,7 +190,7 @@ func (v mockValidator) Sign(bytes []byte) []byte {
 	return v.signFn(bytes)
 }
 
-func (v mockValidator) BuildBlock() []byte {
+func (v mockValidator) BuildBlock(uint64) []byte {
 	return v.buildBlockFn()
 }
 
@@ -200,8 +200,8 @@ type mockVerifier struct {
 	isValidatorFn  func([]byte, uint64) bool
 }
 
-func (v mockVerifier) IsValidBlock(bytes []byte) bool {
-	return v.isValidBlockFn(bytes)
+func (v mockVerifier) IsValidBlock(block []byte, sequence uint64) bool {
+	return v.isValidBlockFn(block)
 }
 
 func (v mockVerifier) IsProposer(id []byte, sequence uint64, round uint64) bool {
@@ -212,15 +212,14 @@ func (v mockVerifier) IsValidator(id []byte, height uint64) bool {
 	return v.isValidatorFn(id, height)
 }
 
-type mockCodec struct {
-	keccakFn      func([]byte) []byte
-	recoverFromFn func([]byte, []byte) []byte
+type KeccakFn func([]byte) []byte
+
+func (k KeccakFn) Hash(data []byte) []byte {
+	return k(data)
 }
 
-func (c mockCodec) Keccak(bytes []byte) []byte {
-	return c.keccakFn(bytes)
-}
+type SigRecoverFn func([]byte, []byte) []byte
 
-func (c mockCodec) RecoverFrom(data, sig []byte) []byte {
-	return c.recoverFromFn(data, sig)
+func (r SigRecoverFn) From(data, sig []byte) []byte {
+	return r(data, sig)
 }

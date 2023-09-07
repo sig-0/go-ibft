@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	ibft "github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
@@ -18,8 +19,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 		isValid bool
 
 		// setup
-		validator Validator
-		verifier  Verifier
+		validator ibft.Validator
+		verifier  ibft.Verifier
 		options   []Option
 	}{
 		{
@@ -100,9 +101,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 		},
 
@@ -131,9 +130,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 		},
 
@@ -163,9 +160,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 		},
 
@@ -195,9 +190,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 		},
 
@@ -227,9 +220,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 		},
 
@@ -263,9 +254,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 		},
 
@@ -299,9 +288,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 		},
 
@@ -339,9 +326,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 		},
 
@@ -383,9 +368,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 			},
 		},
 
@@ -423,9 +406,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
+
 				WithQuorum(QuorumFn(func(_ []types.Msg) bool {
 					return false
 				})),
@@ -467,9 +449,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 				WithQuorum(QuorumFn(func(_ []types.Msg) bool {
 					return true
 				})),
@@ -511,9 +491,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			options: []Option{
-				WithCodec(mockCodec{
-					keccakFn: func(_ []byte) []byte { return []byte("block hash") },
-				}),
+				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })),
 				WithQuorum(QuorumFn(func(_ []types.Msg) bool {
 					return true
 				})),
@@ -541,7 +519,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 		isValid bool
 
 		// setup
-		verifier         Verifier
+		verifier         ibft.Verifier
 		acceptedProposal *types.MsgProposal
 	}{
 		{
@@ -613,8 +591,8 @@ func TestIsValidMsgCommit(t *testing.T) {
 		isValid bool
 
 		// setup
-		verifier         Verifier
-		codec            Codec
+		verifier         ibft.Verifier
+		recover          ibft.SigRecover
 		acceptedProposal *types.MsgProposal
 	}{
 		{
@@ -659,11 +637,10 @@ func TestIsValidMsgCommit(t *testing.T) {
 			acceptedProposal: &types.MsgProposal{
 				BlockHash: []byte("block hash"),
 			},
-			codec: mockCodec{
-				recoverFromFn: func(_ []byte, _ []byte) []byte {
-					return []byte("commit seal")
-				},
-			},
+
+			recover: SigRecoverFn(func(_ []byte, _ []byte) []byte {
+				return []byte("commit seal")
+			}),
 		},
 
 		{
@@ -682,11 +659,10 @@ func TestIsValidMsgCommit(t *testing.T) {
 			acceptedProposal: &types.MsgProposal{
 				BlockHash: []byte("block hash"),
 			},
-			codec: mockCodec{
-				recoverFromFn: func(_ []byte, _ []byte) []byte {
-					return []byte("validator")
-				},
-			},
+
+			recover: SigRecoverFn(func(_ []byte, _ []byte) []byte {
+				return []byte("validator")
+			}),
 		},
 	}
 
@@ -698,7 +674,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 			seq := New(
 				mockValidator{idFn: func() []byte { return []byte("my validator") }},
 				tt.verifier,
-				WithCodec(tt.codec),
+				WithSigRecover(tt.recover),
 			)
 
 			seq.state.acceptedProposal = tt.acceptedProposal
@@ -717,7 +693,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		isValid bool
 
 		// setup
-		verifier Verifier
+		verifier ibft.Verifier
 		options  []Option
 	}{
 		{
@@ -1064,9 +1040,9 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			},
 			options: []Option{
 				WithQuorum(QuorumFn(func(_ []types.Msg) bool { return true })),
-				WithCodec(mockCodec{keccakFn: func(_ []byte) []byte {
+				WithKeccak(KeccakFn(func(_ []byte) []byte {
 					return []byte("block hash")
-				}}),
+				})),
 			},
 		},
 
@@ -1102,9 +1078,9 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			},
 			options: []Option{
 				WithQuorum(QuorumFn(func(_ []types.Msg) bool { return true })),
-				WithCodec(mockCodec{keccakFn: func(_ []byte) []byte {
+				WithKeccak(KeccakFn(func(_ []byte) []byte {
 					return []byte("block hash")
-				}}),
+				})),
 			},
 		},
 	}

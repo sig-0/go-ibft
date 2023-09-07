@@ -48,11 +48,11 @@ func (s *Sequencer) isValidCommit(msg *types.MsgCommit) bool {
 		return false
 	}
 
-	if !s.verifier.IsValidator(msg.From, msg.View.Sequence) {
+	if !s.IsValidator(msg.From, msg.View.Sequence) {
 		return false
 	}
 
-	if !bytes.Equal(msg.From, s.cdc.RecoverFrom(acceptedBlockHash, msg.CommitSeal)) {
+	if !bytes.Equal(msg.From, s.recover.From(acceptedBlockHash, msg.CommitSeal)) {
 		return false
 	}
 
@@ -60,18 +60,18 @@ func (s *Sequencer) isValidCommit(msg *types.MsgCommit) bool {
 }
 
 func (s *Sequencer) seal() []byte {
-	return s.validator.Sign(s.hash(s.state.AcceptedProposedBlock()))
+	return s.Sign(s.hash(s.state.AcceptedProposedBlock()))
 }
 
 func (s *Sequencer) buildMsgCommit() *types.MsgCommit {
 	msg := &types.MsgCommit{
 		View:       s.state.currentView,
-		From:       s.id,
+		From:       s.ID(),
 		BlockHash:  s.state.AcceptedBlockHash(),
 		CommitSeal: s.seal(),
 	}
 
-	msg.Signature = s.validator.Sign(msg.Payload())
+	msg.Signature = s.Sign(msg.Payload())
 
 	return msg
 }

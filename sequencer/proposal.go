@@ -79,11 +79,11 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal) bool {
 		return false
 	}
 
-	if bytes.Equal(msg.From, s.id) {
+	if bytes.Equal(msg.From, s.ID()) {
 		return false
 	}
 
-	if !s.verifier.IsProposer(msg.From, msg.View.Sequence, msg.View.Round) {
+	if !s.IsProposer(msg.From, msg.View.Sequence, msg.View.Round) {
 		return false
 	}
 
@@ -92,7 +92,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal) bool {
 	}
 
 	if msg.View.Round == 0 {
-		if !s.verifier.IsValidBlock(msg.ProposedBlock.Block) {
+		if !s.IsValidBlock(msg.ProposedBlock.Block, 0) {
 			return false
 		}
 
@@ -109,7 +109,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal) bool {
 
 	blockHash, round := rcc.HighestRoundBlockHash()
 	if blockHash == nil {
-		if !s.verifier.IsValidBlock(msg.ProposedBlock.Block) {
+		if !s.IsValidBlock(msg.ProposedBlock.Block, 0) {
 			return false
 		}
 
@@ -136,13 +136,13 @@ func (s *Sequencer) buildMsgProposal(block []byte) *types.MsgProposal {
 
 	msg := &types.MsgProposal{
 		View:                   s.state.currentView,
-		From:                   s.id,
+		From:                   s.ID(),
 		ProposedBlock:          pb,
 		BlockHash:              s.hash(pb),
 		RoundChangeCertificate: s.state.roundChangeCertificate,
 	}
 
-	msg.Signature = s.validator.Sign(msg.Payload())
+	msg.Signature = s.Sign(msg.Payload())
 
 	return msg
 }
