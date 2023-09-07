@@ -13,9 +13,13 @@ type FinalizedBlock struct {
 }
 
 type Msg interface {
-	Bytes() []byte
 	GetFrom() []byte
+	GetSignature() []byte
 	Payload() []byte
+}
+
+type SigRecover interface {
+	From(data []byte, sig []byte) []byte
 }
 
 type ibft interface {

@@ -10,20 +10,20 @@ var (
 	ErrInvalidSignature = errors.New("invalid signature")
 )
 
-type Codec interface {
-	RecoverFrom(data []byte, sig []byte) []byte
+type msgVerifier struct {
+	types.SigRecover
 }
 
 type Store struct {
-	cdc Codec // todo: wrap
+	verifier msgVerifier
 
 	proposal     collection[types.MsgProposal] // todo: replace with thread-safe version
 	proposalSubs subscriptions[types.MsgProposal]
 }
 
-func New(cdc Codec) *Store {
+func New(recover types.SigRecover) *Store {
 	s := &Store{
-		cdc:          cdc,
+		verifier:     msgVerifier{recover},
 		proposal:     newCollection[types.MsgProposal](),
 		proposalSubs: newSubscriptions[types.MsgProposal](),
 	}
@@ -31,9 +31,17 @@ func New(cdc Codec) *Store {
 	return s
 }
 
-func (s *Store) AddMsgProposal(msg *types.MsgProposal) error {
-	if !bytes.Equal(msg.From, s.cdc.RecoverFrom(msg.Payload(), msg.Signature)) {
+func (s *Store) isValidSignature(msg types.Msg) error {
+	if !bytes.Equal(msg.GetFrom(), s.verifier.From(msg.Payload(), msg.GetSignature())) {
 		return ErrInvalidSignature
+	}
+
+	return nil
+}
+
+func (s *Store) AddMsgProposal(msg *types.MsgProposal) error {
+	if err := s.isValidSignature(msg); err != nil {
+		return err
 	}
 
 	s.proposal.addMessage(msg, msg.View, msg.From)

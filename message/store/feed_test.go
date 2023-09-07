@@ -9,10 +9,16 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
+type sigRecoverFn func([]byte, []byte) []byte
+
+func (s sigRecoverFn) From(data, sig []byte) []byte {
+	return s(data, sig)
+}
+
 func TestFeed_MsgProposal(t *testing.T) {
 	t.Parallel()
 
-	codec := mockCodec{func(_, _ []byte) []byte { return nil }}
+	sigRecover := sigRecoverFn(func(_ []byte, _ []byte) []byte { return nil })
 
 	t.Run("msg received", func(t *testing.T) {
 		t.Parallel()
@@ -25,7 +31,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := New(codec)
+		store := New(sigRecover)
 		require.NoError(t, store.AddMsgProposal(msg))
 
 		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view, false)
@@ -48,7 +54,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := New(codec)
+		store := New(sigRecover)
 		require.NoError(t, store.AddMsgProposal(msg))
 		require.Len(t, store.GetProposalMessages(view), 1)
 
@@ -65,7 +71,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("highest round msg received", func(t *testing.T) {
 		t.Parallel()
 
-		store := New(codec)
+		store := New(sigRecover)
 
 		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(&types.View{
 			Sequence: 101,

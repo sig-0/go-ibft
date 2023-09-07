@@ -11,17 +11,9 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type mockCodec struct {
-	recoverFn func([]byte, []byte) []byte
-}
-
-func (c mockCodec) RecoverFrom(data []byte, sig []byte) []byte {
-	return c.recoverFn(data, sig)
-}
-
 type testTable[M msg] struct {
 	name        string
-	codec       Codec
+	sigRecover  sigRecoverFn
 	msg         *M
 	runTestFn   func(*Store, *M) error
 	expectedErr error
@@ -35,13 +27,12 @@ func TestStore_MsgProposal(t *testing.T) {
 	testTable := []testTable[types.MsgProposal]{
 		{
 			name: "invalid signature",
-			codec: mockCodec{func(_ []byte, sig []byte) []byte {
+			sigRecover: sigRecoverFn(func(_ []byte, sig []byte) []byte {
 				if bytes.Equal(sig, []byte("signature")) {
 					return []byte("from")
 				}
-
 				return nil
-			}},
+			}),
 			msg: &types.MsgProposal{
 				From:      []byte("bad from"),
 				Signature: []byte("bad signature"),
@@ -54,13 +45,12 @@ func TestStore_MsgProposal(t *testing.T) {
 
 		{
 			name: "msg added",
-			codec: mockCodec{func(_ []byte, sig []byte) []byte {
+			sigRecover: sigRecoverFn(func(_ []byte, sig []byte) []byte {
 				if bytes.Equal(sig, []byte("signature")) {
 					return []byte("from")
 				}
-
 				return nil
-			}},
+			}),
 			msg: &types.MsgProposal{
 				View:      &types.View{Sequence: 101, Round: 0},
 				From:      []byte("from"),
@@ -73,13 +63,12 @@ func TestStore_MsgProposal(t *testing.T) {
 
 		{
 			name: "no duplicate msg when added twice",
-			codec: mockCodec{func(_ []byte, sig []byte) []byte {
+			sigRecover: sigRecoverFn(func(_ []byte, sig []byte) []byte {
 				if bytes.Equal(sig, []byte("signature")) {
 					return []byte("from")
 				}
-
 				return nil
-			}},
+			}),
 			msg: &types.MsgProposal{
 				View:      &types.View{Sequence: 101, Round: 0},
 				From:      []byte("from"),
@@ -99,17 +88,15 @@ func TestStore_MsgProposal(t *testing.T) {
 
 		{
 			name: "2 messages with different round",
-			codec: mockCodec{func(_ []byte, sig []byte) []byte {
+			sigRecover: sigRecoverFn(func(_ []byte, sig []byte) []byte {
 				if bytes.Equal(sig, []byte("signature")) {
 					return []byte("from")
 				}
-
 				if bytes.Equal(sig, []byte("other signature")) {
 					return []byte("other from")
 				}
-
 				return nil
-			}},
+			}),
 			msg: &types.MsgProposal{
 				View:      &types.View{Sequence: 101, Round: 0},
 				From:      []byte("from"),
@@ -137,17 +124,15 @@ func TestStore_MsgProposal(t *testing.T) {
 
 		{
 			name: "2 messages with different sequence",
-			codec: mockCodec{func(_ []byte, sig []byte) []byte {
+			sigRecover: sigRecoverFn(func(_ []byte, sig []byte) []byte {
 				if bytes.Equal(sig, []byte("signature")) {
 					return []byte("from")
 				}
-
 				if bytes.Equal(sig, []byte("other signature")) {
 					return []byte("other from")
 				}
-
 				return nil
-			}},
+			}),
 			msg: &types.MsgProposal{
 				View:      &types.View{Sequence: 101, Round: 0},
 				From:      []byte("from"),
@@ -175,17 +160,15 @@ func TestStore_MsgProposal(t *testing.T) {
 
 		{
 			name: "2 unique messages with same view",
-			codec: mockCodec{func(_ []byte, sig []byte) []byte {
+			sigRecover: sigRecoverFn(func(_ []byte, sig []byte) []byte {
 				if bytes.Equal(sig, []byte("signature")) {
 					return []byte("from")
 				}
-
 				if bytes.Equal(sig, []byte("other signature")) {
 					return []byte("other from")
 				}
-
 				return nil
-			}},
+			}),
 			msg: &types.MsgProposal{
 				View:      &types.View{Sequence: 101, Round: 0},
 				From:      []byte("from"),
@@ -212,8 +195,7 @@ func TestStore_MsgProposal(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-
-			assert.ErrorIs(t, tt.runTestFn(New(tt.codec), tt.msg), tt.expectedErr)
+			assert.ErrorIs(t, tt.runTestFn(New(tt.sigRecover), tt.msg), tt.expectedErr)
 		})
 	}
 }
