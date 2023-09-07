@@ -32,7 +32,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		)
 
 		store := New(sigRecover)
-		require.NoError(t, store.AddMsgProposal(msg))
+		require.NoError(t, store.AddMessage(msg))
 
 		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view, false)
 		defer cancelSub()
@@ -61,8 +61,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 		)
 
 		store := New(sigRecover)
-		require.NoError(t, store.AddMsgProposal(msg1))
-		require.NoError(t, store.AddMsgProposal(msg2))
+		require.NoError(t, store.AddMessage(msg1))
+		require.NoError(t, store.AddMessage(msg2))
 
 		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view1, false)
 		defer cancelSub()
@@ -85,7 +85,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		)
 
 		store := New(sigRecover)
-		require.NoError(t, store.AddMsgProposal(msg))
+		require.NoError(t, store.AddMessage(msg))
 		require.Len(t, store.GetProposalMessages(view), 1)
 
 		previousView := &types.View{Sequence: view.Sequence, Round: view.Round - 1}
@@ -128,8 +128,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		require.NoError(t, store.AddMsgProposal(msg3))
-		require.NoError(t, store.AddMsgProposal(msg1))
+		require.NoError(t, store.AddMessage(msg3))
+		require.NoError(t, store.AddMessage(msg1))
 
 		unwrap = <-sub
 		msgs := unwrap()
@@ -157,7 +157,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			Signature: []byte("signature"),
 		}
 
-		require.NoError(t, store.AddMsgProposal(msg))
+		require.NoError(t, store.AddMessage(msg))
 
 		cancelSub() // close the sub so the channel can be read
 		_, ok := <-sub
@@ -188,8 +188,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		require.NoError(t, store.AddMsgProposal(msg1))
-		require.NoError(t, store.AddMsgProposal(msg2))
+		require.NoError(t, store.AddMessage(msg1))
+		require.NoError(t, store.AddMessage(msg2))
 
 		unwrap := <-sub
 		messages := unwrap()
