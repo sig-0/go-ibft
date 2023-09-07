@@ -9,11 +9,8 @@ type Feed struct {
 }
 
 func (f Feed) SubscribeToProposalMessages(view *types.View, futureRounds bool) (<-chan func() []*types.MsgProposal, func()) {
-	sub := newSubscription[types.MsgProposal](view, futureRounds)
-	sub.notify(f.Store.proposal.unwrapFn(view, futureRounds))
-
-	id := f.Store.proposalSubs.add(sub)
-	return sub.Channel, func() { f.Store.proposalSubs.remove(id) }
+	sub, cancelSub := f.Store.proposal.subscribe(view, futureRounds)
+	return sub.Channel, cancelSub
 }
 
 //

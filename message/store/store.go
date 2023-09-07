@@ -17,15 +17,13 @@ type msgVerifier struct {
 type Store struct {
 	verifier msgVerifier
 
-	proposal     collection[types.MsgProposal] // todo: replace with thread-safe version
-	proposalSubs subscriptions[types.MsgProposal]
+	proposal *syncCollection[types.MsgProposal]
 }
 
 func New(recover types.SigRecover) *Store {
 	s := &Store{
-		verifier:     msgVerifier{recover},
-		proposal:     newCollection[types.MsgProposal](),
-		proposalSubs: newSubscriptions[types.MsgProposal](),
+		verifier: msgVerifier{recover},
+		proposal: newSyncCollection[types.MsgProposal](),
 	}
 
 	return s
@@ -45,18 +43,6 @@ func (s *Store) AddMsgProposal(msg *types.MsgProposal) error {
 	}
 
 	s.proposal.addMessage(msg, msg.View, msg.From)
-
-	s.proposalSubs.notify(func(sub subscription[types.MsgProposal]) {
-		if msg.View.Sequence != sub.View.Sequence {
-			return
-		}
-
-		if msg.View.Round < sub.View.Round {
-			return
-		}
-
-		sub.notify(s.proposal.unwrapFn(sub.View, sub.FutureRounds))
-	})
 
 	return nil
 }

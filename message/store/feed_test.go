@@ -43,6 +43,36 @@ func TestFeed_MsgProposal(t *testing.T) {
 		assert.Equal(t, msg, messages[0])
 	})
 
+	t.Run("msg received with exact view", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view1 = &types.View{Sequence: 101, Round: 0}
+			msg1  = &types.MsgProposal{
+				View:      view1,
+				Signature: []byte("sig"),
+			}
+
+			view2 = &types.View{Sequence: 101, Round: 5}
+			msg2  = &types.MsgProposal{
+				View:      view2,
+				Signature: []byte("sig"),
+			}
+		)
+
+		store := New(sigRecover)
+		require.NoError(t, store.AddMsgProposal(msg1))
+		require.NoError(t, store.AddMsgProposal(msg2))
+
+		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view1, false)
+		defer cancelSub()
+
+		unwrap := <-sub
+		messages := unwrap()
+
+		assert.Equal(t, msg1, messages[0])
+	})
+
 	t.Run("future round msg received", func(t *testing.T) {
 		t.Parallel()
 
