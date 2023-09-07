@@ -15,9 +15,9 @@ type Codec interface {
 }
 
 type Store struct {
-	cdc Codec
+	cdc Codec // todo: wrap
 
-	proposal     collection[types.MsgProposal]
+	proposal     collection[types.MsgProposal] // todo: replace with thread-safe version
 	proposalSubs subscriptions[types.MsgProposal]
 }
 
