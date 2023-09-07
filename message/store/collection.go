@@ -8,6 +8,21 @@ type msg interface {
 	types.MsgProposal | types.MsgPrepare | types.MsgRoundChange | types.MsgCommit
 }
 
+//
+//type syncCollection[M msg] struct {
+//	collection[M]
+//	mux sync.RWMutex
+//
+//	subs subscriptions[M]
+//}
+//
+//func newSyncCollection[M msg]() *syncCollection[M] {
+//	return &syncCollection[M]{
+//		collection: newCollection[M](),
+//		subs:       newSubscriptions[M](),
+//	}
+//}
+
 func newCollection[M msg]() collection[M] {
 	return map[uint64]map[uint64]msgSet[M]{}
 }
@@ -15,33 +30,41 @@ func newCollection[M msg]() collection[M] {
 type collection[M msg] map[uint64]map[uint64]msgSet[M]
 
 func (c *collection[M]) addMessage(msg *M, view *types.View, from []byte) {
+	c.set(view)[string(from)] = msg
+}
+
+func (c *collection[M]) getMessages(view *types.View) []*M {
+	return c.get(view).messages()
+}
+
+func (c *collection[M]) set(view *types.View) msgSet[M] {
 	sameSequenceMessages, ok := (*c)[view.Sequence]
 	if !ok {
 		(*c)[view.Sequence] = map[uint64]msgSet[M]{}
 		sameSequenceMessages = (*c)[view.Sequence]
 	}
 
-	sameRoundMessages, ok := sameSequenceMessages[view.Round]
+	set, ok := sameSequenceMessages[view.Round]
 	if !ok {
 		(*c)[view.Sequence][view.Round] = msgSet[M]{}
-		sameRoundMessages = (*c)[view.Sequence][view.Round]
+		set = (*c)[view.Sequence][view.Round]
 	}
 
-	sameRoundMessages[string(from)] = msg
+	return set
 }
 
-func (c *collection[M]) getMessages(view *types.View) []*M {
+func (c *collection[M]) get(view *types.View) msgSet[M] {
 	sameSequenceMessages, ok := (*c)[view.Sequence]
 	if !ok {
 		return nil
 	}
 
-	sameRoundMessages, ok := sameSequenceMessages[view.Round]
+	set, ok := sameSequenceMessages[view.Round]
 	if !ok {
 		return nil
 	}
 
-	return sameRoundMessages.messages()
+	return set
 }
 
 func (c *collection[M]) getMaxRoundMessages(view *types.View) []*M {
