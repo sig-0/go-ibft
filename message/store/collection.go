@@ -1,6 +1,8 @@
 package store
 
-import "github.com/madz-lab/go-ibft/message/types"
+import (
+	"github.com/madz-lab/go-ibft/message/types"
+)
 
 type msg interface {
 	types.MsgProposal | types.MsgPrepare | types.MsgRoundChange | types.MsgCommit
@@ -43,15 +45,13 @@ func (c *collection[M]) getMessages(view *types.View) []*M {
 }
 
 func (c *collection[M]) getMaxRoundMessages(view *types.View) []*M {
-	var maxRound uint64
+	maxRound := view.Round
 	for round := range (*c)[view.Sequence] {
-		if maxRound < view.Round {
+		if maxRound >= round {
 			continue
 		}
 
-		if round > maxRound {
-			maxRound = round
-		}
+		maxRound = round
 	}
 
 	return c.getMessages(&types.View{Sequence: view.Sequence, Round: maxRound})
@@ -65,6 +65,20 @@ func (c *collection[M]) unwrapFn(view *types.View, higherRounds bool) func() []*
 
 		return c.getMaxRoundMessages(view)
 	}
+}
+
+func (c *collection[M]) remove(view *types.View) {
+	_, ok := (*c)[view.Sequence]
+	if !ok {
+		return
+	}
+
+	_, ok = (*c)[view.Sequence][view.Round]
+	if !ok {
+		return
+	}
+
+	delete((*c)[view.Sequence], view.Round)
 }
 
 type msgSet[M msg] map[string]*M

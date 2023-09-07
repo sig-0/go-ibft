@@ -75,22 +75,19 @@ func TestFeed_MsgProposal(t *testing.T) {
 
 		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(&types.View{
 			Sequence: 101,
-			Round:    0,
+			Round:    6,
 		},
 			true,
 		)
 		defer cancelSub()
 
+		unwrap := <-sub
+		assert.Len(t, unwrap(), 0)
+
 		var (
 			view1 = &types.View{Sequence: 101, Round: 1}
 			msg1  = &types.MsgProposal{
 				View:      view1,
-				Signature: []byte("signature"),
-			}
-
-			view2 = &types.View{Sequence: 101, Round: 5}
-			msg2  = &types.MsgProposal{
-				View:      view2,
 				Signature: []byte("signature"),
 			}
 
@@ -101,16 +98,73 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		require.NoError(t, store.AddMsgProposal(msg2))
 		require.NoError(t, store.AddMsgProposal(msg3))
 		require.NoError(t, store.AddMsgProposal(msg1))
-		require.Len(t, store.GetProposalMessages(view1), 1)
-		require.Len(t, store.GetProposalMessages(view2), 1)
-		require.Len(t, store.GetProposalMessages(view3), 1)
 
-		unwrap := <-sub
+		unwrap = <-sub
 		msgs := unwrap()
 
+		require.Len(t, msgs, 1)
 		assert.Equal(t, msg3, msgs[0])
 	})
+
+	t.Run("subscription not notified", func(t *testing.T) {
+		t.Parallel()
+
+		store := New(sigRecover)
+
+		view1 := &types.View{Sequence: 101, Round: 1}
+		view2 := &types.View{Sequence: 102, Round: 1}
+
+		// two subscriptions, same view
+		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view1, true)
+
+		unwrap := <-sub
+		require.Len(t, unwrap(), 0)
+
+		msg := &types.MsgProposal{
+			View:      view2,
+			Signature: []byte("signature"),
+		}
+
+		require.NoError(t, store.AddMsgProposal(msg))
+
+		cancelSub() // close the sub so the channel can be read
+		_, ok := <-sub
+		assert.False(t, ok)
+	})
+
+	t.Run("subscription gets latest notification", func(t *testing.T) {
+		t.Parallel()
+
+		store := New(sigRecover)
+
+		view1 := &types.View{Sequence: 101, Round: 1}
+		view2 := &types.View{Sequence: 101, Round: 2}
+
+		// two subscriptions, same view
+		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view1, true)
+		defer cancelSub()
+
+		var (
+			msg1 = &types.MsgProposal{
+				View:      view1,
+				Signature: []byte("signature"),
+			}
+
+			msg2 = &types.MsgProposal{
+				View:      view2,
+				Signature: []byte("signature"),
+			}
+		)
+
+		require.NoError(t, store.AddMsgProposal(msg1))
+		require.NoError(t, store.AddMsgProposal(msg2))
+
+		unwrap := <-sub
+		messages := unwrap()
+		require.Len(t, messages, 1)
+		assert.Equal(t, msg2, messages[0])
+	})
+
 }

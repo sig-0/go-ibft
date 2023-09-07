@@ -47,11 +47,11 @@ func (s *Store) AddMsgProposal(msg *types.MsgProposal) error {
 	s.proposal.addMessage(msg, msg.View, msg.From)
 
 	s.proposalSubs.notify(func(sub subscription[types.MsgProposal]) {
-		if sub.View.Sequence != msg.View.Sequence {
+		if msg.View.Sequence != sub.View.Sequence {
 			return
 		}
 
-		if sub.View.Round < msg.View.Round {
+		if msg.View.Round < sub.View.Round {
 			return
 		}
 
@@ -63,4 +63,8 @@ func (s *Store) AddMsgProposal(msg *types.MsgProposal) error {
 
 func (s *Store) GetProposalMessages(view *types.View) []*types.MsgProposal {
 	return s.proposal.getMessages(view)
+}
+
+func (s *Store) RemoveProposalMessages(view *types.View) {
+	s.proposal.remove(view)
 }

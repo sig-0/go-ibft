@@ -2,7 +2,6 @@ package store
 
 import (
 	"bytes"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,14 +11,12 @@ import (
 )
 
 type testTable[M msg] struct {
-	name        string
-	sigRecover  sigRecoverFn
-	msg         *M
-	runTestFn   func(*Store, *M) error
-	expectedErr error
-}
+	name       string
+	sigRecover sigRecoverFn
+	msg        *M
 
-// TODO: remove cases
+	runTestFn func(*Store, *M)
+}
 
 func TestStore_MsgProposal(t *testing.T) {
 	t.Parallel()
@@ -37,9 +34,8 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("bad from"),
 				Signature: []byte("bad signature"),
 			},
-			expectedErr: ErrInvalidSignature,
-			runTestFn: func(store *Store, msg *types.MsgProposal) error {
-				return store.AddMsgProposal(msg)
+			runTestFn: func(store *Store, msg *types.MsgProposal) {
+				assert.ErrorIs(t, store.AddMsgProposal(msg), ErrInvalidSignature)
 			},
 		},
 
@@ -56,8 +52,37 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *Store, msg *types.MsgProposal) error {
-				return store.AddMsgProposal(msg)
+			runTestFn: func(store *Store, msg *types.MsgProposal) {
+				assert.NoError(t, store.AddMsgProposal(msg))
+				assert.Len(t, store.GetProposalMessages(msg.View), 1)
+			},
+		},
+
+		{
+			name: "msg removed",
+			sigRecover: sigRecoverFn(func(_ []byte, sig []byte) []byte {
+				if bytes.Equal(sig, []byte("signature")) {
+					return []byte("from")
+				}
+				return nil
+			}),
+			msg: &types.MsgProposal{
+				View:      &types.View{Sequence: 101, Round: 0},
+				From:      []byte("from"),
+				Signature: []byte("signature"),
+			},
+			runTestFn: func(store *Store, msg *types.MsgProposal) {
+				require.Len(t, store.GetProposalMessages(msg.View), 0)
+				require.NoError(t, store.AddMsgProposal(msg))
+
+				store.RemoveProposalMessages(&types.View{Sequence: msg.View.Sequence + 1})
+				require.Len(t, store.GetProposalMessages(msg.View), 1)
+
+				store.RemoveProposalMessages(&types.View{Sequence: msg.View.Sequence, Round: msg.View.Round + 1})
+				require.Len(t, store.GetProposalMessages(msg.View), 1)
+
+				store.RemoveProposalMessages(msg.View)
+				assert.Len(t, store.GetProposalMessages(msg.View), 0)
 			},
 		},
 
@@ -74,15 +99,11 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *Store, msg *types.MsgProposal) error {
+			runTestFn: func(store *Store, msg *types.MsgProposal) {
 				require.NoError(t, store.AddMsgProposal(msg))
 				require.NoError(t, store.AddMsgProposal(msg))
 
-				if len(store.GetProposalMessages(msg.View)) != 1 {
-					t.Fatal("duplicate msg in collection")
-				}
-
-				return nil
+				assert.Len(t, store.GetProposalMessages(msg.View), 1)
 			},
 		},
 
@@ -103,7 +124,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 
-			runTestFn: func(store *Store, msg *types.MsgProposal) error {
+			runTestFn: func(store *Store, msg *types.MsgProposal) {
 				msg2 := &types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 1},
 					From:      []byte("other from"),
@@ -113,12 +134,8 @@ func TestStore_MsgProposal(t *testing.T) {
 				require.NoError(t, store.AddMsgProposal(msg))
 				require.NoError(t, store.AddMsgProposal(msg2))
 
-				if len(store.GetProposalMessages(msg.View)) != 1 ||
-					len(store.GetProposalMessages(msg2.View)) != 1 {
-					return errors.New("messages not found")
-				}
-
-				return nil
+				assert.Len(t, store.GetProposalMessages(msg.View), 1)
+				assert.Len(t, store.GetProposalMessages(msg2.View), 1)
 			},
 		},
 
@@ -139,7 +156,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 
-			runTestFn: func(store *Store, msg *types.MsgProposal) error {
+			runTestFn: func(store *Store, msg *types.MsgProposal) {
 				msg2 := &types.MsgProposal{
 					View:      &types.View{Sequence: 102, Round: 0},
 					From:      []byte("other from"),
@@ -149,12 +166,8 @@ func TestStore_MsgProposal(t *testing.T) {
 				require.NoError(t, store.AddMsgProposal(msg))
 				require.NoError(t, store.AddMsgProposal(msg2))
 
-				if len(store.GetProposalMessages(msg.View)) != 1 ||
-					len(store.GetProposalMessages(msg2.View)) != 1 {
-					return errors.New("messages not found")
-				}
-
-				return nil
+				assert.Len(t, store.GetProposalMessages(msg.View), 1)
+				assert.Len(t, store.GetProposalMessages(msg2.View), 1)
 			},
 		},
 
@@ -174,7 +187,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *Store, msg *types.MsgProposal) error {
+			runTestFn: func(store *Store, msg *types.MsgProposal) {
 				require.NoError(t, store.AddMsgProposal(msg))
 				require.NoError(t, store.AddMsgProposal(&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
@@ -182,11 +195,33 @@ func TestStore_MsgProposal(t *testing.T) {
 					Signature: []byte("other signature"),
 				}))
 
-				if len(store.GetProposalMessages(msg.View)) != 2 {
-					return errors.New("only 1 message in store")
-				}
+				assert.Len(t, store.GetProposalMessages(msg.View), 2)
+			},
+		},
 
+		{
+			name: "no message for given round",
+			sigRecover: sigRecoverFn(func(_ []byte, sig []byte) []byte {
+				if bytes.Equal(sig, []byte("signature")) {
+					return []byte("from")
+				}
 				return nil
+			}),
+			msg: &types.MsgProposal{
+				View:      &types.View{Sequence: 101, Round: 0},
+				From:      []byte("from"),
+				Signature: []byte("signature"),
+			},
+
+			runTestFn: func(store *Store, msg *types.MsgProposal) {
+				require.NoError(t, store.AddMsgProposal(msg))
+
+				msgs := store.GetProposalMessages(&types.View{
+					Sequence: msg.View.Sequence,
+					Round:    msg.View.Round + 1,
+				})
+
+				assert.Len(t, msgs, 0)
 			},
 		},
 	}
@@ -195,7 +230,8 @@ func TestStore_MsgProposal(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.ErrorIs(t, tt.runTestFn(New(tt.sigRecover), tt.msg), tt.expectedErr)
+
+			tt.runTestFn(New(tt.sigRecover), tt.msg)
 		})
 	}
 }
