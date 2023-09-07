@@ -38,6 +38,18 @@ func (s *Store) AddMsgProposal(msg *types.MsgProposal) error {
 
 	s.proposal.addMessage(msg, msg.View, msg.From)
 
+	s.proposalSubs.notify(func(sub subscription[types.MsgProposal]) {
+		if sub.View.Sequence != msg.View.Sequence {
+			return
+		}
+
+		if sub.View.Round < msg.View.Round {
+			return
+		}
+
+		sub.notify(s.proposal.unwrapFn(sub.View, sub.FutureRounds))
+	})
+
 	return nil
 }
 

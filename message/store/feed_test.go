@@ -12,28 +12,23 @@ import (
 func TestFeed_MsgProposal(t *testing.T) {
 	t.Parallel()
 
+	codec := mockCodec{func(_, _ []byte) []byte { return nil }}
+
 	t.Run("msg received", func(t *testing.T) {
 		t.Parallel()
 
-		store := New(mockCodec{func(bytes []byte, bytes2 []byte) []byte {
-			return nil
-		}})
+		var (
+			view = &types.View{Sequence: 101, Round: 0}
+			msg  = &types.MsgProposal{
+				View:      view,
+				Signature: []byte("sig"),
+			}
+		)
 
-		msg := &types.MsgProposal{
-			View:      &types.View{Sequence: 101, Round: 0},
-			Signature: []byte("signature"),
-		}
-
+		store := New(codec)
 		require.NoError(t, store.AddMsgProposal(msg))
 
-		feed := Feed{store}
-
-		sub, cancelSub := feed.SubscribeToProposalMessages(&types.View{
-			Sequence: 101,
-			Round:    0,
-		},
-			false,
-		)
+		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view, false)
 		defer cancelSub()
 
 		unwrap := <-sub
@@ -45,10 +40,6 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("future round msg received", func(t *testing.T) {
 		t.Parallel()
 
-		store := New(mockCodec{func(bytes []byte, bytes2 []byte) []byte {
-			return nil
-		}})
-
 		var (
 			view = &types.View{Sequence: 101, Round: 1}
 			msg  = &types.MsgProposal{
@@ -57,12 +48,26 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
+		store := New(codec)
 		require.NoError(t, store.AddMsgProposal(msg))
 		require.Len(t, store.GetProposalMessages(view), 1)
 
-		feed := Feed{store}
+		previousView := &types.View{Sequence: view.Sequence, Round: view.Round - 1}
+		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(previousView, true)
+		defer cancelSub()
 
-		sub, cancelSub := feed.SubscribeToProposalMessages(&types.View{
+		unwrap := <-sub
+		messages := unwrap()
+
+		assert.Equal(t, msg, messages[0])
+	})
+
+	t.Run("highest round msg received", func(t *testing.T) {
+		t.Parallel()
+
+		store := New(codec)
+
+		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(&types.View{
 			Sequence: 101,
 			Round:    0,
 		},
@@ -70,9 +75,36 @@ func TestFeed_MsgProposal(t *testing.T) {
 		)
 		defer cancelSub()
 
-		unwrap := <-sub
-		messages := unwrap()
+		var (
+			view1 = &types.View{Sequence: 101, Round: 1}
+			msg1  = &types.MsgProposal{
+				View:      view1,
+				Signature: []byte("signature"),
+			}
 
-		assert.Equal(t, msg, messages[0])
+			view2 = &types.View{Sequence: 101, Round: 5}
+			msg2  = &types.MsgProposal{
+				View:      view2,
+				Signature: []byte("signature"),
+			}
+
+			view3 = &types.View{Sequence: 101, Round: 10}
+			msg3  = &types.MsgProposal{
+				View:      view3,
+				Signature: []byte("signature"),
+			}
+		)
+
+		require.NoError(t, store.AddMsgProposal(msg2))
+		require.NoError(t, store.AddMsgProposal(msg3))
+		require.NoError(t, store.AddMsgProposal(msg1))
+		require.Len(t, store.GetProposalMessages(view1), 1)
+		require.Len(t, store.GetProposalMessages(view2), 1)
+		require.Len(t, store.GetProposalMessages(view3), 1)
+
+		unwrap := <-sub
+		msgs := unwrap()
+
+		assert.Equal(t, msg3, msgs[0])
 	})
 }

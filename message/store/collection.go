@@ -57,6 +57,16 @@ func (c *collection[M]) getMaxRoundMessages(view *types.View) []*M {
 	return c.getMessages(&types.View{Sequence: view.Sequence, Round: maxRound})
 }
 
+func (c *collection[M]) unwrapFn(view *types.View, higherRounds bool) func() []*M {
+	return func() []*M {
+		if !higherRounds {
+			return c.getMessages(view)
+		}
+
+		return c.getMaxRoundMessages(view)
+	}
+}
+
 type msgSet[M msg] map[string]*M
 
 func (s msgSet[M]) messages() []*M {
