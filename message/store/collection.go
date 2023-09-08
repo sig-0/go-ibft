@@ -1,8 +1,9 @@
 package store
 
 import (
-	"github.com/madz-lab/go-ibft/message/types"
 	"sync"
+
+	"github.com/madz-lab/go-ibft/message/types"
 )
 
 type msg interface {

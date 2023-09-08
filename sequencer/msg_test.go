@@ -19,15 +19,13 @@ func TestIsValidMsgProposal(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		name    string
-		msg     *types.MsgProposal
-		isValid bool
-
-		// setup
 		validator ibft.Validator
 		verifier  ibft.Verifier
 		quorum    ibft.Quorum
 		keccak    ibft.Keccak
+		msg       *types.MsgProposal
+		name      string
+		isValid   bool
 	}{
 		{
 			name: "invalid round in proposed block",
@@ -536,13 +534,11 @@ func TestIsValidMsgPrepare(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		name    string
-		msg     *types.MsgPrepare
-		isValid bool
-
-		// setup
 		verifier         ibft.Verifier
+		msg              *types.MsgPrepare
 		acceptedProposal *types.MsgProposal
+		name             string
+		isValid          bool
 	}{
 		{
 			name: "invalid sender",
@@ -604,14 +600,12 @@ func TestIsValidMsgCommit(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		name    string
-		msg     *types.MsgCommit
-		isValid bool
-
-		// setup
 		verifier         ibft.Verifier
 		recover          ibft.SigRecover
+		msg              *types.MsgCommit
 		acceptedProposal *types.MsgProposal
+		name             string
+		isValid          bool
 	}{
 		{
 			name: "invalid block hash",
@@ -701,14 +695,12 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		name    string
-		msg     *types.MsgRoundChange
-		isValid bool
-
-		// setup
 		verifier ibft.Verifier
 		quorum   ibft.Quorum
 		keccak   ibft.Keccak
+		msg      *types.MsgRoundChange
+		name     string
+		isValid  bool
 	}{
 		{
 			name: "invalid sender",

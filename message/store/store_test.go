@@ -12,11 +12,10 @@ import (
 )
 
 type testTable[M msg] struct {
-	name       string
 	sigRecover sigRecoverFn
 	msg        *M
-
-	runTestFn func(*Store, *M)
+	runTestFn  func(*Store, *M)
+	name       string
 }
 
 type noMsg struct{}
@@ -32,7 +31,6 @@ func TestUnknownMessageType(t *testing.T) {
 
 	store := New(sigRecoverFn(func(_ []byte, _ []byte) []byte { return nil }))
 	assert.ErrorIs(t, store.AddMessage(noMsg{}), ErrUnknownType)
-
 }
 
 func TestStore_MsgProposal(t *testing.T) {

@@ -21,13 +21,11 @@ var (
 )
 
 type testTable struct {
-	name                   string
+	validator              ibft.Validator
+	verifier               ibft.Verifier
+	ctx                    ibft.Context
 	expectedFinalizedBlock *types.FinalizedBlock
-
-	// setup
-	validator ibft.Validator
-	verifier  ibft.Verifier
-	ctx       ibft.Context
+	name                   string
 }
 
 func TestFinalizeSequenceCancelled(t *testing.T) {
@@ -249,7 +247,8 @@ func TestUnhappyFlow(t *testing.T) {
 										},
 									},
 								},
-							}},
+							},
+						},
 					},
 
 					prepare: messagesByView[types.MsgPrepare]{

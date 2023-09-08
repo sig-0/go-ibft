@@ -52,7 +52,7 @@ type mockVerifier struct {
 }
 
 func (v mockVerifier) IsValidBlock(block []byte, sequence uint64) bool {
-	return v.isValidBlockFn(block) //todo
+	return v.isValidBlockFn(block) // todo
 }
 
 func (v mockVerifier) IsProposer(id []byte, sequence, round uint64) bool {

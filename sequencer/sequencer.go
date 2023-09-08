@@ -13,8 +13,8 @@ type Sequencer struct {
 	ibft.Validator
 	ibft.Verifier
 
-	wg             sync.WaitGroup
 	state          state
+	wg             sync.WaitGroup
 	round0Duration time.Duration
 }
 

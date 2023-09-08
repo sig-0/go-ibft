@@ -16,8 +16,8 @@ func newSubscription[M msg](view *types.View, higherRounds bool) subscription[M]
 
 type subscription[M msg] struct {
 	View         *types.View
-	HigherRounds bool
 	Channel      chan func() []*M
+	HigherRounds bool
 }
 
 func (s *subscription[M]) notify(unwrapFn func() []*M) {
