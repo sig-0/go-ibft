@@ -7,10 +7,7 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-var (
-	ErrUnknownType      = errors.New("unknown message type")
-	ErrInvalidSignature = errors.New("invalid signature")
-)
+var ErrInvalidSignature = errors.New("invalid signature")
 
 type msgVerifier struct {
 	types.SigRecover
