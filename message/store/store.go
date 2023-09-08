@@ -48,13 +48,13 @@ func (s *Store) AddMessage(msg types.Msg) error {
 
 	switch msg := msg.(type) {
 	case *types.MsgProposal:
-		s.proposal.addMessage(msg, msg.View, msg.From)
+		s.proposal.AddMessage(msg, msg.View, msg.From)
 	case *types.MsgPrepare:
-		s.prepare.addMessage(msg, msg.View, msg.From)
+		s.prepare.AddMessage(msg, msg.View, msg.From)
 	case *types.MsgCommit:
-		s.commit.addMessage(msg, msg.View, msg.From)
+		s.commit.AddMessage(msg, msg.View, msg.From)
 	case *types.MsgRoundChange:
-		s.roundChange.addMessage(msg, msg.View, msg.From)
+		s.roundChange.AddMessage(msg, msg.View, msg.From)
 	default:
 		return ErrUnknownType
 	}
@@ -73,39 +73,39 @@ func (s *Store) isValidSignature(msg types.Msg) error {
 /*	MsgProposal	*/
 
 func (s *Store) GetProposalMessages(view *types.View) []*types.MsgProposal {
-	return s.proposal.getMessages(view)
+	return s.proposal.GetMessages(view)
 }
 
 func (s *Store) RemoveProposalMessages(view *types.View) {
-	s.proposal.remove(view)
+	s.proposal.Remove(view)
 }
 
 /*	MsgPrepare	*/
 
 func (s *Store) GetPrepareMessages(view *types.View) []*types.MsgPrepare {
-	return s.prepare.getMessages(view)
+	return s.prepare.GetMessages(view)
 }
 
 func (s *Store) RemovePrepareMessages(view *types.View) {
-	s.prepare.remove(view)
+	s.prepare.Remove(view)
 }
 
 /*	MsgCommit	*/
 
 func (s *Store) GetCommitMessages(view *types.View) []*types.MsgCommit {
-	return s.commit.getMessages(view)
+	return s.commit.GetMessages(view)
 }
 
 func (s *Store) RemoveCommitMessages(view *types.View) {
-	s.commit.remove(view)
+	s.commit.Remove(view)
 }
 
 /*	MsgRoundChange	*/
 
 func (s *Store) GetRoundChangeMessages(view *types.View) []*types.MsgRoundChange {
-	return s.roundChange.getMessages(view)
+	return s.roundChange.GetMessages(view)
 }
 
 func (s *Store) RemoveRoundChangeMessages(view *types.View) {
-	s.roundChange.remove(view)
+	s.roundChange.Remove(view)
 }
