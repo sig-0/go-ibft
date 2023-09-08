@@ -51,8 +51,8 @@ type mockVerifier struct {
 	isValidatorFn  func([]byte, uint64) bool
 }
 
-func (v mockVerifier) IsValidBlock(block []byte, sequence uint64) bool {
-	return v.isValidBlockFn(block) // todo
+func (v mockVerifier) IsValidBlock(block []byte, _ uint64) bool {
+	return v.isValidBlockFn(block)
 }
 
 func (v mockVerifier) IsProposer(id []byte, sequence, round uint64) bool {
