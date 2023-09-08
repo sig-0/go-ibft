@@ -29,7 +29,7 @@ func (s *Sequencer) multicastProposal(ctx ibft.Context, block []byte) {
 }
 
 func (s *Sequencer) awaitCurrentRoundProposal(ctx ibft.Context) error {
-	proposal, err := s.awaitProposal(ctx, false)
+	proposal, err := s.awaitProposal(ctx, s.state.currentView, false)
 	if err != nil {
 		return err
 	}
@@ -39,12 +39,7 @@ func (s *Sequencer) awaitCurrentRoundProposal(ctx ibft.Context) error {
 	return nil
 }
 
-func (s *Sequencer) awaitProposal(ctx ibft.Context, higherRounds bool) (*types.MsgProposal, error) {
-	view := &types.View{
-		Sequence: s.state.CurrentSequence(),
-		Round:    s.state.CurrentRound(),
-	}
-
+func (s *Sequencer) awaitProposal(ctx ibft.Context, view *types.View, higherRounds bool) (*types.MsgProposal, error) {
 	if higherRounds {
 		view.Round++
 	}

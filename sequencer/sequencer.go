@@ -125,13 +125,13 @@ func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
 
 	s.wg.Add(1)
 
-	go func() {
+	go func(view *types.View) {
 		defer func() {
 			close(c)
 			s.wg.Done()
 		}()
 
-		roundTimer := s.getRoundTimer()
+		roundTimer := s.getRoundTimer(view.Round)
 
 		select {
 		case <-ctx.Done():
@@ -139,60 +139,66 @@ func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
 		case <-roundTimer.C:
 			c <- struct{}{}
 		}
-	}()
+
+	}(s.state.CurrentView())
 
 	return c
 }
 
 // awaitHigherRoundProposal listens for proposal messages from rounds higher than the current
 func (s *Sequencer) awaitHigherRoundProposal(ctx ibft.Context) <-chan *types.MsgProposal {
+	c := make(chan *types.MsgProposal, 1)
+
 	s.wg.Add(1)
 
-	c := make(chan *types.MsgProposal, 1)
-	go func() {
+	go func(view *types.View) {
 		defer func() {
 			close(c)
 			s.wg.Done()
 		}()
 
-		proposal, err := s.awaitProposal(ctx, true)
+		proposal, err := s.awaitProposal(ctx, view, true)
 		if err != nil {
 			return
 		}
 
 		c <- proposal
-	}()
+
+	}(s.state.CurrentView())
 
 	return c
 }
 
 // awaitHigherRoundRCC listens for round change certificates from rounds higher than the current
 func (s *Sequencer) awaitHigherRoundRCC(ctx ibft.Context) <-chan *types.RoundChangeCertificate {
+	c := make(chan *types.RoundChangeCertificate, 1)
+
 	s.wg.Add(1)
 
-	c := make(chan *types.RoundChangeCertificate, 1)
-	go func() {
+	go func(view *types.View) {
 		defer func() {
 			close(c)
 			s.wg.Done()
 		}()
 
-		rcc, err := s.awaitRCC(ctx, true)
+		rcc, err := s.awaitRCC(ctx, view, true)
 		if err != nil {
 			return
 		}
 
 		c <- rcc
-	}()
+
+	}(s.state.CurrentView())
 
 	return c
 }
 
 // awaitFinalizedBlockInCurrentRound starts the block finalization algorithm for the current round
 func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *types.FinalizedBlock {
+	c := make(chan *types.FinalizedBlock, 1)
+
 	s.wg.Add(1)
 
-	c := make(chan *types.FinalizedBlock, 1)
 	go func() {
 		defer func() {
 			close(c)
@@ -224,13 +230,14 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *
 		}
 
 		c <- s.state.FinalizedBlock()
+
 	}()
 
 	return c
 }
 
-func (s *Sequencer) getRoundTimer() *time.Timer {
-	return time.NewTimer(s.round0Duration * time.Duration(math.Pow(2, float64(s.state.CurrentRound()))))
+func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
+	return time.NewTimer(s.round0Duration * time.Duration(math.Pow(2, float64(round))))
 }
 
 func (s *Sequencer) shouldPropose() bool {
@@ -253,16 +260,17 @@ func (s *Sequencer) buildBlock(ctx ibft.Context) ([]byte, error) {
 		return s.BuildBlock(s.state.CurrentSequence()), nil
 	}
 
-	rcc := s.state.roundChangeCertificate
-	if rcc == nil {
+	if s.state.roundChangeCertificate == nil {
 		// round jump triggered by round timer, justify proposal with rcc
-		rCc, err := s.awaitRCC(ctx, false)
+		rCc, err := s.awaitRCC(ctx, s.state.currentView, false)
 		if err != nil {
 			return nil, err
 		}
 
-		rcc = rCc
+		s.state.roundChangeCertificate = rCc
 	}
+
+	rcc := s.state.roundChangeCertificate
 
 	block, _ := rcc.HighestRoundBlock()
 	if block == nil {

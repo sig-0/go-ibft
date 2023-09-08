@@ -26,6 +26,13 @@ type state struct {
 	seals []types.FinalizedSeal
 }
 
+func (s *state) CurrentView() *types.View {
+	return &types.View{
+		Sequence: s.currentView.Sequence,
+		Round:    s.currentView.Round,
+	}
+}
+
 func (s *state) CurrentSequence() uint64 {
 	return s.currentView.Sequence
 }

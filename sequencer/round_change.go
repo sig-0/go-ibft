@@ -20,8 +20,12 @@ func (s *Sequencer) multicastRoundChange(ctx ibft.Context) {
 	ctx.Transport().Multicast(msg)
 }
 
-func (s *Sequencer) awaitRCC(ctx ibft.Context, higherRounds bool) (*types.RoundChangeCertificate, error) {
-	messages, err := s.awaitQuorumRoundChanges(ctx, higherRounds)
+func (s *Sequencer) awaitRCC(
+	ctx ibft.Context,
+	view *types.View,
+	higherRounds bool,
+) (*types.RoundChangeCertificate, error) {
+	messages, err := s.awaitQuorumRoundChanges(ctx, view, higherRounds)
 	if err != nil {
 		return nil, err
 	}
@@ -29,12 +33,11 @@ func (s *Sequencer) awaitRCC(ctx ibft.Context, higherRounds bool) (*types.RoundC
 	return &types.RoundChangeCertificate{Messages: messages}, nil
 }
 
-func (s *Sequencer) awaitQuorumRoundChanges(ctx ibft.Context, higherRounds bool) ([]*types.MsgRoundChange, error) {
-	view := &types.View{
-		Sequence: s.state.CurrentSequence(),
-		Round:    s.state.CurrentRound(),
-	}
-
+func (s *Sequencer) awaitQuorumRoundChanges(
+	ctx ibft.Context,
+	view *types.View,
+	higherRounds bool,
+) ([]*types.MsgRoundChange, error) {
 	if higherRounds {
 		view.Round++
 	}
