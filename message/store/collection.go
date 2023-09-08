@@ -25,16 +25,16 @@ func newSyncCollection[M msg]() *syncCollection[M] {
 	}
 }
 
-func (c *syncCollection[M]) subscribe(view *types.View, higherRounds bool) (subscription[M], func()) {
+func (c *syncCollection[M]) subscribe(view *types.View, higherRounds bool) (<-chan func() []*M, func()) {
 	sub := newSubscription[M](view, higherRounds)
-	unregister := c.registerSub(sub)
+	unregister := c.registerSubscription(sub)
 
 	sub.notify(c.unwrapMessagesFn(view, higherRounds))
 
-	return sub, unregister
+	return sub.Channel, unregister
 }
 
-func (c *syncCollection[M]) registerSub(sub subscription[M]) func() {
+func (c *syncCollection[M]) registerSubscription(sub subscription[M]) func() {
 	c.subscriptionMux.Lock()
 	defer c.subscriptionMux.Unlock()
 
