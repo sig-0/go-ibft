@@ -10,6 +10,11 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
+var (
+	FalseQuorum = QuorumFn(func(_ uint64, _ []types.Msg) bool { return false })
+	TrueQuorum  = QuorumFn(func(_ uint64, _ []types.Msg) bool { return true })
+)
+
 func TestIsValidMsgProposal(t *testing.T) {
 	t.Parallel()
 
@@ -96,7 +101,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -123,7 +128,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -151,7 +156,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -179,7 +184,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -207,7 +212,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -239,7 +244,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -271,7 +276,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -307,7 +312,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -347,7 +352,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -383,8 +388,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
-			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return false }),
+			keccak: BlockHashKeccak,
+			quorum: FalseQuorum,
 		},
 
 		{
@@ -421,8 +426,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
-			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
+			keccak: BlockHashKeccak,
+			quorum: FalseQuorum,
 		},
 
 		{
@@ -473,8 +478,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
-			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
+			keccak: BlockHashKeccak,
+			quorum: TrueQuorum,
 		},
 
 		{
@@ -511,8 +516,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
-			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
+			keccak: BlockHashKeccak,
+			quorum: TrueQuorum,
 		},
 	}
 
@@ -717,7 +722,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name:    "valid msg (pb and pc are nil)",
+			name:    "valid msg (pb and pc are nil",
 			isValid: true,
 			msg: &types.MsgRoundChange{
 				View: &types.View{Sequence: 101},
@@ -1036,7 +1041,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 
-			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return false }),
+			quorum: FalseQuorum,
 		},
 
 		{
@@ -1069,8 +1074,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 
-			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			quorum: TrueQuorum,
+			keccak: BlockHashKeccak,
 		},
 
 		{
@@ -1104,8 +1109,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
-			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
-			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			quorum: TrueQuorum,
+			keccak: BlockHashKeccak,
 		},
 	}
 

@@ -23,16 +23,17 @@ type (
 		Hash([]byte) []byte
 	}
 
-	Validator interface {
-		Signer
-		ID() []byte
-		BuildBlock(uint64) []byte
-	}
-
 	Verifier interface {
-		IsProposer(id []byte, sequence uint64, round uint64) bool
 		IsValidator(id []byte, sequence uint64) bool
 		IsValidBlock(block []byte, sequence uint64) bool
+		IsProposer(id []byte, sequence uint64, round uint64) bool
+	}
+
+	Validator interface {
+		Signer
+
+		ID() []byte
+		BuildBlock(uint64) []byte
 	}
 )
 

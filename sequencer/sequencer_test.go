@@ -13,21 +13,11 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type TransportFn func(types.Msg)
-
-func (t TransportFn) Multicast(msg types.Msg) {
-	t(msg)
-}
-
 var (
-	DummyTransport = TransportFn(func(_ types.Msg) {})
+	DummyTransport  = TransportFn(func(_ types.Msg) {})
+	NonZeroQuorum   = QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) != 0 })
+	BlockHashKeccak = KeccakFn(func(_ []byte) []byte { return []byte("block hash") })
 )
-
-type QuorumFn func(uint64, []types.Msg) bool
-
-func (q QuorumFn) HasQuorum(sequence uint64, msgs []types.Msg) bool {
-	return q(sequence, msgs)
-}
 
 type testTable struct {
 	name                   string
@@ -97,17 +87,17 @@ func TestHappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("proposal hash") })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
+				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) != 0 })).
+				WithQuorum(NonZeroQuorum).
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
 				WithFeed(validFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {0: {
 							{
 								View:      &types.View{Sequence: 101, Round: 0},
 								From:      []byte("proposer"),
-								BlockHash: []byte("proposal hash"),
+								BlockHash: []byte("block hash"),
 								ProposedBlock: &types.ProposedBlock{
 									Block: []byte("block"),
 									Round: 0,
@@ -121,7 +111,7 @@ func TestHappyFlow(t *testing.T) {
 							{
 								View:      &types.View{Sequence: 101, Round: 0},
 								From:      []byte("some validator"),
-								BlockHash: []byte("proposal hash"),
+								BlockHash: []byte("block hash"),
 							},
 						}},
 					},
@@ -131,7 +121,7 @@ func TestHappyFlow(t *testing.T) {
 							{
 								View:       &types.View{Sequence: 101, Round: 0},
 								From:       []byte("some validator"),
-								BlockHash:  []byte("proposal hash"),
+								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
 						}},
@@ -164,10 +154,10 @@ func TestHappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
+				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) != 0 })).
+				WithQuorum(NonZeroQuorum).
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
 				WithFeed(validFeed(feed{
 					prepare: messagesByView[types.MsgPrepare]{
 						101: {0: {
@@ -236,9 +226,9 @@ func TestUnhappyFlow(t *testing.T) {
 
 			ctx: ibft.NewIBFTContext(context.Background()).
 				WithTransport(DummyTransport).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
+				WithKeccak(BlockHashKeccak).
+				WithQuorum(NonZeroQuorum).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("my validator") })).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) != 0 })).
 				WithFeed(validFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
@@ -311,10 +301,10 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("proposal hash") })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) != 0 })).
+				WithKeccak(BlockHashKeccak).
+				WithQuorum(NonZeroQuorum).
 				WithTransport(DummyTransport).
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
 				WithFeed(validFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
@@ -324,7 +314,7 @@ func TestUnhappyFlow(t *testing.T) {
 									View:          &types.View{Sequence: 101, Round: 1},
 									From:          []byte("proposer"),
 									ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 1},
-									BlockHash:     []byte("proposal hash"),
+									BlockHash:     []byte("block hash"),
 									RoundChangeCertificate: &types.RoundChangeCertificate{
 										Messages: []*types.MsgRoundChange{
 											{
@@ -335,7 +325,7 @@ func TestUnhappyFlow(t *testing.T) {
 														View:          &types.View{Sequence: 101, Round: 0},
 														From:          []byte("proposer"),
 														ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
-														BlockHash:     []byte("proposal hash"),
+														BlockHash:     []byte("block hash"),
 													},
 													PrepareMessages: []*types.MsgPrepare{
 														{
@@ -344,7 +334,7 @@ func TestUnhappyFlow(t *testing.T) {
 																Round:    0,
 															},
 															From:      []byte("some validator"),
-															BlockHash: []byte("proposal hash"),
+															BlockHash: []byte("block hash"),
 														},
 													},
 												},
@@ -361,7 +351,7 @@ func TestUnhappyFlow(t *testing.T) {
 							{
 								View:      &types.View{Sequence: 101, Round: 1},
 								From:      []byte("some validator"),
-								BlockHash: []byte("proposal hash"),
+								BlockHash: []byte("block hash"),
 							},
 						}},
 					},
@@ -371,7 +361,7 @@ func TestUnhappyFlow(t *testing.T) {
 							{
 								View:       &types.View{Sequence: 101, Round: 1},
 								From:       []byte("some validator"),
-								BlockHash:  []byte("proposal hash"),
+								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
 						}},
@@ -414,11 +404,9 @@ func TestUnhappyFlow(t *testing.T) {
 
 			ctx: ibft.NewIBFTContext(context.Background()).
 				WithTransport(DummyTransport).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
+				WithKeccak(BlockHashKeccak).
+				WithQuorum(NonZeroQuorum).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool {
-					return len(msgs) != 0
-				})).
 				WithFeed(validFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
@@ -490,7 +478,9 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
+				WithKeccak(BlockHashKeccak).
+				WithQuorum(NonZeroQuorum).
+				WithTransport(DummyTransport).
 				WithSigRecover(SigRecoverFn(func(_ []byte, sig []byte) []byte {
 					if bytes.Equal(sig, []byte("commit seal")) {
 						return []byte("some validator")
@@ -498,10 +488,6 @@ func TestUnhappyFlow(t *testing.T) {
 
 					return []byte("proposer")
 				})).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool {
-					return len(msgs) != 0
-				})).
-				WithTransport(DummyTransport).
 				WithFeed(validFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
@@ -568,7 +554,7 @@ func TestUnhappyFlow(t *testing.T) {
 		{
 			name: "future rcc triggers round jump and new block is finalized",
 			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 3 block"),
+				Block: []byte("block"),
 				Round: 3,
 				Seals: []types.FinalizedSeal{
 					{
@@ -590,10 +576,10 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("round 3 block hash") })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) != 0 })).
+				WithKeccak(BlockHashKeccak).
+				WithQuorum(NonZeroQuorum).
 				WithTransport(DummyTransport).
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
 				WithFeed(validFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {3: {
@@ -601,10 +587,10 @@ func TestUnhappyFlow(t *testing.T) {
 								View: &types.View{Sequence: 101, Round: 3},
 								From: []byte("proposer"),
 								ProposedBlock: &types.ProposedBlock{
-									Block: []byte("round 3 block"),
+									Block: []byte("block"),
 									Round: 3,
 								},
-								BlockHash: []byte("round 3 block hash"),
+								BlockHash: []byte("block hash"),
 								RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 									{
 										View: &types.View{Sequence: 101, Round: 3},
@@ -620,7 +606,7 @@ func TestUnhappyFlow(t *testing.T) {
 							{
 								View:      &types.View{Sequence: 101, Round: 3},
 								From:      []byte("some validator"),
-								BlockHash: []byte("round 3 block hash"),
+								BlockHash: []byte("block hash"),
 							},
 						}},
 					},
@@ -630,7 +616,7 @@ func TestUnhappyFlow(t *testing.T) {
 							{
 								View:       &types.View{Sequence: 101, Round: 3},
 								From:       []byte("some validator"),
-								BlockHash:  []byte("round 3 block hash"),
+								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
 						}},
@@ -683,16 +669,10 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte {
-					return []byte("block hash")
-				})).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte {
-					return []byte("some validator")
-				})).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool {
-					return len(msgs) != 0
-				})).
+				WithKeccak(BlockHashKeccak).
+				WithQuorum(NonZeroQuorum).
 				WithTransport(DummyTransport).
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
 				WithFeed(validFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {5: {
@@ -771,12 +751,10 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
+				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
+				WithQuorum(NonZeroQuorum).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool {
-					return len(msgs) != 0
-				})).
 				WithFeed(singleRoundFeed(feed{
 					prepare: messagesByView[types.MsgPrepare]{
 						101: {
@@ -842,10 +820,10 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
+				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) != 0 })).
+				WithQuorum(NonZeroQuorum).
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
 				WithFeed(singleRoundFeed(feed{
 					prepare: messagesByView[types.MsgPrepare]{
 						101: {
@@ -928,10 +906,10 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
+				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) != 0 })).
+				WithQuorum(NonZeroQuorum).
+				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
 				WithFeed(singleRoundFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
@@ -1025,7 +1003,9 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
+				WithKeccak(BlockHashKeccak).
+				WithTransport(DummyTransport).
+				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
 				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
 					if bytes.Equal(cs, []byte("commit seal")) {
 						return []byte("validator")
@@ -1037,8 +1017,6 @@ func TestUnhappyFlow(t *testing.T) {
 
 					return nil
 				})).
-				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
 				WithFeed(singleRoundFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
@@ -1155,7 +1133,9 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
+				WithKeccak(BlockHashKeccak).
+				WithTransport(DummyTransport).
+				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
 				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
 					if bytes.Equal(cs, []byte("commit seal")) {
 						return []byte("validator")
@@ -1167,8 +1147,6 @@ func TestUnhappyFlow(t *testing.T) {
 
 					return nil
 				})).
-				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
 				WithFeed(singleRoundFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
@@ -1291,7 +1269,9 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
+				WithKeccak(BlockHashKeccak).
+				WithTransport(DummyTransport).
+				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
 				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
 					if bytes.Equal(cs, []byte("commit seal")) {
 						return []byte("validator")
@@ -1303,8 +1283,6 @@ func TestUnhappyFlow(t *testing.T) {
 
 					return nil
 				})).
-				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
 				WithFeed(singleRoundFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
@@ -1436,8 +1414,9 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
+				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
+				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
 				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
 					if bytes.Equal(cs, []byte("commit seal")) {
 						return []byte("validator")
@@ -1449,7 +1428,6 @@ func TestUnhappyFlow(t *testing.T) {
 
 					return nil
 				})).
-				WithKeccak(KeccakFn(func(_ []byte) []byte { return []byte("block hash") })).
 				WithFeed(singleRoundFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
