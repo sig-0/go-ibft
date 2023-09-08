@@ -4,13 +4,26 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
+// state is a collection of consensus artifacts obtained at different
+// stages of the currently running sequence.
 type state struct {
-	currentView                 *types.View
-	acceptedProposal            *types.MsgProposal
+	// the active sequence and round of this validator
+	currentView *types.View
+
+	// proposal accepted by the network
+	acceptedProposal *types.MsgProposal
+
+	// proposal that passed the PREPARE phase
 	latestPreparedProposedBlock *types.ProposedBlock
-	latestPreparedCertificate   *types.PreparedCertificate
-	roundChangeCertificate      *types.RoundChangeCertificate
-	seals                       []types.FinalizedSeal
+
+	// proof that PREPARE was successful
+	latestPreparedCertificate *types.PreparedCertificate
+
+	// proof that ROUND CHANGE happened
+	roundChangeCertificate *types.RoundChangeCertificate
+
+	// proof that the proposal was finalized (passed COMMIT phase)
+	seals []types.FinalizedSeal
 }
 
 func (s *state) CurrentSequence() uint64 {

@@ -9,6 +9,10 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
+// Sequencer is an IBFT-context based block finalizer of a consensus actor. Its only purpose
+// is to determine if consensus is reached in a particular sequence (height)
+// and output the finalized block. Because of its simple API it's envisioned to
+// work alongside a block syncing process
 type Sequencer struct {
 	ibft.Validator
 	ibft.Verifier
@@ -18,6 +22,7 @@ type Sequencer struct {
 	round0Duration time.Duration
 }
 
+// New instantiates a new Sequencer object
 func New(
 	val ibft.Validator,
 	vrf ibft.Verifier,
@@ -32,6 +37,8 @@ func New(
 	return s
 }
 
+// FinalizeSequence runs the block finalization loop. This method returns a non-nil value only if
+// consensus is reached for the given sequence. Otherwise, it runs forever until cancelled by the caller
 func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.FinalizedBlock {
 	s.state = state{currentView: &types.View{
 		Sequence: sequence,
@@ -60,6 +67,8 @@ func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.F
 	}
 }
 
+// finalize starts the round runner loop. In each round (loop iteration), 4 processes run in parallel.
+// This method returns only if the block finalization algorithm is complete or if the caller cancelled the context
 func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedBlock {
 	for {
 		ctxRound, cancelRound := ctx.WithCancel()
@@ -110,6 +119,7 @@ func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedBlock {
 	}
 }
 
+// startRoundTimer starts the round timer of the current round
 func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
 	c := make(chan struct{}, 1)
 
@@ -134,6 +144,7 @@ func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
 	return c
 }
 
+// awaitHigherRoundProposal listens for proposal messages from rounds higher than the current
 func (s *Sequencer) awaitHigherRoundProposal(ctx ibft.Context) <-chan *types.MsgProposal {
 	s.wg.Add(1)
 
@@ -155,6 +166,7 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx ibft.Context) <-chan *types.Msg
 	return c
 }
 
+// awaitHigherRoundRCC listens for round change certificates from rounds higher than the current
 func (s *Sequencer) awaitHigherRoundRCC(ctx ibft.Context) <-chan *types.RoundChangeCertificate {
 	s.wg.Add(1)
 
@@ -176,6 +188,7 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx ibft.Context) <-chan *types.RoundCha
 	return c
 }
 
+// awaitFinalizedBlockInCurrentRound starts the block finalization algorithm for the current round
 func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *types.FinalizedBlock {
 	s.wg.Add(1)
 
