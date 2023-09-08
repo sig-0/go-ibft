@@ -32,7 +32,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		)
 
 		store := New(sigRecover)
-		require.NoError(t, store.AddMessage(msg))
+		require.NoError(t, AddMessage[types.MsgProposal](msg, store))
 
 		sub, cancelSub := Feed{store}.Proposal(view, false)
 		defer cancelSub()
@@ -61,8 +61,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 		)
 
 		store := New(sigRecover)
-		require.NoError(t, store.AddMessage(msg1))
-		require.NoError(t, store.AddMessage(msg2))
+		require.NoError(t, AddMessage[types.MsgProposal](msg1, store))
+		require.NoError(t, AddMessage[types.MsgProposal](msg2, store))
 
 		sub, cancelSub := Feed{store}.Proposal(view1, false)
 		defer cancelSub()
@@ -85,8 +85,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 		)
 
 		store := New(sigRecover)
-		require.NoError(t, store.AddMessage(msg))
-		require.Len(t, store.GetProposalMessages(view), 1)
+		require.NoError(t, AddMessage[types.MsgProposal](msg, store))
+		require.Len(t, GetMessages[types.MsgProposal](view, store), 1)
 
 		previousView := &types.View{Sequence: view.Sequence, Round: view.Round - 1}
 		sub, cancelSub := Feed{store}.Proposal(previousView, true)
@@ -128,8 +128,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		require.NoError(t, store.AddMessage(msg3))
-		require.NoError(t, store.AddMessage(msg1))
+		require.NoError(t, AddMessage[types.MsgProposal](msg3, store))
+		require.NoError(t, AddMessage[types.MsgProposal](msg1, store))
 
 		unwrap = <-sub
 		msgs := unwrap()
@@ -157,7 +157,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			Signature: []byte("signature"),
 		}
 
-		require.NoError(t, store.AddMessage(msg))
+		require.NoError(t, AddMessage[types.MsgProposal](msg, store))
 
 		cancelSub() // close the sub so the channel can be read
 		_, ok := <-sub
@@ -188,8 +188,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		require.NoError(t, store.AddMessage(msg1))
-		require.NoError(t, store.AddMessage(msg2))
+		require.NoError(t, AddMessage[types.MsgProposal](msg1, store))
+		require.NoError(t, AddMessage[types.MsgProposal](msg2, store))
 
 		unwrap := <-sub
 		messages := unwrap()

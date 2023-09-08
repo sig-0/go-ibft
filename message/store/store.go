@@ -40,72 +40,82 @@ func New(sigRecover types.SigRecover) *Store {
 	return s
 }
 
-// AddMessage stores the provided msg if its signature is valid
-func (s *Store) AddMessage(msg types.Msg) error {
-	if err := s.isValidSignature(msg); err != nil {
-		return err
-	}
+func isValidSignature[M msg](msg *M, sigRecover types.SigRecover) bool {
+	msgI := any(msg).(types.Msg) //nolint:forcetypeassert, gocritic, errcheck
 
-	switch msg := msg.(type) {
-	case *types.MsgProposal:
-		s.proposal.AddMessage(msg, msg.View, msg.From)
-	case *types.MsgPrepare:
-		s.prepare.AddMessage(msg, msg.View, msg.From)
-	case *types.MsgCommit:
-		s.commit.AddMessage(msg, msg.View, msg.From)
-	case *types.MsgRoundChange:
-		s.roundChange.AddMessage(msg, msg.View, msg.From)
-	default:
-		return ErrUnknownType
-	}
-
-	return nil
+	return bytes.Equal(msgI.GetFrom(), sigRecover.From(msgI.Payload(), msgI.GetSignature()))
 }
 
-func (s *Store) isValidSignature(msg types.Msg) error {
-	if !bytes.Equal(msg.GetFrom(), s.verifier.From(msg.Payload(), msg.GetSignature())) {
+// AddMessage stores the provided msg if its signature is valid
+func AddMessage[M msg](m *M, store *Store) error {
+	if !isValidSignature(m, store.verifier) {
 		return ErrInvalidSignature
 	}
 
+	switch msg := any(m).(type) {
+	case *types.MsgProposal:
+		store.proposal.AddMessage(msg, msg.View, msg.From)
+	case *types.MsgPrepare:
+		store.prepare.AddMessage(msg, msg.View, msg.From)
+	case *types.MsgCommit:
+		store.commit.AddMessage(msg, msg.View, msg.From)
+	case *types.MsgRoundChange:
+		store.roundChange.AddMessage(msg, msg.View, msg.From)
+	}
+
 	return nil
 }
 
-/*	MsgProposal	*/
+func GetMessages[M msg](view *types.View, store *Store) []*M {
+	var (
+		m        *M
+		messages []*M
+	)
 
-func (s *Store) GetProposalMessages(view *types.View) []*types.MsgProposal {
-	return s.proposal.GetMessages(view)
+	switch any(m).(type) {
+	case *types.MsgProposal:
+		typedMessages := store.proposal.GetMessages(view)
+		messages = make([]*M, 0, len(typedMessages))
+
+		for _, msg := range typedMessages {
+			messages = append(messages, any(msg).(*M)) //nolint:forcetypeassert, gocritic
+		}
+	case *types.MsgPrepare:
+		typedMessages := store.prepare.GetMessages(view)
+		messages = make([]*M, 0, len(typedMessages))
+
+		for _, msg := range typedMessages {
+			messages = append(messages, any(msg).(*M)) //nolint:forcetypeassert, gocritic
+		}
+	case *types.MsgCommit:
+		typedMessages := store.commit.GetMessages(view)
+		messages = make([]*M, 0, len(typedMessages))
+
+		for _, msg := range store.commit.GetMessages(view) {
+			messages = append(messages, any(msg).(*M)) //nolint:forcetypeassert, gocritic
+		}
+	case *types.MsgRoundChange:
+		typedMessages := store.roundChange.GetMessages(view)
+		messages = make([]*M, 0, len(typedMessages))
+
+		for _, msg := range store.roundChange.GetMessages(view) {
+			messages = append(messages, any(msg).(*M)) //nolint:forcetypeassert, gocritic
+		}
+	}
+
+	return messages
 }
 
-func (s *Store) RemoveProposalMessages(view *types.View) {
-	s.proposal.Remove(view)
-}
-
-/*	MsgPrepare	*/
-
-func (s *Store) GetPrepareMessages(view *types.View) []*types.MsgPrepare {
-	return s.prepare.GetMessages(view)
-}
-
-func (s *Store) RemovePrepareMessages(view *types.View) {
-	s.prepare.Remove(view)
-}
-
-/*	MsgCommit	*/
-
-func (s *Store) GetCommitMessages(view *types.View) []*types.MsgCommit {
-	return s.commit.GetMessages(view)
-}
-
-func (s *Store) RemoveCommitMessages(view *types.View) {
-	s.commit.Remove(view)
-}
-
-/*	MsgRoundChange	*/
-
-func (s *Store) GetRoundChangeMessages(view *types.View) []*types.MsgRoundChange {
-	return s.roundChange.GetMessages(view)
-}
-
-func (s *Store) RemoveRoundChangeMessages(view *types.View) {
-	s.roundChange.Remove(view)
+func RemoveMessages[M msg](view *types.View, store *Store) {
+	var m *M
+	switch any(m).(type) {
+	case *types.MsgProposal:
+		store.proposal.Remove(view)
+	case *types.MsgPrepare:
+		store.prepare.Remove(view)
+	case *types.MsgCommit:
+		store.commit.Remove(view)
+	case *types.MsgRoundChange:
+		store.roundChange.Remove(view)
+	}
 }
