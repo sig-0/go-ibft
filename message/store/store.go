@@ -16,6 +16,7 @@ type msgVerifier struct {
 	types.SigRecover
 }
 
+// Store is a thread-safe storage for consensus messages with a built-in Feed mechanism
 type Store struct {
 	verifier msgVerifier
 
@@ -25,6 +26,8 @@ type Store struct {
 	roundChange *syncCollection[types.MsgRoundChange]
 }
 
+// New returns a new Store instance. Messages added to this store
+// have their signatures verified before being included
 func New(sigRecover types.SigRecover) *Store {
 	s := &Store{
 		verifier:    msgVerifier{sigRecover},
@@ -37,6 +40,7 @@ func New(sigRecover types.SigRecover) *Store {
 	return s
 }
 
+// AddMessage stores the provided msg if its signature is valid
 func (s *Store) AddMessage(msg types.Msg) error {
 	if err := s.isValidSignature(msg); err != nil {
 		return err
