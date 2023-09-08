@@ -3,7 +3,7 @@ package sequencer
 import (
 	"bytes"
 
-	ibft "github.com/madz-lab/go-ibft"
+	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
@@ -23,7 +23,6 @@ func (s *Sequencer) awaitFutureRCC(ctx ibft.Context) (*types.RoundChangeCertific
 	}
 
 	return &types.RoundChangeCertificate{Messages: messages}, nil
-
 }
 
 func (s *Sequencer) awaitQuorumFutureRoundChangeMessages(ctx ibft.Context) ([]*types.MsgRoundChange, error) {

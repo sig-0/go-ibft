@@ -1,3 +1,4 @@
+//nolint:all
 package sequencer
 
 import "github.com/madz-lab/go-ibft/message/types"
@@ -54,7 +55,7 @@ func (v mockVerifier) IsValidBlock(block []byte, sequence uint64) bool {
 	return v.isValidBlockFn(block) //todo
 }
 
-func (v mockVerifier) IsProposer(id []byte, sequence uint64, round uint64) bool {
+func (v mockVerifier) IsProposer(id []byte, sequence, round uint64) bool {
 	return v.isProposerFn(id, sequence, round)
 }
 

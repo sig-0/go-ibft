@@ -34,7 +34,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		store := New(sigRecover)
 		require.NoError(t, store.AddMessage(msg))
 
-		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view, false)
+		sub, cancelSub := Feed{store}.Proposal(view, false)
 		defer cancelSub()
 
 		unwrap := <-sub
@@ -64,7 +64,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		require.NoError(t, store.AddMessage(msg1))
 		require.NoError(t, store.AddMessage(msg2))
 
-		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view1, false)
+		sub, cancelSub := Feed{store}.Proposal(view1, false)
 		defer cancelSub()
 
 		unwrap := <-sub
@@ -89,7 +89,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		require.Len(t, store.GetProposalMessages(view), 1)
 
 		previousView := &types.View{Sequence: view.Sequence, Round: view.Round - 1}
-		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(previousView, true)
+		sub, cancelSub := Feed{store}.Proposal(previousView, true)
 		defer cancelSub()
 
 		unwrap := <-sub
@@ -103,7 +103,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 
 		store := New(sigRecover)
 
-		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(&types.View{
+		sub, cancelSub := Feed{store}.Proposal(&types.View{
 			Sequence: 101,
 			Round:    6,
 		},
@@ -147,7 +147,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		view2 := &types.View{Sequence: 102, Round: 1}
 
 		// two subscriptions, same view
-		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view1, true)
+		sub, cancelSub := Feed{store}.Proposal(view1, true)
 
 		unwrap := <-sub
 		require.Len(t, unwrap(), 0)
@@ -173,7 +173,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		view2 := &types.View{Sequence: 101, Round: 2}
 
 		// two subscriptions, same view
-		sub, cancelSub := Feed{store}.SubscribeToProposalMessages(view1, true)
+		sub, cancelSub := Feed{store}.Proposal(view1, true)
 		defer cancelSub()
 
 		var (
@@ -196,5 +196,4 @@ func TestFeed_MsgProposal(t *testing.T) {
 		require.Len(t, messages, 1)
 		assert.Equal(t, msg2, messages[0])
 	})
-
 }

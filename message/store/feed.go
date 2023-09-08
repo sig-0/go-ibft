@@ -8,23 +8,26 @@ type Feed struct {
 	*Store
 }
 
-func (f Feed) SubscribeToProposalMessages(view *types.View, futureRounds bool) (<-chan func() []*types.MsgProposal, func()) {
+func (f Feed) Proposal(view *types.View, futureRounds bool) (<-chan func() []*types.MsgProposal, func()) {
 	sub, cancelSub := f.Store.proposal.subscribe(view, futureRounds)
+
 	return sub.Channel, cancelSub
 }
 
-//
-//func (f Feed) SubscribeToPrepareMessages(view *types.View, futureRounds bool) (<-chan func() []*types.MsgPrepare, func()) {
-//	//TODO implement me
-//	panic("implement me")
-//}
-//
-//func (f Feed) SubscribeToCommitMessages(view *types.View, futureRounds bool) (<-chan func() []*types.MsgCommit, func()) {
-//	//TODO implement me
-//	panic("implement me")
-//}
-//
-//func (f Feed) SubscribeToRoundChangeMessages(view *types.View, futureRounds bool) (<-chan func() []*types.MsgRoundChange, func()) {
-//	//TODO implement me
-//	panic("implement me")
-//}
+func (f Feed) Prepare(view *types.View, futureRounds bool) (<-chan func() []*types.MsgPrepare, func()) {
+	sub, cancelSub := f.Store.prepare.subscribe(view, futureRounds)
+
+	return sub.Channel, cancelSub
+}
+
+func (f Feed) Commit(view *types.View, futureRounds bool) (<-chan func() []*types.MsgCommit, func()) {
+	sub, cancelSub := f.Store.commit.subscribe(view, futureRounds)
+
+	return sub.Channel, cancelSub
+}
+
+func (f Feed) RoundChange(view *types.View, futureRounds bool) (<-chan func() []*types.MsgRoundChange, func()) {
+	sub, cancelSub := f.Store.roundChange.subscribe(view, futureRounds)
+
+	return sub.Channel, cancelSub
+}

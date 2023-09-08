@@ -1,3 +1,4 @@
+//nolint:all
 package sequencer
 
 import (
@@ -9,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	ibft "github.com/madz-lab/go-ibft"
+	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 

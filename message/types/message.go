@@ -1,3 +1,4 @@
+//nolint:errcheck,gocritic
 package types
 
 import "google.golang.org/protobuf/proto"
@@ -96,5 +97,6 @@ func (x *MsgRoundChange) Payload() []byte {
 
 func (x *ProposedBlock) Bytes() []byte {
 	bz, _ := proto.Marshal(x)
+
 	return bz
 }

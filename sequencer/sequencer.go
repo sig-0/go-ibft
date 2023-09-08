@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	ibft "github.com/madz-lab/go-ibft"
+	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
@@ -49,6 +49,7 @@ func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.F
 	select {
 	case <-ctx.Done():
 		<-c // wait for finalize to return
+
 		return nil
 	case fb := <-c:
 		return fb
@@ -66,6 +67,7 @@ func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedBlock {
 		select {
 		case _, ok := <-s.startRoundTimer(ctxRound):
 			teardown()
+
 			if !ok {
 				return nil
 			}
@@ -86,6 +88,7 @@ func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedBlock {
 			println("round timer expired")
 		case rcc, ok := <-s.watchForFutureRCC(ctxRound):
 			teardown()
+
 			if !ok {
 				return nil
 			}
@@ -96,6 +99,7 @@ func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedBlock {
 			println("future rcc")
 		case proposal, ok := <-s.watchForFutureProposal(ctxRound):
 			teardown()
+
 			if !ok {
 				return nil
 			}
@@ -113,17 +117,15 @@ func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedBlock {
 
 			ctx.Transport().Multicast(msg)
 
-			println("future proposal")
 		case fb, ok := <-s.finalizeBlockInCurrentRound(ctxRound):
 			teardown()
+
 			if !ok {
 				return nil
 			}
 
-			println("finalized block")
 			return fb
 		}
-
 	}
 }
 
@@ -131,6 +133,7 @@ func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
 	c := make(chan struct{}, 1)
 
 	s.wg.Add(1)
+
 	go func() {
 		defer func() {
 			close(c)
@@ -151,9 +154,9 @@ func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
 }
 
 func (s *Sequencer) watchForFutureProposal(ctx ibft.Context) <-chan *types.MsgProposal {
-	c := make(chan *types.MsgProposal, 1)
-
 	s.wg.Add(1)
+
+	c := make(chan *types.MsgProposal, 1)
 	go func() {
 		defer func() {
 			close(c)
@@ -172,9 +175,9 @@ func (s *Sequencer) watchForFutureProposal(ctx ibft.Context) <-chan *types.MsgPr
 }
 
 func (s *Sequencer) watchForFutureRCC(ctx ibft.Context) <-chan *types.RoundChangeCertificate {
-	c := make(chan *types.RoundChangeCertificate, 1)
-
 	s.wg.Add(1)
+
+	c := make(chan *types.RoundChangeCertificate, 1)
 	go func() {
 		defer func() {
 			close(c)
@@ -193,9 +196,9 @@ func (s *Sequencer) watchForFutureRCC(ctx ibft.Context) <-chan *types.RoundChang
 }
 
 func (s *Sequencer) finalizeBlockInCurrentRound(ctx ibft.Context) <-chan *types.FinalizedBlock {
-	c := make(chan *types.FinalizedBlock, 1)
-
 	s.wg.Add(1)
+
+	c := make(chan *types.FinalizedBlock, 1)
 	go func() {
 		defer func() {
 			close(c)

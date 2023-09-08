@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"errors"
+
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
@@ -24,9 +25,9 @@ type Store struct {
 	roundChange *syncCollection[types.MsgRoundChange]
 }
 
-func New(recover types.SigRecover) *Store {
+func New(sigRecover types.SigRecover) *Store {
 	s := &Store{
-		verifier:    msgVerifier{recover},
+		verifier:    msgVerifier{sigRecover},
 		proposal:    newSyncCollection[types.MsgProposal](),
 		prepare:     newSyncCollection[types.MsgPrepare](),
 		commit:      newSyncCollection[types.MsgCommit](),

@@ -3,7 +3,7 @@ package sequencer
 import (
 	"bytes"
 
-	ibft "github.com/madz-lab/go-ibft"
+	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
@@ -55,10 +55,6 @@ func (s *Sequencer) awaitFutureProposal(ctx ibft.Context) (*types.MsgProposal, e
 				continue
 			}
 
-			// todo: proposer misbehavior
-			//if len(validFutureProposals) > 1 {
-			//}
-
 			return validFutureProposals[0], nil
 		}
 	}
@@ -81,10 +77,6 @@ func (s *Sequencer) awaitValidProposal(ctx ibft.Context) (*types.MsgProposal, er
 			if len(validProposals) == 0 {
 				continue
 			}
-
-			//	todo proposer misbehavior
-			//if len(validProposals) > 1 {
-			//}
 
 			return validProposals[0], nil
 		}
@@ -109,12 +101,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 	}
 
 	if msg.View.Round == 0 {
-		if !s.IsValidBlock(msg.ProposedBlock.Block, msg.View.Sequence) {
-			return false
-		}
-
-		// all checks for round 0 proposal passed
-		return true
+		return s.IsValidBlock(msg.ProposedBlock.Block, msg.View.Sequence)
 	}
 
 	rcc := msg.RoundChangeCertificate
@@ -123,6 +110,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 	}
 
 	valid := make([]*types.MsgRoundChange, 0, len(rcc.Messages))
+
 	for _, msg := range rcc.Messages {
 		pc := msg.LatestPreparedCertificate
 		if pc == nil {
@@ -138,11 +126,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 
 	blockHash, round := trimmedRCC.HighestRoundBlockHash()
 	if blockHash == nil {
-		if !s.IsValidBlock(msg.ProposedBlock.Block, msg.View.Sequence) {
-			return false
-		}
-
-		return true
+		return s.IsValidBlock(msg.ProposedBlock.Block, msg.View.Sequence)
 	}
 
 	pb := &types.ProposedBlock{
@@ -150,9 +134,5 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 		Round: round,
 	}
 
-	if !bytes.Equal(blockHash, keccak.Hash(pb.Bytes())) {
-		return false
-	}
-
-	return true
+	return bytes.Equal(blockHash, keccak.Hash(pb.Bytes()))
 }
