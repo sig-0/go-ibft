@@ -24,7 +24,7 @@ func newMsgCache[M msg](filterFn func(*M) bool) msgCache[M] {
 
 func (c msgCache[M]) Add(messages []*M) msgCache[M] {
 	for _, msg := range messages {
-		from := any(msg).(types.Msg).GetFrom()
+		from := any(msg).(types.Msg).GetFrom() //nolint:forcetypeassert // msg constraint
 		if _, ok := c.seen[string(from)]; ok {
 			continue
 		}

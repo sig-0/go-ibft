@@ -7,67 +7,53 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) awaitProposal(ctx ibft.Context) error {
-	if s.state.ProposalAccepted() {
-		return nil
+func (s *Sequencer) multicastProposal(ctx ibft.Context, block []byte) {
+	pb := &types.ProposedBlock{
+		Block: block,
+		Round: s.state.CurrentRound(),
 	}
 
-	proposal, err := s.awaitValidProposal(ctx)
-	if err != nil {
-		return err
-	}
-
-	s.state.acceptedProposal = proposal
-
-	msg := &types.MsgPrepare{
-		From:      s.ID(),
-		View:      s.state.currentView,
-		BlockHash: s.state.AcceptedBlockHash(),
+	msg := &types.MsgProposal{
+		From:                   s.ID(),
+		View:                   s.state.currentView,
+		ProposedBlock:          pb,
+		BlockHash:              ctx.Keccak().Hash(pb.Bytes()),
+		RoundChangeCertificate: s.state.roundChangeCertificate,
 	}
 
 	msg.Signature = s.Sign(msg.Payload())
 
+	s.state.acceptedProposal = msg
+
 	ctx.Transport().Multicast(msg)
+}
+
+func (s *Sequencer) awaitCurrentRoundProposal(ctx ibft.Context) error {
+	proposal, err := s.awaitProposal(ctx, false)
+	if err != nil {
+		return err
+	}
+
+	s.state.AcceptProposal(proposal)
 
 	return nil
 }
 
-func (s *Sequencer) awaitFutureProposal(ctx ibft.Context) (*types.MsgProposal, error) {
-	nextView := &types.View{
+func (s *Sequencer) awaitProposal(ctx ibft.Context, higherRounds bool) (*types.MsgProposal, error) {
+	view := &types.View{
 		Sequence: s.state.CurrentSequence(),
-		Round:    s.state.CurrentRound() + 1,
+		Round:    s.state.CurrentRound(),
+	}
+
+	if higherRounds {
+		view.Round++
 	}
 
 	cache := newMsgCache(func(msg *types.MsgProposal) bool {
 		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
 	})
 
-	sub, cancelSub := ctx.Feed().Proposal(nextView, true)
-	defer cancelSub()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case unwrapMessages := <-sub:
-			cache = cache.Add(unwrapMessages())
-
-			validFutureProposals := cache.Messages()
-			if len(validFutureProposals) == 0 {
-				continue
-			}
-
-			return validFutureProposals[0], nil
-		}
-	}
-}
-
-func (s *Sequencer) awaitValidProposal(ctx ibft.Context) (*types.MsgProposal, error) {
-	cache := newMsgCache(func(msg *types.MsgProposal) bool {
-		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
-	})
-
-	sub, cancelSub := ctx.Feed().Proposal(s.state.currentView, false)
+	sub, cancelSub := ctx.Feed().Proposal(view, higherRounds)
 	defer cancelSub()
 
 	for {

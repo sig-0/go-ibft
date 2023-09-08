@@ -2,12 +2,26 @@ package sequencer
 
 import (
 	"bytes"
+
 	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) awaitRCC(ctx ibft.Context) (*types.RoundChangeCertificate, error) {
-	messages, err := s.awaitQuorumRoundChangeMessages(ctx)
+func (s *Sequencer) multicastRoundChange(ctx ibft.Context) {
+	msg := &types.MsgRoundChange{
+		View:                        s.state.currentView,
+		From:                        s.ID(),
+		LatestPreparedProposedBlock: s.state.latestPreparedProposedBlock,
+		LatestPreparedCertificate:   s.state.latestPreparedCertificate,
+	}
+
+	msg.Signature = s.Sign(msg.Payload())
+
+	ctx.Transport().Multicast(msg)
+}
+
+func (s *Sequencer) awaitRCC(ctx ibft.Context, higherRounds bool) (*types.RoundChangeCertificate, error) {
+	messages, err := s.awaitQuorumRoundChanges(ctx, higherRounds)
 	if err != nil {
 		return nil, err
 	}
@@ -15,55 +29,21 @@ func (s *Sequencer) awaitRCC(ctx ibft.Context) (*types.RoundChangeCertificate, e
 	return &types.RoundChangeCertificate{Messages: messages}, nil
 }
 
-func (s *Sequencer) awaitFutureRCC(ctx ibft.Context) (*types.RoundChangeCertificate, error) {
-	messages, err := s.awaitQuorumFutureRoundChangeMessages(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.RoundChangeCertificate{Messages: messages}, nil
-}
-
-func (s *Sequencer) awaitQuorumFutureRoundChangeMessages(ctx ibft.Context) ([]*types.MsgRoundChange, error) {
-	nextView := &types.View{
+func (s *Sequencer) awaitQuorumRoundChanges(ctx ibft.Context, higherRounds bool) ([]*types.MsgRoundChange, error) {
+	view := &types.View{
 		Sequence: s.state.CurrentSequence(),
-		Round:    s.state.CurrentRound() + 1,
+		Round:    s.state.CurrentRound(),
+	}
+
+	if higherRounds {
+		view.Round++
 	}
 
 	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
 		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
 	})
 
-	sub, cancelSub := ctx.Feed().RoundChange(nextView, true)
-	defer cancelSub()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case unwrapMessages := <-sub:
-			cache = cache.Add(unwrapMessages())
-
-			validMessages := cache.Messages()
-			if len(validMessages) == 0 {
-				continue
-			}
-
-			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), types.ToMsg(validMessages)) {
-				continue
-			}
-
-			return validMessages, nil
-		}
-	}
-}
-
-func (s *Sequencer) awaitQuorumRoundChangeMessages(ctx ibft.Context) ([]*types.MsgRoundChange, error) {
-	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
-		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
-	})
-
-	sub, cancelSub := ctx.Feed().RoundChange(s.state.currentView, false)
+	sub, cancelSub := ctx.Feed().RoundChange(view, higherRounds)
 	defer cancelSub()
 
 	for {
@@ -87,7 +67,11 @@ func (s *Sequencer) awaitQuorumRoundChangeMessages(ctx ibft.Context) ([]*types.M
 	}
 }
 
-func (s *Sequencer) isValidMsgRoundChange(msg *types.MsgRoundChange, quorum ibft.Quorum, keccak ibft.Keccak) bool {
+func (s *Sequencer) isValidMsgRoundChange(
+	msg *types.MsgRoundChange,
+	quorum ibft.Quorum,
+	keccak ibft.Keccak,
+) bool {
 	if !s.IsValidator(msg.From, msg.View.Sequence) {
 		return false
 	}
@@ -116,7 +100,11 @@ func (s *Sequencer) isValidMsgRoundChange(msg *types.MsgRoundChange, quorum ibft
 	return true
 }
 
-func (s *Sequencer) isValidPC(pc *types.PreparedCertificate, msg *types.MsgRoundChange, quorum ibft.Quorum) bool {
+func (s *Sequencer) isValidPC(
+	pc *types.PreparedCertificate,
+	msg *types.MsgRoundChange,
+	quorum ibft.Quorum,
+) bool {
 	if pc.ProposalMessage == nil || pc.PrepareMessages == nil {
 		return false
 	}

@@ -1333,7 +1333,7 @@ func TestUnhappyFlow(t *testing.T) {
 								},
 								{
 									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("validator"),
+									From:      []byte("other validator"),
 									BlockHash: []byte("block hash"),
 								},
 							},

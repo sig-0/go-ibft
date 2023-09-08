@@ -7,29 +7,30 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
+func (s *Sequencer) multicastPrepare(ctx ibft.Context) {
+	msg := &types.MsgPrepare{
+		From:      s.ID(),
+		View:      s.state.currentView,
+		BlockHash: s.state.AcceptedBlockHash(),
+	}
+
+	msg.Signature = s.Sign(msg.Payload())
+
+	ctx.Transport().Multicast(msg)
+}
+
 func (s *Sequencer) awaitPrepare(ctx ibft.Context) error {
-	messages, err := s.awaitQuorumPrepareMessages(ctx)
+	messages, err := s.awaitQuorumPrepares(ctx)
 	if err != nil {
 		return err
 	}
 
 	s.state.PrepareCertificate(messages)
 
-	msg := &types.MsgCommit{
-		From:       s.ID(),
-		View:       s.state.currentView,
-		BlockHash:  s.state.AcceptedBlockHash(),
-		CommitSeal: s.Sign(ctx.Keccak().Hash(s.state.AcceptedBlockHash())),
-	}
-
-	msg.Signature = s.Sign(msg.Payload())
-
-	ctx.Transport().Multicast(msg)
-
 	return nil
 }
 
-func (s *Sequencer) awaitQuorumPrepareMessages(ctx ibft.Context) ([]*types.MsgPrepare, error) {
+func (s *Sequencer) awaitQuorumPrepares(ctx ibft.Context) ([]*types.MsgPrepare, error) {
 	cache := newMsgCache(s.isValidMsgPrepare)
 
 	sub, cancelSub := ctx.Feed().Prepare(s.state.currentView, false)

@@ -21,12 +21,6 @@ func (s *state) CurrentRound() uint64 {
 	return s.currentView.Round
 }
 
-func (s *state) MoveToRound(round uint64) {
-	s.seals = s.seals[:0]
-	s.currentView.Round = round
-	s.acceptedProposal = nil
-}
-
 func (s *state) ProposalAccepted() bool {
 	return s.acceptedProposal != nil
 }
@@ -37,6 +31,25 @@ func (s *state) AcceptedProposedBlock() *types.ProposedBlock {
 
 func (s *state) AcceptedBlockHash() []byte {
 	return s.acceptedProposal.BlockHash
+}
+
+func (s *state) MoveToNextRound() {
+	s.currentView.Round++
+	s.acceptedProposal = nil
+	s.seals = s.seals[:0]
+}
+
+func (s *state) AcceptProposal(proposal *types.MsgProposal) {
+	s.currentView.Round = proposal.View.Round
+	s.acceptedProposal = proposal
+	s.seals = s.seals[:0]
+}
+
+func (s *state) AcceptRCC(rcc *types.RoundChangeCertificate) {
+	s.currentView.Round = rcc.Messages[0].View.Round
+	s.roundChangeCertificate = rcc
+	s.acceptedProposal = nil
+	s.seals = s.seals[:0]
 }
 
 func (s *state) PrepareCertificate(prepares []*types.MsgPrepare) {

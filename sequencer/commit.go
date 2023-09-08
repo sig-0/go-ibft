@@ -7,6 +7,19 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
+func (s *Sequencer) multicastCommit(ctx ibft.Context) {
+	msg := &types.MsgCommit{
+		From:       s.ID(),
+		View:       s.state.currentView,
+		BlockHash:  s.state.AcceptedBlockHash(),
+		CommitSeal: s.Sign(ctx.Keccak().Hash(s.state.AcceptedBlockHash())),
+	}
+
+	msg.Signature = s.Sign(msg.Payload())
+
+	ctx.Transport().Multicast(msg)
+}
+
 func (s *Sequencer) awaitCommit(ctx ibft.Context) error {
 	commits, err := s.awaitQuorumCommits(ctx)
 	if err != nil {
