@@ -426,6 +426,58 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
+			name: "(non zero round): pb hash does not equal highest round block hash",
+			msg: &types.MsgProposal{
+				View: &types.View{Sequence: 101, Round: 1},
+				From: []byte("proposer"),
+				ProposedBlock: &types.ProposedBlock{
+					Block: []byte("block"),
+					Round: 1,
+				},
+				BlockHash: []byte("block hash"),
+				RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
+					{
+						View:                        &types.View{Sequence: 101, Round: 1},
+						From:                        []byte("validator"),
+						LatestPreparedProposedBlock: &types.ProposedBlock{},
+						LatestPreparedCertificate: &types.PreparedCertificate{
+							ProposalMessage: &types.MsgProposal{
+								From:      []byte("proposer"),
+								View:      &types.View{Sequence: 101, Round: 0},
+								BlockHash: []byte("invalid block hash"),
+							},
+							PrepareMessages: []*types.MsgPrepare{
+								{
+									View:      &types.View{Sequence: 101, Round: 0},
+									From:      []byte("validator"),
+									BlockHash: []byte("invalid block hash"),
+								},
+							},
+						},
+					},
+				}},
+			},
+
+			validator: mockValidator{
+				idFn: func() []byte { return []byte("my validator") },
+			},
+			verifier: mockVerifier{
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+					return bytes.Equal(from, []byte("proposer"))
+				},
+				isValidBlockFn: func(block []byte) bool {
+					return bytes.Equal(block, []byte("block"))
+				},
+				isValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				},
+			},
+
+			keccak: KeccakFn(func(_ []byte) []byte { return []byte("block hash") }),
+			quorum: QuorumFn(func(_ uint64, _ []types.Msg) bool { return true }),
+		},
+
+		{
 			name:    "(non zero round): valid proposal msg",
 			isValid: true,
 			msg: &types.MsgProposal{
