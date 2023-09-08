@@ -21,19 +21,21 @@ func (s *Sequencer) awaitCommit(ctx ibft.Context) error {
 }
 
 func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, error) {
+	cache := newMsgCache(func(msg *types.MsgCommit) bool {
+		return s.isValidCommit(msg, ctx.SigRecover())
+	})
+
 	sub, cancelSub := ctx.Feed().Commit(s.state.currentView, false)
 	defer cancelSub()
-
-	isValid := func(msg *types.MsgCommit) bool {
-		return s.isValidCommit(msg, ctx.SigRecover())
-	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case unwrapMessages := <-sub:
-			validCommits := types.Filter(unwrapMessages(), isValid)
+			cache = cache.Add(unwrapMessages())
+
+			validCommits := cache.Messages()
 			if len(validCommits) == 0 {
 				continue
 			}

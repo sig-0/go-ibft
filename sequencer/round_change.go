@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"bytes"
-
 	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
@@ -31,19 +30,21 @@ func (s *Sequencer) awaitQuorumFutureRoundChangeMessages(ctx ibft.Context) ([]*t
 		Round:    s.state.CurrentRound() + 1,
 	}
 
+	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
+		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
+	})
+
 	sub, cancelSub := ctx.Feed().RoundChange(nextView, true)
 	defer cancelSub()
-
-	isValid := func(msg *types.MsgRoundChange) bool {
-		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
-	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case unwrapMessages := <-sub:
-			validMessages := types.Filter(unwrapMessages(), isValid)
+			cache = cache.Add(unwrapMessages())
+
+			validMessages := cache.Messages()
 			if len(validMessages) == 0 {
 				continue
 			}
@@ -58,19 +59,21 @@ func (s *Sequencer) awaitQuorumFutureRoundChangeMessages(ctx ibft.Context) ([]*t
 }
 
 func (s *Sequencer) awaitQuorumRoundChangeMessages(ctx ibft.Context) ([]*types.MsgRoundChange, error) {
+	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
+		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
+	})
+
 	sub, cancelSub := ctx.Feed().RoundChange(s.state.currentView, false)
 	defer cancelSub()
-
-	isValid := func(msg *types.MsgRoundChange) bool {
-		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
-	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case unwrapMessages := <-sub:
-			validRoundChanges := types.Filter(unwrapMessages(), isValid)
+			cache = cache.Add(unwrapMessages())
+
+			validRoundChanges := cache.Messages()
 			if len(validRoundChanges) == 0 {
 				continue
 			}

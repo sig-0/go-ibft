@@ -30,6 +30,8 @@ func (s *Sequencer) awaitPrepare(ctx ibft.Context) error {
 }
 
 func (s *Sequencer) awaitQuorumPrepareMessages(ctx ibft.Context) ([]*types.MsgPrepare, error) {
+	cache := newMsgCache(s.isValidMsgPrepare)
+
 	sub, cancelSub := ctx.Feed().Prepare(s.state.currentView, false)
 	defer cancelSub()
 
@@ -38,7 +40,9 @@ func (s *Sequencer) awaitQuorumPrepareMessages(ctx ibft.Context) ([]*types.MsgPr
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case unwrapMessages := <-sub:
-			validPrepares := types.Filter(unwrapMessages(), s.isValidMsgPrepare)
+			cache = cache.Add(unwrapMessages())
+
+			validPrepares := cache.Messages()
 			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), types.ToMsg(validPrepares)) {
 				continue
 			}

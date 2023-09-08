@@ -38,19 +38,21 @@ func (s *Sequencer) awaitFutureProposal(ctx ibft.Context) (*types.MsgProposal, e
 		Round:    s.state.CurrentRound() + 1,
 	}
 
+	cache := newMsgCache(func(msg *types.MsgProposal) bool {
+		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
+	})
+
 	sub, cancelSub := ctx.Feed().Proposal(nextView, true)
 	defer cancelSub()
-
-	isValid := func(msg *types.MsgProposal) bool {
-		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
-	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case unwrapMessages := <-sub:
-			validFutureProposals := types.Filter(unwrapMessages(), isValid)
+			cache = cache.Add(unwrapMessages())
+
+			validFutureProposals := cache.Messages()
 			if len(validFutureProposals) == 0 {
 				continue
 			}
@@ -61,19 +63,21 @@ func (s *Sequencer) awaitFutureProposal(ctx ibft.Context) (*types.MsgProposal, e
 }
 
 func (s *Sequencer) awaitValidProposal(ctx ibft.Context) (*types.MsgProposal, error) {
+	cache := newMsgCache(func(msg *types.MsgProposal) bool {
+		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
+	})
+
 	sub, cancelSub := ctx.Feed().Proposal(s.state.currentView, false)
 	defer cancelSub()
-
-	isValid := func(msg *types.MsgProposal) bool {
-		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
-	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case unwrapMessages := <-sub:
-			validProposals := types.Filter(unwrapMessages(), isValid)
+			cache = cache.Add(unwrapMessages())
+
+			validProposals := cache.Messages()
 			if len(validProposals) == 0 {
 				continue
 			}
