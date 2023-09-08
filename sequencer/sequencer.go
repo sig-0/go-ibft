@@ -139,7 +139,6 @@ func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
 		case <-roundTimer.C:
 			c <- struct{}{}
 		}
-
 	}(s.state.CurrentView())
 
 	return c
@@ -163,7 +162,6 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx ibft.Context) <-chan *types.Msg
 		}
 
 		c <- proposal
-
 	}(s.state.CurrentView())
 
 	return c
@@ -187,7 +185,6 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx ibft.Context) <-chan *types.RoundCha
 		}
 
 		c <- rcc
-
 	}(s.state.CurrentView())
 
 	return c
@@ -230,7 +227,6 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *
 		}
 
 		c <- s.state.FinalizedBlock()
-
 	}()
 
 	return c
