@@ -13,6 +13,22 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
+type TransportFn func(types.Msg)
+
+func (t TransportFn) Multicast(msg types.Msg) {
+	t(msg)
+}
+
+var (
+	DummyTransport = TransportFn(func(_ types.Msg) {})
+)
+
+type QuorumFn func(uint64, []types.Msg) bool
+
+func (q QuorumFn) HasQuorum(sequence uint64, msgs []types.Msg) bool {
+	return q(sequence, msgs)
+}
+
 type testTable struct {
 	name                   string
 	expectedFinalizedBlock *types.FinalizedBlock

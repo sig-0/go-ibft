@@ -11,7 +11,6 @@ type state struct {
 	latestPreparedCertificate   *types.PreparedCertificate
 	roundChangeCertificate      *types.RoundChangeCertificate
 	seals                       []types.FinalizedSeal
-	//finalizedBlock              *types.FinalizedBlock
 }
 
 func (s *state) CurrentSequence() uint64 {
@@ -41,11 +40,10 @@ func (s *state) AcceptedBlockHash() []byte {
 }
 
 func (s *state) PrepareCertificate(prepares []*types.MsgPrepare) {
-	pc := &types.PreparedCertificate{
+	s.latestPreparedProposedBlock, s.latestPreparedCertificate = s.AcceptedProposedBlock(), &types.PreparedCertificate{
 		ProposalMessage: s.acceptedProposal,
 		PrepareMessages: prepares,
 	}
-	s.latestPreparedProposedBlock, s.latestPreparedCertificate = s.AcceptedProposedBlock(), pc
 }
 
 func (s *state) AcceptSeal(from, seal []byte) {

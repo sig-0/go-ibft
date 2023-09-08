@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"bytes"
+
 	ibft "github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
