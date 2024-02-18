@@ -1230,15 +1230,10 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
 	t.Parallel()
 
+	ctx, cancelFn := context.WithCancel(context.Background())
+
 	var (
-		log       mockLogger
-		backend   mockBackend
-		transport mockTransport
-		msgs      mockMessages
-
 		notifyCh = make(chan uint64, 1)
-
-		ctx context.Context
 
 		round1ProposalMsg *proto.Message
 
@@ -1246,42 +1241,42 @@ func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
 		round1Proposer     = []byte("round 1 proposer")
 		round0Proposal     = []byte("round 0 proposal")
 		round0ProposalHash = []byte("round 0 proposal hash")
+
+		log       = mockLogger{}
+		transport = mockTransport{}
+		backend   = mockBackend{
+			isProposerFn: func(from []byte, _ uint64, round uint64) bool {
+				switch round {
+				case 0:
+					return bytes.Equal(from, round0Proposer)
+				case 1:
+					return bytes.Equal(from, round1Proposer)
+				}
+
+				return false
+			},
+		}
+
+		msgs = mockMessages{
+			subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
+				return &messages.Subscription{
+					SubCh: notifyCh,
+				}
+			},
+			getValidMessagesFn: func(
+				_ *proto.View,
+				_ proto.MessageType,
+				isValid func(message *proto.Message) bool,
+			) []*proto.Message {
+				if !isValid(round1ProposalMsg) {
+					return nil
+				}
+
+				return []*proto.Message{round1ProposalMsg}
+			},
+			unsubscribeFn: func(_ messages.SubscriptionID) { cancelFn() },
+		}
 	)
-
-	ctx, cancelFn := context.WithCancel(context.Background())
-
-	// backend
-	backend.isProposerFn = func(from []byte, _ uint64, round uint64) bool {
-		switch round {
-		case 0:
-			return bytes.Equal(from, round0Proposer)
-		case 1:
-			return bytes.Equal(from, round1Proposer)
-		}
-
-		return false
-	}
-
-	// messages
-	msgs.subscribeFn = func(_ messages.SubscriptionDetails) *messages.Subscription {
-		return &messages.Subscription{
-			SubCh: notifyCh,
-		}
-	}
-
-	msgs.getValidMessagesFn = func(
-		_ *proto.View,
-		_ proto.MessageType,
-		isValid func(message *proto.Message) bool,
-	) []*proto.Message {
-		if !isValid(round1ProposalMsg) {
-			return nil
-		}
-
-		return []*proto.Message{round1ProposalMsg}
-	}
-
-	msgs.unsubscribeFn = func(_ messages.SubscriptionID) { cancelFn() }
 
 	round1ProposalMsg = &proto.Message{
 		View: &proto.View{Round: 1},
