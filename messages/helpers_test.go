@@ -89,7 +89,8 @@ func TestMessages_ExtractCommitHash(t *testing.T) {
 	}
 }
 
-func TestMessages_ExtractProposal(t *testing.T) { //nolint
+//nolint:dupl // different extract method than in TestMessages_ExtractLPPB
+func TestMessages_ExtractProposal(t *testing.T) {
 	t.Parallel()
 
 	proposal := []byte("proposal")
@@ -335,7 +336,8 @@ func TestMessages_ExtractLatestPC(t *testing.T) {
 	}
 }
 
-func TestMessages_ExtractLPPB(t *testing.T) { //nolint
+//nolint:dupl // different extract method than in TestMessages_ExtractProposal
+func TestMessages_ExtractLPPB(t *testing.T) {
 	t.Parallel()
 
 	latestPPB := []byte("latest block")

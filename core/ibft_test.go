@@ -301,12 +301,13 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 1)
 
 		for _, msg := range roundChangeMessages {
-			//nolint
+			//nolint:forcetypeassert // msg type known at setup
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.Proposal{
 				Block: []byte("previous block"),
 				Round: 0,
 			}
-			//nolint
+
+			//nolint:forcetypeassert,dupl // msg type known at setup, special Extract method in assert
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View:      &proto.View{Round: 0},
@@ -494,12 +495,13 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 1)
 
 		for _, msg := range roundChangeMessages {
-			//nolint
+			//nolint:forcetypeassert // msg type known at setup
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.Proposal{
 				Block: lastPreparedProposedBlock,
 				Round: 0,
 			}
-			//nolint
+
+			//nolint:forcetypeassert,dupl // msg type known at setup, special Extract method in assert
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View:      &proto.View{Round: 0},
@@ -721,12 +723,13 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 2)
 
 		for _, msg := range roundChangeMessages {
-			//nolint
+			//nolint:forcetypeassert // msg type known at setup
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.Proposal{
 				Block: round1PreparedProposedBlock,
 				Round: 1,
 			}
-			//nolint
+
+			//nolint:forcetypeassert // msg type known at setup
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View: &proto.View{Round: 1},
@@ -782,12 +785,13 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		// some msg has older block and round
 		someRCMsg := roundChangeMessages[1]
 
-		//nolint
+		//nolint:forcetypeassert // msg type known at setup
 		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.Proposal{
 			Block: round1PreparedProposedBlock,
 			Round: 1,
 		}
-		//nolint
+
+		//nolint:forcetypeassert,lll // msg type known at setup
 		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 			ProposalMessage: &proto.Message{
 				View: &proto.View{Round: 0},
