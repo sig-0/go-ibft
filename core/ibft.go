@@ -465,10 +465,6 @@ func (i *IBFT) handleRoundChangeMessage(view *proto.View, quorum uint64) *proto.
 		return nil
 	}
 
-	if !messages.HasUniqueSenders(msgs) {
-		return nil
-	}
-
 	return &proto.RoundChangeCertificate{
 		RoundChangeMessages: msgs,
 	}
