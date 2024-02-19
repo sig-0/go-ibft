@@ -656,6 +656,7 @@ func (i *IBFT) validateProposal(msg *proto.Message, view *proto.View) bool {
 	// Make sure the certificate is valid
 	if err := i.validateRoundChangeCertificate(certificate, view); err != nil {
 		i.log.Error("invalid round change certificate", "err", err.Error())
+
 		return false
 	}
 
