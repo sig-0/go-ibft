@@ -56,7 +56,7 @@ type Backend interface {
 	BuildProposal(blockNumber uint64) []byte
 
 	// InsertBlock inserts a proposal with the specified committed seals
-	InsertBlock(proposal []byte, committedSeals []*messages.CommittedSeal)
+	InsertBlock(proposal *proto.ProposedBlock, committedSeals []*messages.CommittedSeal)
 
 	// ID returns the validator's ID
 	ID() []byte

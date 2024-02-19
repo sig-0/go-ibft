@@ -39,7 +39,7 @@ type (
 
 type (
 	quorumDelegate             func(blockHeight uint64) uint64
-	insertBlockDelegate        func([]byte, []*messages.CommittedSeal)
+	insertBlockDelegate        func(*proto.ProposedBlock, []*messages.CommittedSeal)
 	idDelegate                 func() []byte
 	maximumFaultyNodesDelegate func() uint64
 )
@@ -71,7 +71,7 @@ func (m mockBackend) ID() []byte {
 	return nil
 }
 
-func (m mockBackend) InsertBlock(proposal []byte, committedSeals []*messages.CommittedSeal) {
+func (m mockBackend) InsertBlock(proposal *proto.ProposedBlock, committedSeals []*messages.CommittedSeal) {
 	if m.insertBlockFn != nil {
 		m.insertBlockFn(proposal, committedSeals)
 	}

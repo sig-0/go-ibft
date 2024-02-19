@@ -136,7 +136,7 @@ func TestConsensus_ValidFlow(t *testing.T) {
 	committedSeal := []byte("seal")
 	numNodes := uint64(4)
 	nodes := generateNodeAddresses(numNodes)
-	insertedBlocks := make([][]byte, numNodes)
+	insertedBlocks := make([]*proto.ProposedBlock, numNodes)
 
 	// commonTransportCallback is the common method modification
 	// required for Transport, for all nodes
@@ -208,7 +208,7 @@ func TestConsensus_ValidFlow(t *testing.T) {
 		}
 
 		// Make sure the inserted proposal is noted
-		backend.insertBlockFn = func(proposal []byte, _ []*messages.CommittedSeal) {
+		backend.insertBlockFn = func(proposal *proto.ProposedBlock, _ []*messages.CommittedSeal) {
 			insertedBlocks[nodeIndex] = proposal
 		}
 	}
@@ -265,7 +265,7 @@ func TestConsensus_ValidFlow(t *testing.T) {
 
 	// Make sure the inserted blocks match what node 0 proposed
 	for _, block := range insertedBlocks {
-		assert.True(t, bytes.Equal(block, proposal))
+		assert.True(t, bytes.Equal(block.Block, proposal))
 	}
 }
 
@@ -296,7 +296,7 @@ func TestConsensus_InvalidBlock(t *testing.T) {
 	committedSeal := []byte("seal")
 	numNodes := uint64(4)
 	nodes := generateNodeAddresses(numNodes)
-	insertedBlocks := make([][]byte, numNodes)
+	insertedBlocks := make([]*proto.ProposedBlock, numNodes)
 
 	// commonTransportCallback is the common method modification
 	// required for Transport, for all nodes
@@ -382,7 +382,7 @@ func TestConsensus_InvalidBlock(t *testing.T) {
 		}
 
 		// Make sure the inserted proposal is noted
-		backend.insertBlockFn = func(proposal []byte, _ []*messages.CommittedSeal) {
+		backend.insertBlockFn = func(proposal *proto.ProposedBlock, _ []*messages.CommittedSeal) {
 			insertedBlocks[nodeIndex] = proposal
 		}
 	}
@@ -446,6 +446,6 @@ func TestConsensus_InvalidBlock(t *testing.T) {
 
 	// Make sure the inserted blocks match what node 1 proposed
 	for _, block := range insertedBlocks {
-		assert.True(t, bytes.Equal(block, proposals[1]))
+		assert.True(t, bytes.Equal(block.Block, proposals[1]))
 	}
 }

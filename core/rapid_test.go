@@ -17,7 +17,7 @@ import (
 // mockInsertedProposals keeps track of inserted proposals for a cluster
 // of nodes
 type mockInsertedProposals struct {
-	proposals        []map[uint64][]byte
+	proposals        []map[uint64]*proto.ProposedBlock
 	currentProposals []uint64
 
 	sync.Mutex
@@ -26,13 +26,13 @@ type mockInsertedProposals struct {
 // newMockInsertedProposals creates a new proposal insertion tracker
 func newMockInsertedProposals(numNodes uint64) *mockInsertedProposals {
 	m := &mockInsertedProposals{
-		proposals:        make([]map[uint64][]byte, numNodes),
+		proposals:        make([]map[uint64]*proto.ProposedBlock, numNodes),
 		currentProposals: make([]uint64, numNodes),
 	}
 
 	// Initialize the proposal insertion map, used for lookups
 	for i := uint64(0); i < numNodes; i++ {
-		m.proposals[i] = make(map[uint64][]byte)
+		m.proposals[i] = make(map[uint64]*proto.ProposedBlock)
 	}
 
 	return m
@@ -41,7 +41,7 @@ func newMockInsertedProposals(numNodes uint64) *mockInsertedProposals {
 // insertProposal inserts a new proposal for the specified node [Thread safe]
 func (m *mockInsertedProposals) insertProposal(
 	nodeIndex int,
-	proposal []byte,
+	proposal *proto.ProposedBlock,
 ) {
 	m.Lock()
 	defer m.Unlock()
@@ -140,7 +140,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 			}
 
 			// Make sure the inserted proposal is noted
-			backend.insertBlockFn = func(proposal []byte, _ []*messages.CommittedSeal) {
+			backend.insertBlockFn = func(proposal *proto.ProposedBlock, _ []*messages.CommittedSeal) {
 				insertedProposals.insertProposal(nodeIndex, proposal)
 			}
 
@@ -193,7 +193,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 			assert.Len(t, proposalMap, int(desiredHeight))
 
 			for _, insertedProposal := range proposalMap {
-				assert.True(t, bytes.Equal(proposal, insertedProposal))
+				assert.True(t, bytes.Equal(proposal, insertedProposal.Block))
 			}
 		}
 	})
@@ -333,7 +333,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 			}
 
 			// Make sure the inserted proposal is noted
-			backend.insertBlockFn = func(proposal []byte, _ []*messages.CommittedSeal) {
+			backend.insertBlockFn = func(proposal *proto.ProposedBlock, _ []*messages.CommittedSeal) {
 				insertedProposals.insertProposal(nodeIndex, proposal)
 			}
 
@@ -399,7 +399,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 		// Make sure that the inserted proposal is valid for each height
 		for _, proposalMap := range insertedProposals.proposals {
 			for _, insertedProposal := range proposalMap {
-				assert.True(t, bytes.Equal(proposal, insertedProposal))
+				assert.True(t, bytes.Equal(proposal, insertedProposal.Block))
 			}
 		}
 	})

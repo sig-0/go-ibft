@@ -1483,7 +1483,7 @@ func TestRunCommit(t *testing.T) {
 				proposal               = []byte("block proposal")
 				proposalHash           = []byte("proposal hash")
 				signer                 = []byte("signer")
-				insertedProposal       []byte
+				insertedProposal       *proto.ProposedBlock
 				insertedCommittedSeals []*messages.CommittedSeal
 				committedSeals         = []*messages.CommittedSeal{
 					{
@@ -1497,7 +1497,7 @@ func TestRunCommit(t *testing.T) {
 				log       = mockLogger{}
 				transport = mockTransport{}
 				backend   = mockBackend{
-					insertBlockFn: func(proposal []byte, committedSeals []*messages.CommittedSeal) {
+					insertBlockFn: func(proposal *proto.ProposedBlock, committedSeals []*messages.CommittedSeal) {
 						insertedProposal = proposal
 						insertedCommittedSeals = committedSeals
 					},
@@ -1586,7 +1586,7 @@ func TestRunCommit(t *testing.T) {
 			assert.Equal(t, fin, i.state.name)
 
 			// Make sure the inserted proposal was the one present
-			assert.Equal(t, insertedProposal, proposal)
+			assert.Equal(t, insertedProposal.Block, proposal)
 
 			// Make sure the inserted committed seals were correct
 			assert.Equal(t, insertedCommittedSeals, committedSeals)
