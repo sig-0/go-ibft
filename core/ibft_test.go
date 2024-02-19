@@ -3210,10 +3210,15 @@ func TestIBFT_RunSequence_NewProposal(t *testing.T) {
 			quorumFn: func(_ uint64) uint64 {
 				return quorum
 			},
+			buildPrepareMessageFn: func(_ []byte, _ *proto.View) *proto.Message {
+				return &proto.Message{Type: proto.MessageType_PREPARE}
+			},
 		}
 		transport = mockTransport{
-			func(_ *proto.Message) {
-				prepareMessageMulticasted = true
+			func(msg *proto.Message) {
+				if msg.Type == proto.MessageType_PREPARE {
+					prepareMessageMulticasted = true
+				}
 			},
 		}
 	)
@@ -3223,6 +3228,7 @@ func TestIBFT_RunSequence_NewProposal(t *testing.T) {
 
 	ev := newProposalEvent{
 		proposalMessage: &proto.Message{
+			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{
 				PreprepareData: &proto.PrePrepareMessage{
 					Proposal: &proto.ProposedBlock{
