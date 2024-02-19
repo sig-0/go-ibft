@@ -2328,7 +2328,7 @@ func TestIBFT_ValidPC(t *testing.T) {
 
 		var (
 			quorum       = uint64(4)
-			rLimit       = uint64(1)
+			rLimit       = uint64(2)
 			sender       = []byte("unique node")
 			proposalHash = []byte("proposal hash")
 
@@ -2364,7 +2364,7 @@ func TestIBFT_ValidPC(t *testing.T) {
 		)
 
 		setRoundForMessages(allMessages, rLimit-1)
-		allMessages[0].View.Round = 123
+		allMessages[0].View.Round = 0
 
 		assert.False(t, i.validPC(certificate, rLimit, 0))
 	})
