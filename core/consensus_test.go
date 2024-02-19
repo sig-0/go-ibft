@@ -189,12 +189,12 @@ func TestConsensus_ValidFlow(t *testing.T) {
 		}
 
 		// Make sure the prepare message is built correctly
-		backend.buildPrepareMessageFn = func(proposal []byte, view *proto.View) *proto.Message {
+		backend.buildPrepareMessageFn = func(_ []byte, view *proto.View) *proto.Message {
 			return buildBasicPrepareMessage(proposalHash, nodes[nodeIndex], view)
 		}
 
 		// Make sure the commit message is built correctly
-		backend.buildCommitMessageFn = func(proposal []byte, view *proto.View) *proto.Message {
+		backend.buildCommitMessageFn = func(_ []byte, view *proto.View) *proto.Message {
 			return buildBasicCommitMessage(proposalHash, committedSeal, nodes[nodeIndex], view)
 		}
 
@@ -221,7 +221,7 @@ func TestConsensus_ValidFlow(t *testing.T) {
 
 				// Set the proposal creation method for node 0, since
 				// they are the proposer
-				backend.buildProposalFn = func(u uint64) []byte {
+				backend.buildProposalFn = func(_ uint64) []byte {
 					return proposal
 				}
 			},
@@ -363,12 +363,12 @@ func TestConsensus_InvalidBlock(t *testing.T) {
 		}
 
 		// Make sure the prepare message is built correctly
-		backend.buildPrepareMessageFn = func(proposal []byte, view *proto.View) *proto.Message {
+		backend.buildPrepareMessageFn = func(_ []byte, view *proto.View) *proto.Message {
 			return buildBasicPrepareMessage(proposalHashes[view.Round], nodes[nodeIndex], view)
 		}
 
 		// Make sure the commit message is built correctly
-		backend.buildCommitMessageFn = func(proposal []byte, view *proto.View) *proto.Message {
+		backend.buildCommitMessageFn = func(_ []byte, view *proto.View) *proto.Message {
 			return buildBasicCommitMessage(proposalHashes[view.Round], committedSeal, nodes[nodeIndex], view)
 		}
 

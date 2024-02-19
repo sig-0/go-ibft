@@ -429,8 +429,8 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					cancelFn()
 				},
 				getValidMessagesFn: func(
-					view *proto.View,
-					messageType proto.MessageType,
+					_ *proto.View,
+					_ proto.MessageType,
 					isValid func(message *proto.Message) bool,
 				) []*proto.Message {
 					return filterMessages(
@@ -657,8 +657,8 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					cancelFn()
 				},
 				getValidMessagesFn: func(
-					view *proto.View,
-					messageType proto.MessageType,
+					_ *proto.View,
+					_ proto.MessageType,
 					isValid func(message *proto.Message) bool,
 				) []*proto.Message {
 					return filterMessages(
@@ -915,8 +915,8 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					cancelFn()
 				},
 				getValidMessagesFn: func(
-					view *proto.View,
-					messageType proto.MessageType,
+					_ *proto.View,
+					_ proto.MessageType,
 					isValid func(message *proto.Message) bool,
 				) []*proto.Message {
 					return filterMessages(
@@ -984,7 +984,7 @@ func TestRunNewRound_Validator_Zero(t *testing.T) {
 			quorumFn: func(_ uint64) uint64 {
 				return 1
 			},
-			buildPrepareMessageFn: func(proposal []byte, view *proto.View) *proto.Message {
+			buildPrepareMessageFn: func(_ []byte, view *proto.View) *proto.Message {
 				return &proto.Message{
 					View: view,
 					Type: proto.MessageType_PREPARE,
@@ -1161,7 +1161,7 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 					quorumFn: func(_ uint64) uint64 {
 						return 1
 					},
-					buildPrepareMessageFn: func(proposal []byte, view *proto.View) *proto.Message {
+					buildPrepareMessageFn: func(_ []byte, view *proto.View) *proto.Message {
 						return &proto.Message{
 							View: view,
 							Type: proto.MessageType_PREPARE,
@@ -1190,7 +1190,7 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 						cancelFn()
 					},
 					getValidMessagesFn: func(
-						view *proto.View,
+						_ *proto.View,
 						_ proto.MessageType,
 						isValid func(message *proto.Message) bool,
 					) []*proto.Message {
@@ -1674,7 +1674,7 @@ func TestIBFT_IsAcceptableMessage(t *testing.T) {
 				log       = mockLogger{}
 				transport = mockTransport{}
 				backend   = mockBackend{
-					isValidSenderFn: func(message *proto.Message) bool {
+					isValidSenderFn: func(_ *proto.Message) bool {
 						return !testCase.invalidSender
 					},
 				}
@@ -1918,7 +1918,7 @@ func TestIBFT_FutureProposal(t *testing.T) {
 						}
 					},
 					getValidMessagesFn: func(
-						view *proto.View,
+						_ *proto.View,
 						_ proto.MessageType,
 						isValid func(message *proto.Message) bool,
 					) []*proto.Message {
@@ -2349,7 +2349,7 @@ func TestIBFT_ValidPC(t *testing.T) {
 				isProposerFn: func(proposer []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(proposer, sender)
 				},
-				isValidSenderFn: func(message *proto.Message) bool {
+				isValidSenderFn: func(_ *proto.Message) bool {
 					return true
 				},
 			}
@@ -2489,7 +2489,7 @@ func TestIBFT_ValidPC(t *testing.T) {
 				isProposerFn: func(proposer []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(proposer, sender)
 				},
-				isValidSenderFn: func(message *proto.Message) bool {
+				isValidSenderFn: func(_ *proto.Message) bool {
 					return true
 				},
 			}
@@ -2536,7 +2536,7 @@ func TestIBFT_ValidPC(t *testing.T) {
 				isProposerFn: func(proposer []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(proposer, sender)
 				},
-				isValidSenderFn: func(message *proto.Message) bool {
+				isValidSenderFn: func(_ *proto.Message) bool {
 					return true
 				},
 			}
@@ -3132,8 +3132,8 @@ func TestIBFT_WatchForFutureRCC(t *testing.T) {
 				}
 			},
 			getValidMessagesFn: func(
-				view *proto.View,
-				messageType proto.MessageType,
+				_ *proto.View,
+				_ proto.MessageType,
 				isValid func(message *proto.Message) bool,
 			) []*proto.Message {
 				return filterMessages(
