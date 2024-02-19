@@ -1679,6 +1679,7 @@ func TestIBFT_IsAcceptableMessage(t *testing.T) {
 					},
 				}
 			)
+
 			i := NewIBFT(log, backend, transport)
 			i.state.view = testCase.currentView
 
@@ -1713,6 +1714,7 @@ func TestIBFT_StartRoundTimer(t *testing.T) {
 
 		wg.Add(1)
 		i.wg.Add(1)
+
 		go func() {
 			i.startRoundTimer(ctx, 0)
 
@@ -1742,6 +1744,7 @@ func TestIBFT_StartRoundTimer(t *testing.T) {
 		ctx, cancelFn := context.WithCancel(context.Background())
 
 		wg.Add(1)
+
 		go func() {
 			defer func() {
 				wg.Done()
@@ -1933,6 +1936,7 @@ func TestIBFT_FutureProposal(t *testing.T) {
 			i.messages = mMessages
 
 			wg.Add(1)
+
 			go func() {
 				defer func() {
 					cancelFn()
