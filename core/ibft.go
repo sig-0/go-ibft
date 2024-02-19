@@ -970,7 +970,7 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.Messa
 		proposal := i.backend.BuildProposal(height)
 
 		return i.backend.BuildPrePrepareMessage(
-			&proto.ProposedBlock{
+			&proto.Proposal{
 				Block: proposal,
 				Round: 0,
 			},
@@ -1021,7 +1021,7 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.Messa
 		proposal := i.backend.BuildProposal(height)
 
 		return i.backend.BuildPrePrepareMessage(
-			&proto.ProposedBlock{
+			&proto.Proposal{
 				Block: proposal,
 				Round: round,
 			},
@@ -1034,7 +1034,7 @@ func (i *IBFT) buildProposal(ctx context.Context, view *proto.View) *proto.Messa
 	}
 
 	return i.backend.BuildPrePrepareMessage(
-		&proto.ProposedBlock{
+		&proto.Proposal{
 			Block: maxRoundProposedBlock,
 			Round: round,
 		},

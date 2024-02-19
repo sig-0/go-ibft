@@ -43,7 +43,7 @@ type state struct {
 
 	// latestPreparedProposedBlock is the block
 	// for which Q(N)-1 PREPARE messages were received
-	latestPreparedProposedBlock *proto.ProposedBlock
+	latestPreparedProposedBlock *proto.Proposal
 
 	//	validated commit seals
 	seals []*messages.CommittedSeal
@@ -91,7 +91,7 @@ func (s *state) getLatestPC() *proto.PreparedCertificate {
 	return s.latestPC
 }
 
-func (s *state) getLatestPreparedProposedBlock() *proto.ProposedBlock {
+func (s *state) getLatestPreparedProposedBlock() *proto.Proposal {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -133,7 +133,7 @@ func (s *state) getHeight() uint64 {
 	return s.view.Height
 }
 
-func (s *state) getProposal() *proto.ProposedBlock {
+func (s *state) getProposal() *proto.Proposal {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -199,7 +199,7 @@ func (s *state) newRound() {
 
 func (s *state) finalizePrepare(
 	certificate *proto.PreparedCertificate,
-	latestPPB *proto.ProposedBlock,
+	latestPPB *proto.Proposal,
 ) {
 	s.Lock()
 	defer s.Unlock()

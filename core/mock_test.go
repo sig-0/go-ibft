@@ -22,7 +22,7 @@ type (
 )
 
 type buildPrePrepareMessageDelegate func(
-	*proto.ProposedBlock,
+	*proto.Proposal,
 	*proto.RoundChangeCertificate,
 	*proto.View,
 ) *proto.Message
@@ -31,7 +31,7 @@ type (
 	buildPrepareMessageDelegate     func([]byte, *proto.View) *proto.Message
 	buildCommitMessageDelegate      func([]byte, *proto.View) *proto.Message
 	buildRoundChangeMessageDelegate func(
-		*proto.ProposedBlock,
+		*proto.Proposal,
 		*proto.PreparedCertificate,
 		*proto.View,
 	) *proto.Message
@@ -39,7 +39,7 @@ type (
 
 type (
 	quorumDelegate             func(blockHeight uint64) uint64
-	insertBlockDelegate        func(*proto.ProposedBlock, []*messages.CommittedSeal)
+	insertBlockDelegate        func(*proto.Proposal, []*messages.CommittedSeal)
 	idDelegate                 func() []byte
 	maximumFaultyNodesDelegate func() uint64
 )
@@ -71,7 +71,7 @@ func (m mockBackend) ID() []byte {
 	return nil
 }
 
-func (m mockBackend) InsertBlock(proposal *proto.ProposedBlock, committedSeals []*messages.CommittedSeal) {
+func (m mockBackend) InsertBlock(proposal *proto.Proposal, committedSeals []*messages.CommittedSeal) {
 	if m.insertBlockFn != nil {
 		m.insertBlockFn(proposal, committedSeals)
 	}
@@ -142,7 +142,7 @@ func (m mockBackend) MaximumFaultyNodes() uint64 {
 }
 
 func (m mockBackend) BuildPrePrepareMessage(
-	proposal *proto.ProposedBlock,
+	proposal *proto.Proposal,
 	certificate *proto.RoundChangeCertificate,
 	view *proto.View,
 ) *proto.Message {
@@ -170,7 +170,7 @@ func (m mockBackend) BuildCommitMessage(proposalHash []byte, view *proto.View) *
 }
 
 func (m mockBackend) BuildRoundChangeMessage(
-	proposal *proto.ProposedBlock,
+	proposal *proto.Proposal,
 	certificate *proto.PreparedCertificate,
 	view *proto.View,
 ) *proto.Message {

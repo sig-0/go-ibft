@@ -104,7 +104,7 @@ func TestMessages_ExtractProposal(t *testing.T) { //nolint
 				Type: proto.MessageType_PREPREPARE,
 				Payload: &proto.Message_PreprepareData{
 					PreprepareData: &proto.PrePrepareMessage{
-						Proposal: &proto.ProposedBlock{
+						Proposal: &proto.Proposal{
 							Block: proposal,
 							Round: 0,
 						},
@@ -119,7 +119,7 @@ func TestMessages_ExtractProposal(t *testing.T) { //nolint
 				Type: proto.MessageType_PREPREPARE,
 				Payload: &proto.Message_PreprepareData{
 					PreprepareData: &proto.PrePrepareMessage{
-						Proposal: &proto.ProposedBlock{
+						Proposal: &proto.Proposal{
 							Block: nil,
 							Round: 0,
 						},
@@ -350,7 +350,7 @@ func TestMessages_ExtractLPPB(t *testing.T) { //nolint
 				Type: proto.MessageType_ROUND_CHANGE,
 				Payload: &proto.Message_RoundChangeData{
 					RoundChangeData: &proto.RoundChangeMessage{
-						LastPreparedProposedBlock: &proto.ProposedBlock{
+						LastPreparedProposedBlock: &proto.Proposal{
 							Block: latestPPB,
 							Round: 0,
 						},
@@ -365,7 +365,7 @@ func TestMessages_ExtractLPPB(t *testing.T) { //nolint
 				Type: proto.MessageType_ROUND_CHANGE,
 				Payload: &proto.Message_RoundChangeData{
 					RoundChangeData: &proto.RoundChangeMessage{
-						LastPreparedProposedBlock: &proto.ProposedBlock{
+						LastPreparedProposedBlock: &proto.Proposal{
 							Block: nil,
 							Round: 0,
 						},

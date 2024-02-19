@@ -9,7 +9,7 @@ import (
 type MessageConstructor interface {
 	// BuildPrePrepareMessage builds a PREPREPARE message based on the passed in proposal
 	BuildPrePrepareMessage(
-		proposal *proto.ProposedBlock,
+		proposal *proto.Proposal,
 		certificate *proto.RoundChangeCertificate,
 		view *proto.View,
 	) *proto.Message
@@ -22,7 +22,7 @@ type MessageConstructor interface {
 
 	// BuildRoundChangeMessage builds a ROUND_CHANGE message based on the passed in proposal
 	BuildRoundChangeMessage(
-		proposal *proto.ProposedBlock,
+		proposal *proto.Proposal,
 		certificate *proto.PreparedCertificate,
 		view *proto.View,
 	) *proto.Message
@@ -56,7 +56,7 @@ type Backend interface {
 	BuildProposal(blockNumber uint64) []byte
 
 	// InsertBlock inserts a proposal with the specified committed seals
-	InsertBlock(proposal *proto.ProposedBlock, committedSeals []*messages.CommittedSeal)
+	InsertBlock(proposal *proto.Proposal, committedSeals []*messages.CommittedSeal)
 
 	// ID returns the validator's ID
 	ID() []byte

@@ -17,7 +17,7 @@ import (
 // mockInsertedProposals keeps track of inserted proposals for a cluster
 // of nodes
 type mockInsertedProposals struct {
-	proposals        []map[uint64]*proto.ProposedBlock
+	proposals        []map[uint64]*proto.Proposal
 	currentProposals []uint64
 
 	sync.Mutex
@@ -26,13 +26,13 @@ type mockInsertedProposals struct {
 // newMockInsertedProposals creates a new proposal insertion tracker
 func newMockInsertedProposals(numNodes uint64) *mockInsertedProposals {
 	m := &mockInsertedProposals{
-		proposals:        make([]map[uint64]*proto.ProposedBlock, numNodes),
+		proposals:        make([]map[uint64]*proto.Proposal, numNodes),
 		currentProposals: make([]uint64, numNodes),
 	}
 
 	// Initialize the proposal insertion map, used for lookups
 	for i := uint64(0); i < numNodes; i++ {
-		m.proposals[i] = make(map[uint64]*proto.ProposedBlock)
+		m.proposals[i] = make(map[uint64]*proto.Proposal)
 	}
 
 	return m
@@ -41,7 +41,7 @@ func newMockInsertedProposals(numNodes uint64) *mockInsertedProposals {
 // insertProposal inserts a new proposal for the specified node [Thread safe]
 func (m *mockInsertedProposals) insertProposal(
 	nodeIndex int,
-	proposal *proto.ProposedBlock,
+	proposal *proto.Proposal,
 ) {
 	m.Lock()
 	defer m.Unlock()
@@ -108,7 +108,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 
 			// Make sure the preprepare message is built correctly
 			backend.buildPrePrepareMessageFn = func(
-				proposal *proto.ProposedBlock,
+				proposal *proto.Proposal,
 				certificate *proto.RoundChangeCertificate,
 				view *proto.View,
 			) *proto.Message {
@@ -132,7 +132,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 
 			// Make sure the round change message is built correctly
 			backend.buildRoundChangeMessageFn = func(
-				proposal *proto.ProposedBlock,
+				proposal *proto.Proposal,
 				certificate *proto.PreparedCertificate,
 				view *proto.View,
 			) *proto.Message {
@@ -140,7 +140,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 			}
 
 			// Make sure the inserted proposal is noted
-			backend.insertBlockFn = func(proposal *proto.ProposedBlock, _ []*messages.CommittedSeal) {
+			backend.insertBlockFn = func(proposal *proto.Proposal, _ []*messages.CommittedSeal) {
 				insertedProposals.insertProposal(nodeIndex, proposal)
 			}
 
@@ -300,7 +300,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 
 			// Make sure the preprepare message is built correctly
 			backend.buildPrePrepareMessageFn = func(
-				proposal *proto.ProposedBlock,
+				proposal *proto.Proposal,
 				certificate *proto.RoundChangeCertificate,
 				view *proto.View,
 			) *proto.Message {
@@ -325,7 +325,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 
 			// Make sure the round change message is built correctly
 			backend.buildRoundChangeMessageFn = func(
-				proposal *proto.ProposedBlock,
+				proposal *proto.Proposal,
 				certificate *proto.PreparedCertificate,
 				view *proto.View,
 			) *proto.Message {
@@ -333,7 +333,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 			}
 
 			// Make sure the inserted proposal is noted
-			backend.insertBlockFn = func(proposal *proto.ProposedBlock, _ []*messages.CommittedSeal) {
+			backend.insertBlockFn = func(proposal *proto.Proposal, _ []*messages.CommittedSeal) {
 				insertedProposals.insertProposal(nodeIndex, proposal)
 			}
 
