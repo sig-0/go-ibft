@@ -166,11 +166,7 @@ func (s *Sequencer) isValidPC(
 		allMessages = append(allMessages, msg)
 	}
 
-	if !quorum.HasQuorum(sequence, allMessages) {
-		return false
-	}
-
-	return true
+	return quorum.HasQuorum(sequence, allMessages)
 }
 
 func (s *Sequencer) isValidRCC(

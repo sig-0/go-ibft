@@ -35,9 +35,6 @@ func (s *Sequencer) awaitCommit(ctx ibft.Context) error {
 
 func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, error) {
 	sigRecover := ctx.SigRecover()
-	sub, cancelSub := ctx.Feed().CommitMessages(s.state.currentView, false)
-	defer cancelSub()
-
 	cache := newMsgCache(func(msg *types.MsgCommit) bool {
 		if !s.HasValidSignature(msg) {
 			return false
@@ -45,6 +42,9 @@ func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, er
 
 		return s.isValidCommit(msg, sigRecover)
 	})
+
+	sub, cancelSub := ctx.Feed().CommitMessages(s.state.currentView, false)
+	defer cancelSub()
 
 	for {
 		select {

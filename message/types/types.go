@@ -1,6 +1,10 @@
 package types
 
-import "google.golang.org/protobuf/proto"
+import (
+	"fmt"
+
+	"google.golang.org/protobuf/proto"
+)
 
 type IBFTMessage interface {
 	MsgProposal | MsgPrepare | MsgCommit | MsgRoundChange
@@ -24,99 +28,102 @@ type FinalizedBlock struct {
 }
 
 func (x *MsgProposal) Bytes() []byte {
-	bz, _ := proto.Marshal(&MsgProposal{
-		View:                   x.View,
-		From:                   x.From,
-		Signature:              x.Signature,
-		ProposedBlock:          x.ProposedBlock,
-		BlockHash:              x.BlockHash,
-		RoundChangeCertificate: x.RoundChangeCertificate,
-	})
+	bz, err := proto.Marshal(x)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal MsgProposal: %w", err).Error())
+	}
 
 	return bz
 }
 
 func (x *MsgProposal) Payload() []byte {
-	bz, _ := proto.Marshal(&MsgProposal{
+	bz, err := proto.Marshal(&MsgProposal{
 		View:                   x.View,
 		From:                   x.From,
 		ProposedBlock:          x.ProposedBlock,
 		BlockHash:              x.BlockHash,
 		RoundChangeCertificate: x.RoundChangeCertificate,
 	})
+	if err != nil {
+		panic(fmt.Errorf("failed to generate payload of MsgProposal: %w", err).Error())
+	}
 
 	return bz
 }
 
 func (x *MsgPrepare) Bytes() []byte {
-	bz, _ := proto.Marshal(&MsgPrepare{
-		View:      x.View,
-		From:      x.From,
-		Signature: x.Signature,
-		BlockHash: x.BlockHash,
-	})
+	bz, err := proto.Marshal(x)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal MsgPrepare: %w", err).Error())
+	}
 
 	return bz
 }
 
 func (x *MsgPrepare) Payload() []byte {
-	bz, _ := proto.Marshal(&MsgPrepare{
+	bz, err := proto.Marshal(&MsgPrepare{
 		View:      x.View,
 		From:      x.From,
 		BlockHash: x.BlockHash,
 	})
+	if err != nil {
+		panic(fmt.Errorf("failed to generate payload of MsgPrepare: %w", err).Error())
+	}
 
 	return bz
 }
 
 func (x *MsgCommit) Bytes() []byte {
-	bz, _ := proto.Marshal(&MsgCommit{
-		View:       x.View,
-		From:       x.From,
-		Signature:  x.Signature,
-		BlockHash:  x.BlockHash,
-		CommitSeal: x.CommitSeal,
-	})
+	bz, err := proto.Marshal(x)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal MsgCommit: %w", err).Error())
+	}
 
 	return bz
 }
 
 func (x *MsgCommit) Payload() []byte {
-	bz, _ := proto.Marshal(&MsgCommit{
+	bz, err := proto.Marshal(&MsgCommit{
 		View:       x.View,
 		From:       x.From,
 		BlockHash:  x.BlockHash,
 		CommitSeal: x.CommitSeal,
 	})
+	if err != nil {
+		panic(fmt.Errorf("failed to generate payload of MsgCommit: %w", err).Error())
+	}
 
 	return bz
 }
 
 func (x *MsgRoundChange) Bytes() []byte {
-	bz, _ := proto.Marshal(&MsgRoundChange{
-		View:                        x.View,
-		From:                        x.From,
-		Signature:                   x.Signature,
-		LatestPreparedProposedBlock: x.LatestPreparedProposedBlock,
-		LatestPreparedCertificate:   x.LatestPreparedCertificate,
-	})
+	bz, err := proto.Marshal(x)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal MsgRoundChange: %w", err).Error())
+	}
 
 	return bz
 }
 
 func (x *MsgRoundChange) Payload() []byte {
-	bz, _ := proto.Marshal(&MsgRoundChange{
+	bz, err := proto.Marshal(&MsgRoundChange{
 		View:                        x.View,
 		From:                        x.From,
 		LatestPreparedProposedBlock: x.LatestPreparedProposedBlock,
 		LatestPreparedCertificate:   x.LatestPreparedCertificate,
 	})
+	if err != nil {
+		panic(fmt.Errorf("failed to genereate payload of MsgRoundChange: %w", err).Error())
+	}
 
 	return bz
 }
 
 func (x *ProposedBlock) Bytes() []byte {
-	bz, _ := proto.Marshal(x)
+	bz, err := proto.Marshal(x)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal ProposedBlock: %w", err).Error())
+	}
 
 	return bz
 }

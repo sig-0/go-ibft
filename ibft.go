@@ -83,14 +83,15 @@ type (
 	}
 )
 
-func WrapMessages[M types.IBFTMessage](messages []*M) (wrapped []Message) {
-	wrapped = make([]Message, 0, len(messages))
+func WrapMessages[M types.IBFTMessage](messages []*M) []Message {
+	wrapped := make([]Message, 0, len(messages))
+
 	for _, msg := range messages {
-		msg, _ := any(msg).(Message)
+		msg, _ := any(msg).(Message) //nolint:errcheck // guarded by the types.IBFTMessage constraint
 		wrapped = append(wrapped, msg)
 	}
 
-	return
+	return wrapped
 }
 
 type ctxKey string
@@ -129,7 +130,7 @@ func (c Context) WithTransport(t Transport) Context {
 
 // Transport returns the Transport instance associated with this context
 func (c Context) Transport() Transport {
-	return c.Value(transport).(Transport)
+	return c.Value(transport).(Transport) //nolint:forcetypeassert // redundant
 }
 
 // WithFeed sets the required stream for incoming messages
@@ -139,7 +140,7 @@ func (c Context) WithFeed(f Feed) Context {
 
 // Feed returns the Feed instance associated with this context
 func (c Context) Feed() Feed {
-	return c.Value(feed).(Feed)
+	return c.Value(feed).(Feed) //nolint:forcetypeassert // redundant
 }
 
 // WithQuorum sets the required check for reach of consensus
@@ -149,7 +150,7 @@ func (c Context) WithQuorum(q Quorum) Context {
 
 // Quorum returns the consensus checker associated with this context
 func (c Context) Quorum() Quorum {
-	return c.Value(quorum).(Quorum)
+	return c.Value(quorum).(Quorum) //nolint:forcetypeassert // redundant
 }
 
 // WithKeccak sets the required hash generator
@@ -159,7 +160,7 @@ func (c Context) WithKeccak(k Keccak) Context {
 
 // Keccak returns the hash generator associated with this context
 func (c Context) Keccak() Keccak {
-	return c.Value(keccak).(Keccak)
+	return c.Value(keccak).(Keccak) //nolint:forcetypeassert // redundant
 }
 
 // WithSigRecover sets the required address recovery mechanism
@@ -169,5 +170,5 @@ func (c Context) WithSigRecover(s SigRecover) Context {
 
 // SigRecover returns the address recovery mechanism associated with this context
 func (c Context) SigRecover() SigRecover {
-	return c.Value(sigRecover).(SigRecover)
+	return c.Value(sigRecover).(SigRecover) //nolint:forcetypeassert // redundant
 }

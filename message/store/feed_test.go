@@ -81,6 +81,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		require.Len(t, GetMessages[types.MsgProposal](view, store), 1)
 
 		previousView := &types.View{Sequence: view.Sequence, Round: view.Round - 1}
+
 		sub, cancelSub := feed{store}.ProposalMessages(previousView, true)
 		defer cancelSub()
 
@@ -152,6 +153,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		AddMessage[types.MsgProposal](msg, store)
 
 		cancelSub() // close the sub so the channel can be read
+
 		_, ok := <-sub
 		assert.False(t, ok)
 	})
