@@ -44,21 +44,27 @@ func (s *Sequencer) awaitProposal(ctx ibft.Context, view *types.View, higherRoun
 		view.Round++
 	}
 
+	sub, cancelSub := ctx.Feed().ProposalMessages(view, higherRounds)
+	defer cancelSub()
+
 	cache := newMsgCache(func(msg *types.MsgProposal) bool {
+		if !s.HasValidSignature(msg) {
+			return false
+		}
+
 		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
 	})
-
-	sub, cancelSub := ctx.Feed().Proposal(view, higherRounds)
-	defer cancelSub()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case unwrapMessages := <-sub:
-			cache = cache.Add(unwrapMessages())
+		case notification := <-sub:
+			messages := notification.Receive()
 
+			cache = cache.Add(messages)
 			validProposals := cache.Messages()
+
 			if len(validProposals) == 0 {
 				continue
 			}
@@ -86,7 +92,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 	}
 
 	if msg.View.Round == 0 {
-		return s.IsValidBlock(msg.ProposedBlock.Block, msg.View.Sequence)
+		return s.IsValidProposal(msg.ProposedBlock.Block, msg.View.Sequence)
 	}
 
 	rcc := msg.RoundChangeCertificate
@@ -111,7 +117,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 
 	blockHash, round := trimmedRCC.HighestRoundBlockHash()
 	if blockHash == nil {
-		return s.IsValidBlock(msg.ProposedBlock.Block, msg.View.Sequence)
+		return s.IsValidProposal(msg.ProposedBlock.Block, msg.View.Sequence)
 	}
 
 	pb := &types.ProposedBlock{

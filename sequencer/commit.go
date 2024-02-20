@@ -34,26 +34,33 @@ func (s *Sequencer) awaitCommit(ctx ibft.Context) error {
 }
 
 func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, error) {
-	cache := newMsgCache(func(msg *types.MsgCommit) bool {
-		return s.isValidCommit(msg, ctx.SigRecover())
-	})
-
-	sub, cancelSub := ctx.Feed().Commit(s.state.currentView, false)
+	sigRecover := ctx.SigRecover()
+	sub, cancelSub := ctx.Feed().CommitMessages(s.state.currentView, false)
 	defer cancelSub()
+
+	cache := newMsgCache(func(msg *types.MsgCommit) bool {
+		if !s.HasValidSignature(msg) {
+			return false
+		}
+
+		return s.isValidCommit(msg, sigRecover)
+	})
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case unwrapMessages := <-sub:
-			cache = cache.Add(unwrapMessages())
+		case notification := <-sub:
+			messages := notification.Receive()
 
+			cache = cache.Add(messages)
 			validCommits := cache.Messages()
+
 			if len(validCommits) == 0 {
 				continue
 			}
 
-			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), types.ToMsg(validCommits)) {
+			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), ibft.WrapMessages(validCommits)) {
 				continue
 			}
 

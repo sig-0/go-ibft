@@ -17,8 +17,9 @@ type Sequencer struct {
 	ibft.Validator
 	ibft.Verifier
 
-	state          state
-	wg             sync.WaitGroup
+	state state
+	wg    sync.WaitGroup
+
 	round0Duration time.Duration
 }
 
@@ -40,10 +41,12 @@ func New(
 // FinalizeSequence runs the block finalization loop. This method returns a non-nil value only if
 // consensus is reached for the given sequence. Otherwise, it runs forever until cancelled by the caller
 func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.FinalizedBlock {
-	s.state = state{currentView: &types.View{
-		Sequence: sequence,
-		Round:    0,
-	}}
+	s.state = state{
+		currentView: &types.View{
+			Sequence: sequence,
+			Round:    0,
+		},
+	}
 
 	c := make(chan *types.FinalizedBlock, 1)
 	go func() {
@@ -253,7 +256,7 @@ func (s *Sequencer) propose(ctx ibft.Context) error {
 
 func (s *Sequencer) buildBlock(ctx ibft.Context) ([]byte, error) {
 	if s.state.CurrentRound() == 0 {
-		return s.BuildBlock(s.state.CurrentSequence()), nil
+		return s.BuildProposal(s.state.CurrentSequence()), nil
 	}
 
 	if s.state.roundChangeCertificate == nil {
@@ -270,7 +273,7 @@ func (s *Sequencer) buildBlock(ctx ibft.Context) ([]byte, error) {
 
 	block, _ := rcc.HighestRoundBlock()
 	if block == nil {
-		return s.BuildBlock(s.state.CurrentSequence()), nil
+		return s.BuildProposal(s.state.CurrentSequence()), nil
 	}
 
 	return block, nil

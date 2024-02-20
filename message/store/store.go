@@ -1,33 +1,24 @@
 package store
 
 import (
-	"bytes"
-	"errors"
-
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-var ErrInvalidSignature = errors.New("invalid signature")
+//
+//// MsgSigRecover extracts the sender associated with data and sig
 
-type msgVerifier struct {
-	types.SigRecover
-}
-
-// Store is a thread-safe storage for consensus messages with a built-in Feed mechanism
+// Store is a thread-safe storage for consensus messages with a built-in feed mechanism
 type Store struct {
-	verifier msgVerifier
-
 	proposal    *syncCollection[types.MsgProposal]
 	prepare     *syncCollection[types.MsgPrepare]
 	commit      *syncCollection[types.MsgCommit]
 	roundChange *syncCollection[types.MsgRoundChange]
 }
 
-// New returns a new Store instance. Messages added to this store
+// New returns a new Store instance. MsgReceiverFn added to this store
 // have their signatures verified before being included
-func New(sigRecover types.SigRecover) *Store {
+func New() *Store {
 	s := &Store{
-		verifier:    msgVerifier{sigRecover},
 		proposal:    newSyncCollection[types.MsgProposal](),
 		prepare:     newSyncCollection[types.MsgPrepare](),
 		commit:      newSyncCollection[types.MsgCommit](),
@@ -37,18 +28,8 @@ func New(sigRecover types.SigRecover) *Store {
 	return s
 }
 
-func isValidSignature[M msg](msg *M, sigRecover types.SigRecover) bool {
-	msgI := any(msg).(types.Msg) //nolint:forcetypeassert, gocritic, errcheck
-
-	return bytes.Equal(msgI.GetFrom(), sigRecover.From(msgI.Payload(), msgI.GetSignature()))
-}
-
 // AddMessage stores the provided msg if its signature is valid
-func AddMessage[M msg](m *M, store *Store) error {
-	if !isValidSignature(m, store.verifier) {
-		return ErrInvalidSignature
-	}
-
+func AddMessage[M types.IBFTMessage](m *M, store *Store) {
 	switch msg := any(m).(type) {
 	case *types.MsgProposal:
 		store.proposal.AddMessage(msg, msg.View, msg.From)
@@ -59,11 +40,9 @@ func AddMessage[M msg](m *M, store *Store) error {
 	case *types.MsgRoundChange:
 		store.roundChange.AddMessage(msg, msg.View, msg.From)
 	}
-
-	return nil
 }
 
-func GetMessages[M msg](view *types.View, store *Store) []*M {
+func GetMessages[M types.IBFTMessage](view *types.View, store *Store) []*M {
 	var (
 		m        *M
 		messages []*M
@@ -103,7 +82,7 @@ func GetMessages[M msg](view *types.View, store *Store) []*M {
 	return messages
 }
 
-func RemoveMessages[M msg](view *types.View, store *Store) {
+func RemoveMessages[M types.IBFTMessage](view *types.View, store *Store) {
 	var m *M
 	switch any(m).(type) {
 	case *types.MsgProposal:

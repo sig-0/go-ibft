@@ -42,26 +42,32 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 		view.Round++
 	}
 
+	sub, cancelSub := ctx.Feed().RoundChangeMessages(view, higherRounds)
+	defer cancelSub()
+
 	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
+		if !s.HasValidSignature(msg) {
+			return false
+		}
+
 		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
 	})
-
-	sub, cancelSub := ctx.Feed().RoundChange(view, higherRounds)
-	defer cancelSub()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case unwrapMessages := <-sub:
-			cache = cache.Add(unwrapMessages())
+		case notification := <-sub:
+			messages := notification.Receive()
 
+			cache = cache.Add(messages)
 			validRoundChanges := cache.Messages()
+
 			if len(validRoundChanges) == 0 {
 				continue
 			}
 
-			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), types.ToMsg(validRoundChanges)) {
+			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), ibft.WrapMessages(validRoundChanges)) {
 				continue
 			}
 
@@ -155,7 +161,12 @@ func (s *Sequencer) isValidPC(
 		return false
 	}
 
-	if !quorum.HasQuorum(sequence, append([]types.Msg{pc.ProposalMessage}, types.ToMsg(pc.PrepareMessages)...)) {
+	allMessages := []ibft.Message{pc.ProposalMessage}
+	for _, msg := range pc.PrepareMessages {
+		allMessages = append(allMessages, msg)
+	}
+
+	if !quorum.HasQuorum(sequence, allMessages) {
 		return false
 	}
 
@@ -202,7 +213,7 @@ func (s *Sequencer) isValidRCC(
 		return false
 	}
 
-	if !quorum.HasQuorum(sequence, types.ToMsg(rcc.Messages)) {
+	if !quorum.HasQuorum(sequence, ibft.WrapMessages(rcc.Messages)) {
 		return false
 	}
 

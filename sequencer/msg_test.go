@@ -11,14 +11,14 @@ import (
 )
 
 var (
-	FalseQuorum = QuorumFn(func(_ uint64, _ []types.Msg) bool { return false })
-	TrueQuorum  = QuorumFn(func(_ uint64, _ []types.Msg) bool { return true })
+	FalseQuorum = QuorumFn(func(_ uint64, _ []ibft.Message) bool { return false })
+	TrueQuorum  = QuorumFn(func(_ uint64, _ []ibft.Message) bool { return true })
 )
 
 func TestIsValidMsgProposal(t *testing.T) {
 	t.Parallel()
 
-	testTable := []struct {
+	table := []struct {
 		validator ibft.Validator
 		verifier  ibft.Verifier
 		quorum    ibft.Quorum
@@ -519,7 +519,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testTable {
+	for _, tt := range table {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -533,7 +533,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 func TestIsValidMsgPrepare(t *testing.T) {
 	t.Parallel()
 
-	testTable := []struct {
+	table := []struct {
 		verifier         ibft.Verifier
 		msg              *types.MsgPrepare
 		acceptedProposal *types.MsgProposal
@@ -583,7 +583,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testTable {
+	for _, tt := range table {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -599,7 +599,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 func TestIsValidMsgCommit(t *testing.T) {
 	t.Parallel()
 
-	testTable := []struct {
+	table := []struct {
 		verifier         ibft.Verifier
 		recover          ibft.SigRecover
 		msg              *types.MsgCommit
@@ -678,7 +678,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testTable {
+	for _, tt := range table {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -694,7 +694,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 func TestIsValidMsgRoundChange(t *testing.T) {
 	t.Parallel()
 
-	testTable := []struct {
+	table := []struct {
 		verifier ibft.Verifier
 		quorum   ibft.Quorum
 		keccak   ibft.Keccak
@@ -1106,7 +1106,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testTable {
+	for _, tt := range table {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()

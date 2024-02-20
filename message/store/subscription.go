@@ -6,32 +6,28 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func newSubscription[M msg](view *types.View, higherRounds bool) subscription[M] {
-	return subscription[M]{
-		View:         view,
-		HigherRounds: higherRounds,
-		Channel:      make(chan func() []*M, 1),
-	}
-}
-
-type subscription[M msg] struct {
+type subscription[M types.IBFTMessage] struct {
 	View         *types.View
-	Channel      chan func() []*M
+	Channel      Subscription[M]
 	HigherRounds bool
 }
 
-func (s *subscription[M]) Notify(unwrapFn func() []*M) {
+func newSubscription[M types.IBFTMessage](view *types.View, higherRounds bool) subscription[M] {
+	return subscription[M]{
+		View:         view,
+		HigherRounds: higherRounds,
+		Channel:      make(Subscription[M], 1),
+	}
+}
+
+func (s *subscription[M]) Notify(receiver MsgReceiverFn[M]) {
 	select {
-	case s.Channel <- unwrapFn:
+	case s.Channel <- receiver:
 	default:
 	}
 }
 
-func newSubscriptions[M msg]() subscriptions[M] {
-	return map[string]subscription[M]{}
-}
-
-type subscriptions[M msg] map[string]subscription[M]
+type subscriptions[M types.IBFTMessage] map[string]subscription[M]
 
 func (s *subscriptions[M]) Add(sub subscription[M]) string {
 	id := xid.New()

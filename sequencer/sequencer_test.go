@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	DummyTransport  = TransportFn(func(_ types.Msg) {})
-	NonZeroQuorum   = QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) != 0 })
+	DummyTransport  = TransportFn(func(_ ibft.Message) {})
+	NonZeroQuorum   = QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) != 0 })
 	BlockHashKeccak = KeccakFn(func(_ []byte) []byte { return []byte("block hash") })
 )
 
@@ -60,7 +60,7 @@ func TestFinalizeSequenceCancelled(t *testing.T) {
 func TestHappyFlow(t *testing.T) {
 	t.Parallel()
 
-	testTable := []testTable{
+	table := []testTable{
 		{
 			name: "validator is not the proposer",
 			expectedFinalizedBlock: &types.FinalizedBlock{
@@ -80,9 +80,10 @@ func TestHappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
-				isProposerFn:   func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
-				isValidatorFn:  func(_ []byte, _ uint64) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
+				isProposerFn:        func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
+				isValidatorFn:       func(_ []byte, _ uint64) bool { return true },
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
@@ -90,7 +91,7 @@ func TestHappyFlow(t *testing.T) {
 				WithTransport(DummyTransport).
 				WithQuorum(NonZeroQuorum).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(validFeed(feed{
+				WithFeed(allRoundsFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {0: {
 							{
@@ -148,8 +149,9 @@ func TestHappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isProposerFn:  func(_ []byte, _, _ uint64) bool { return true },
-				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isProposerFn:        func(_ []byte, _, _ uint64) bool { return true },
+				isValidatorFn:       func(_ []byte, _ uint64) bool { return true },
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
@@ -157,7 +159,7 @@ func TestHappyFlow(t *testing.T) {
 				WithTransport(DummyTransport).
 				WithQuorum(NonZeroQuorum).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(validFeed(feed{
+				WithFeed(allRoundsFeed(feed{
 					prepare: messagesByView[types.MsgPrepare]{
 						101: {0: {
 							{
@@ -182,7 +184,7 @@ func TestHappyFlow(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testTable {
+	for _, tt := range table {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -196,7 +198,7 @@ func TestHappyFlow(t *testing.T) {
 func TestUnhappyFlow(t *testing.T) {
 	t.Parallel()
 
-	testTable := []testTable{
+	table := []testTable{
 		{
 			name: "round 1 proposal is valid with empty PB and PC",
 			expectedFinalizedBlock: &types.FinalizedBlock{
@@ -216,11 +218,12 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
+				isValidatorFn:       func(_ []byte, _ uint64) bool { return true },
 				isProposerFn: func(from []byte, sequence, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
@@ -228,7 +231,7 @@ func TestUnhappyFlow(t *testing.T) {
 				WithKeccak(BlockHashKeccak).
 				WithQuorum(NonZeroQuorum).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("my validator") })).
-				WithFeed(validFeed(feed{
+				WithFeed(allRoundsFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
 							0: nil,
@@ -293,7 +296,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
 				isProposerFn: func(from []byte, sequence, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
@@ -305,7 +309,7 @@ func TestUnhappyFlow(t *testing.T) {
 				WithQuorum(NonZeroQuorum).
 				WithTransport(DummyTransport).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(validFeed(feed{
+				WithFeed(allRoundsFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
 							0: nil,
@@ -391,7 +395,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
 				isProposerFn: func(from []byte, sequence, round uint64) bool {
 					if round == 0 {
 						return false
@@ -407,7 +412,7 @@ func TestUnhappyFlow(t *testing.T) {
 				WithKeccak(BlockHashKeccak).
 				WithQuorum(NonZeroQuorum).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(validFeed(feed{
+				WithFeed(allRoundsFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
 							0: nil,
@@ -465,7 +470,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
 				isProposerFn: func(from []byte, sequence, round uint64) bool {
 					if round == 1 {
 						return bytes.Equal(from, []byte("my validator"))
@@ -488,7 +494,7 @@ func TestUnhappyFlow(t *testing.T) {
 
 					return []byte("proposer")
 				})).
-				WithFeed(validFeed(feed{
+				WithFeed(allRoundsFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {
 							0: nil,
@@ -570,9 +576,10 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
-				isValidatorFn:  func(_ []byte, _ uint64) bool { return true },
-				isProposerFn:   func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
+				isValidatorFn:       func(_ []byte, _ uint64) bool { return true },
+				isProposerFn:        func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
 			},
 
 			ctx: ibft.NewIBFTContext(context.Background()).
@@ -580,7 +587,7 @@ func TestUnhappyFlow(t *testing.T) {
 				WithQuorum(NonZeroQuorum).
 				WithTransport(DummyTransport).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(validFeed(feed{
+				WithFeed(allRoundsFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {3: {
 							{
@@ -657,6 +664,7 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
 				isValidBlockFn: func(_ []byte) bool {
 					return true
 				},
@@ -673,7 +681,7 @@ func TestUnhappyFlow(t *testing.T) {
 				WithQuorum(NonZeroQuorum).
 				WithTransport(DummyTransport).
 				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(validFeed(feed{
+				WithFeed(allRoundsFeed(feed{
 					proposal: messagesByView[types.MsgProposal]{
 						101: {5: {
 							{
@@ -743,7 +751,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
 				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
 					return bytes.Equal(from, []byte("my validator")) && round == 1
 				},
@@ -811,7 +820,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
 				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer")) ||
 						bytes.Equal(from, []byte("my validator")) && round == 1
@@ -898,7 +908,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
 				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
@@ -995,7 +1006,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
 				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
@@ -1005,7 +1017,7 @@ func TestUnhappyFlow(t *testing.T) {
 			ctx: ibft.NewIBFTContext(context.Background()).
 				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
+				WithQuorum(QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 })).
 				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
 					if bytes.Equal(cs, []byte("commit seal")) {
 						return []byte("validator")
@@ -1125,7 +1137,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
 				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
@@ -1135,7 +1148,7 @@ func TestUnhappyFlow(t *testing.T) {
 			ctx: ibft.NewIBFTContext(context.Background()).
 				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
+				WithQuorum(QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 })).
 				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
 					if bytes.Equal(cs, []byte("commit seal")) {
 						return []byte("validator")
@@ -1261,7 +1274,8 @@ func TestUnhappyFlow(t *testing.T) {
 			},
 
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
 				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
@@ -1271,7 +1285,7 @@ func TestUnhappyFlow(t *testing.T) {
 			ctx: ibft.NewIBFTContext(context.Background()).
 				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
+				WithQuorum(QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 })).
 				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
 					if bytes.Equal(cs, []byte("commit seal")) {
 						return []byte("validator")
@@ -1405,8 +1419,9 @@ func TestUnhappyFlow(t *testing.T) {
 				signFn: func(_ []byte) []byte { return nil },
 			},
 			verifier: mockVerifier{
-				isValidBlockFn: func(_ []byte) bool { return true },
-				isValidatorFn:  func(_ []byte, _ uint64) bool { return true },
+				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
+				isValidBlockFn:      func(_ []byte) bool { return true },
+				isValidatorFn:       func(_ []byte, _ uint64) bool { return true },
 				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer")) ||
 						bytes.Equal(from, []byte("my validator")) && round == 1
@@ -1416,7 +1431,7 @@ func TestUnhappyFlow(t *testing.T) {
 			ctx: ibft.NewIBFTContext(context.Background()).
 				WithKeccak(BlockHashKeccak).
 				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []types.Msg) bool { return len(msgs) == 2 })).
+				WithQuorum(QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 })).
 				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
 					if bytes.Equal(cs, []byte("commit seal")) {
 						return []byte("validator")
@@ -1508,7 +1523,7 @@ func TestUnhappyFlow(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testTable {
+	for _, tt := range table {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()

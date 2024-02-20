@@ -9,16 +9,8 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type sigRecoverFn func([]byte, []byte) []byte
-
-func (s sigRecoverFn) From(data, sig []byte) []byte {
-	return s(data, sig)
-}
-
 func TestFeed_MsgProposal(t *testing.T) {
 	t.Parallel()
-
-	sigRecover := sigRecoverFn(func(_ []byte, _ []byte) []byte { return nil })
 
 	t.Run("msg received", func(t *testing.T) {
 		t.Parallel()
@@ -31,14 +23,14 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := New(sigRecover)
-		require.NoError(t, AddMessage[types.MsgProposal](msg, store))
+		store := New()
+		AddMessage[types.MsgProposal](msg, store)
 
-		sub, cancelSub := Feed{store}.Proposal(view, false)
+		sub, cancelSub := feed{store}.ProposalMessages(view, false)
 		defer cancelSub()
 
-		unwrap := <-sub
-		messages := unwrap()
+		r := <-sub
+		messages := r.Receive()
 
 		assert.Equal(t, msg, messages[0])
 	})
@@ -60,15 +52,15 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := New(sigRecover)
-		require.NoError(t, AddMessage[types.MsgProposal](msg1, store))
-		require.NoError(t, AddMessage[types.MsgProposal](msg2, store))
+		store := New()
+		AddMessage[types.MsgProposal](msg1, store)
+		AddMessage[types.MsgProposal](msg2, store)
 
-		sub, cancelSub := Feed{store}.Proposal(view1, false)
+		sub, cancelSub := feed{store}.ProposalMessages(view1, false)
 		defer cancelSub()
 
-		unwrap := <-sub
-		messages := unwrap()
+		r := <-sub
+		messages := r.Receive()
 
 		assert.Equal(t, msg1, messages[0])
 	})
@@ -84,16 +76,16 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := New(sigRecover)
-		require.NoError(t, AddMessage[types.MsgProposal](msg, store))
+		store := New()
+		AddMessage[types.MsgProposal](msg, store)
 		require.Len(t, GetMessages[types.MsgProposal](view, store), 1)
 
 		previousView := &types.View{Sequence: view.Sequence, Round: view.Round - 1}
-		sub, cancelSub := Feed{store}.Proposal(previousView, true)
+		sub, cancelSub := feed{store}.ProposalMessages(previousView, true)
 		defer cancelSub()
 
-		unwrap := <-sub
-		messages := unwrap()
+		r := <-sub
+		messages := r.Receive()
 
 		assert.Equal(t, msg, messages[0])
 	})
@@ -101,9 +93,9 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("highest round msg received", func(t *testing.T) {
 		t.Parallel()
 
-		store := New(sigRecover)
+		store := New()
 
-		sub, cancelSub := Feed{store}.Proposal(&types.View{
+		sub, cancelSub := feed{store}.ProposalMessages(&types.View{
 			Sequence: 101,
 			Round:    6,
 		},
@@ -111,8 +103,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 		)
 		defer cancelSub()
 
-		unwrap := <-sub
-		assert.Len(t, unwrap(), 0)
+		r := <-sub
+		assert.Len(t, r.Receive(), 0)
 
 		var (
 			view1 = &types.View{Sequence: 101, Round: 1}
@@ -128,36 +120,36 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		require.NoError(t, AddMessage[types.MsgProposal](msg3, store))
-		require.NoError(t, AddMessage[types.MsgProposal](msg1, store))
+		AddMessage[types.MsgProposal](msg3, store)
+		AddMessage[types.MsgProposal](msg1, store)
 
-		unwrap = <-sub
-		msgs := unwrap()
+		r = <-sub
+		messages := r.Receive()
 
-		require.Len(t, msgs, 1)
-		assert.Equal(t, msg3, msgs[0])
+		require.Len(t, messages, 1)
+		assert.Equal(t, msg3, messages[0])
 	})
 
 	t.Run("subscription not notified", func(t *testing.T) {
 		t.Parallel()
 
-		store := New(sigRecover)
+		store := New()
 
 		view1 := &types.View{Sequence: 101, Round: 1}
 		view2 := &types.View{Sequence: 102, Round: 1}
 
 		// two subscriptions, same view
-		sub, cancelSub := Feed{store}.Proposal(view1, true)
+		sub, cancelSub := feed{store}.ProposalMessages(view1, true)
 
-		unwrap := <-sub
-		require.Len(t, unwrap(), 0)
+		r := <-sub
+		require.Len(t, r.Receive(), 0)
 
 		msg := &types.MsgProposal{
 			View:      view2,
 			Signature: []byte("signature"),
 		}
 
-		require.NoError(t, AddMessage[types.MsgProposal](msg, store))
+		AddMessage[types.MsgProposal](msg, store)
 
 		cancelSub() // close the sub so the channel can be read
 		_, ok := <-sub
@@ -167,13 +159,13 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("subscription gets latest notification", func(t *testing.T) {
 		t.Parallel()
 
-		store := New(sigRecover)
+		store := New()
 
 		view1 := &types.View{Sequence: 101, Round: 1}
 		view2 := &types.View{Sequence: 101, Round: 2}
 
 		// two subscriptions, same view
-		sub, cancelSub := Feed{store}.Proposal(view1, true)
+		sub, cancelSub := feed{store}.ProposalMessages(view1, true)
 		defer cancelSub()
 
 		var (
@@ -188,11 +180,12 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		require.NoError(t, AddMessage[types.MsgProposal](msg1, store))
-		require.NoError(t, AddMessage[types.MsgProposal](msg2, store))
+		AddMessage[types.MsgProposal](msg1, store)
+		AddMessage[types.MsgProposal](msg2, store)
 
-		unwrap := <-sub
-		messages := unwrap()
+		r := <-sub
+		messages := r.Receive()
+
 		require.Len(t, messages, 1)
 		assert.Equal(t, msg2, messages[0])
 	})

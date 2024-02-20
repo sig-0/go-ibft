@@ -6,11 +6,7 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type msg interface {
-	types.MsgProposal | types.MsgPrepare | types.MsgRoundChange | types.MsgCommit
-}
-
-type syncCollection[M msg] struct {
+type syncCollection[M types.IBFTMessage] struct {
 	collection[M]
 	subscriptions[M]
 
@@ -18,14 +14,14 @@ type syncCollection[M msg] struct {
 	subscriptionMux sync.RWMutex
 }
 
-func newSyncCollection[M msg]() *syncCollection[M] {
+func newSyncCollection[M types.IBFTMessage]() *syncCollection[M] {
 	return &syncCollection[M]{
 		collection:    newCollection[M](),
-		subscriptions: newSubscriptions[M](),
+		subscriptions: subscriptions[M]{},
 	}
 }
 
-func (c *syncCollection[M]) Subscribe(view *types.View, higherRounds bool) (<-chan func() []*M, func()) {
+func (c *syncCollection[M]) Subscribe(view *types.View, higherRounds bool) (Subscription[M], func()) {
 	sub := newSubscription[M](view, higherRounds)
 	unregister := c.RegisterSubscription(sub)
 
@@ -75,7 +71,7 @@ func (c *syncCollection[M]) GetMessages(view *types.View) []*M {
 	return c.collection.Get(view).Messages()
 }
 
-func (c *syncCollection[M]) unwrapMessagesFn(view *types.View, higherRounds bool) func() []*M {
+func (c *syncCollection[M]) unwrapMessagesFn(view *types.View, higherRounds bool) MsgReceiverFn[M] {
 	return func() []*M {
 		c.collectionMux.RLock()
 		defer c.collectionMux.RUnlock()
@@ -95,11 +91,11 @@ func (c *syncCollection[M]) Remove(view *types.View) {
 	c.collection.RemoveMessagesWithView(view)
 }
 
-func newCollection[M msg]() collection[M] {
-	return map[uint64]map[uint64]msgSet[M]{}
-}
+type collection[M types.IBFTMessage] map[uint64]map[uint64]msgSet[M]
 
-type collection[M msg] map[uint64]map[uint64]msgSet[M]
+func newCollection[M types.IBFTMessage]() collection[M] {
+	return collection[M]{}
+}
 
 func (c *collection[M]) AddMessage(msg *M, view *types.View, from []byte) {
 	c.Set(view)[string(from)] = msg
@@ -166,7 +162,7 @@ func (c *collection[M]) RemoveMessagesWithView(view *types.View) {
 	delete((*c)[view.Sequence], view.Round)
 }
 
-type msgSet[M msg] map[string]*M
+type msgSet[M types.IBFTMessage] map[string]*M
 
 func (s msgSet[M]) Messages() []*M {
 	messages := make([]*M, 0, len(s))

@@ -1,20 +1,17 @@
 package sequencer
 
 import (
+	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type msg interface {
-	types.MsgProposal | types.MsgPrepare | types.MsgCommit | types.MsgRoundChange
-}
-
-type msgCache[M msg] struct {
+type msgCache[M types.IBFTMessage] struct {
 	filterFn func(*M) bool
 	seen     map[string]struct{}
 	filtered []*M
 }
 
-func newMsgCache[M msg](filterFn func(*M) bool) msgCache[M] {
+func newMsgCache[M types.IBFTMessage](filterFn func(*M) bool) msgCache[M] {
 	return msgCache[M]{
 		filterFn: filterFn,
 		filtered: make([]*M, 0),
@@ -24,7 +21,7 @@ func newMsgCache[M msg](filterFn func(*M) bool) msgCache[M] {
 
 func (c msgCache[M]) Add(messages []*M) msgCache[M] {
 	for _, msg := range messages {
-		from := any(msg).(types.Msg).GetFrom() //nolint:forcetypeassert // msg constraint
+		from := any(msg).(ibft.Message).GetFrom() //nolint:forcetypeassert // msg constraint
 		if _, ok := c.seen[string(from)]; ok {
 			continue
 		}

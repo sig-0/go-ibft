@@ -1,17 +1,21 @@
 //nolint:all
 package sequencer
 
-import "github.com/madz-lab/go-ibft/message/types"
+import (
+	"github.com/madz-lab/go-ibft"
+	"github.com/madz-lab/go-ibft/message/store"
+	"github.com/madz-lab/go-ibft/message/types"
+)
 
-type QuorumFn func(uint64, []types.Msg) bool
+type QuorumFn func(uint64, []ibft.Message) bool
 
-func (q QuorumFn) HasQuorum(sequence uint64, msgs []types.Msg) bool {
+func (q QuorumFn) HasQuorum(sequence uint64, msgs []ibft.Message) bool {
 	return q(sequence, msgs)
 }
 
-type TransportFn func(types.Msg)
+type TransportFn func(ibft.Message)
 
-func (t TransportFn) Multicast(msg types.Msg) {
+func (t TransportFn) Multicast(msg ibft.Message) {
 	t(msg)
 }
 
@@ -41,17 +45,22 @@ func (v mockValidator) Sign(bytes []byte) []byte {
 	return v.signFn(bytes)
 }
 
-func (v mockValidator) BuildBlock(uint64) []byte {
+func (v mockValidator) BuildProposal(uint64) []byte {
 	return v.buildBlockFn()
 }
 
 type mockVerifier struct {
-	isValidBlockFn func([]byte) bool
-	isProposerFn   func([]byte, uint64, uint64) bool
-	isValidatorFn  func([]byte, uint64) bool
+	hasValidSignatureFn func(ibft.Message) bool
+	isValidBlockFn      func([]byte) bool
+	isProposerFn        func([]byte, uint64, uint64) bool
+	isValidatorFn       func([]byte, uint64) bool
 }
 
-func (v mockVerifier) IsValidBlock(block []byte, _ uint64) bool {
+func (v mockVerifier) HasValidSignature(msg ibft.Message) bool {
+	return v.hasValidSignatureFn(msg)
+}
+
+func (v mockVerifier) IsValidProposal(block []byte, _ uint64) bool {
 	return v.isValidBlockFn(block)
 }
 
@@ -63,7 +72,7 @@ func (v mockVerifier) IsValidator(id []byte, height uint64) bool {
 	return v.isValidatorFn(id, height)
 }
 
-type messagesByView[M msg] map[uint64]map[uint64][]*M
+type messagesByView[M types.IBFTMessage] map[uint64]map[uint64][]*M
 
 type feed struct {
 	proposal    messagesByView[types.MsgProposal]
@@ -74,10 +83,10 @@ type feed struct {
 
 type (
 	singleRoundFeed feed // higher rounds disabled
-	validFeed       feed // higher rounds enabled
+	allRoundsFeed   feed // higher rounds enabled
 )
 
-func (f singleRoundFeed) Proposal(view *types.View, futureRounds bool) (<-chan func() []*types.MsgProposal, func()) {
+func (f singleRoundFeed) ProposalMessages(view *types.View, futureRounds bool) (store.Subscription[types.MsgProposal], func()) {
 	callback := func() []*types.MsgProposal {
 		if futureRounds {
 			return nil
@@ -86,13 +95,13 @@ func (f singleRoundFeed) Proposal(view *types.View, futureRounds bool) (<-chan f
 		return f.proposal[view.Sequence][view.Round]
 	}
 
-	c := make(chan func() []*types.MsgProposal, 1)
-	c <- callback
+	c := make(chan store.MsgNotification[types.MsgProposal], 1)
+	c <- store.MsgReceiverFn[types.MsgProposal](callback)
 
 	return c, func() { close(c) }
 }
 
-func (f singleRoundFeed) Prepare(view *types.View, futureRounds bool) (<-chan func() []*types.MsgPrepare, func()) {
+func (f singleRoundFeed) PrepareMessages(view *types.View, futureRounds bool) (store.Subscription[types.MsgPrepare], func()) {
 	callback := func() []*types.MsgPrepare {
 		if futureRounds {
 			return nil
@@ -101,13 +110,13 @@ func (f singleRoundFeed) Prepare(view *types.View, futureRounds bool) (<-chan fu
 		return f.prepare[view.Sequence][view.Round]
 	}
 
-	c := make(chan func() []*types.MsgPrepare, 1)
-	c <- callback
+	c := make(chan store.MsgNotification[types.MsgPrepare], 1)
+	c <- store.MsgReceiverFn[types.MsgPrepare](callback)
 
 	return c, func() { close(c) }
 }
 
-func (f singleRoundFeed) Commit(view *types.View, futureRounds bool) (<-chan func() []*types.MsgCommit, func()) {
+func (f singleRoundFeed) CommitMessages(view *types.View, futureRounds bool) (store.Subscription[types.MsgCommit], func()) {
 	callback := func() []*types.MsgCommit {
 		if futureRounds {
 			return nil
@@ -116,13 +125,13 @@ func (f singleRoundFeed) Commit(view *types.View, futureRounds bool) (<-chan fun
 		return f.commit[view.Sequence][view.Round]
 	}
 
-	c := make(chan func() []*types.MsgCommit, 1)
-	c <- callback
+	c := make(chan store.MsgNotification[types.MsgCommit], 1)
+	c <- store.MsgReceiverFn[types.MsgCommit](callback)
 
 	return c, func() { close(c) }
 }
 
-func (f singleRoundFeed) RoundChange(view *types.View, futureRounds bool) (<-chan func() []*types.MsgRoundChange, func()) {
+func (f singleRoundFeed) RoundChangeMessages(view *types.View, futureRounds bool) (store.Subscription[types.MsgRoundChange], func()) {
 	callback := func() []*types.MsgRoundChange {
 		if futureRounds {
 			return nil
@@ -131,15 +140,14 @@ func (f singleRoundFeed) RoundChange(view *types.View, futureRounds bool) (<-cha
 		return f.roundChange[view.Sequence][view.Round]
 	}
 
-	c := make(chan func() []*types.MsgRoundChange, 1)
-	c <- callback
+	c := make(chan store.MsgNotification[types.MsgRoundChange], 1)
+	c <- store.MsgReceiverFn[types.MsgRoundChange](callback)
 
 	return c, func() { close(c) }
 }
 
-func (f validFeed) Proposal(view *types.View, futureRounds bool) (<-chan func() []*types.MsgProposal, func()) {
-	c := make(chan func() []*types.MsgProposal, 1)
-	c <- func() []*types.MsgProposal {
+func (f allRoundsFeed) ProposalMessages(view *types.View, futureRounds bool) (store.Subscription[types.MsgProposal], func()) {
+	callback := func() []*types.MsgProposal {
 		if futureRounds == false {
 			return f.proposal[view.Sequence][view.Round]
 		}
@@ -158,12 +166,14 @@ func (f validFeed) Proposal(view *types.View, futureRounds bool) (<-chan func() 
 		return f.proposal[view.Sequence][max]
 	}
 
+	c := make(chan store.MsgNotification[types.MsgProposal], 1)
+	c <- store.MsgReceiverFn[types.MsgProposal](callback)
+
 	return c, func() { close(c) }
 }
 
-func (f validFeed) Prepare(view *types.View, futureRounds bool) (<-chan func() []*types.MsgPrepare, func()) {
-	c := make(chan func() []*types.MsgPrepare, 1)
-	c <- func() []*types.MsgPrepare {
+func (f allRoundsFeed) PrepareMessages(view *types.View, futureRounds bool) (store.Subscription[types.MsgPrepare], func()) {
+	callback := func() []*types.MsgPrepare {
 		if futureRounds == false {
 			return f.prepare[view.Sequence][view.Round]
 		}
@@ -182,12 +192,14 @@ func (f validFeed) Prepare(view *types.View, futureRounds bool) (<-chan func() [
 		return f.prepare[view.Sequence][max]
 	}
 
+	c := make(chan store.MsgNotification[types.MsgPrepare], 1)
+	c <- store.MsgReceiverFn[types.MsgPrepare](callback)
+
 	return c, func() { close(c) }
 }
 
-func (f validFeed) Commit(view *types.View, futureRounds bool) (<-chan func() []*types.MsgCommit, func()) {
-	c := make(chan func() []*types.MsgCommit, 1)
-	c <- func() []*types.MsgCommit {
+func (f allRoundsFeed) CommitMessages(view *types.View, futureRounds bool) (store.Subscription[types.MsgCommit], func()) {
+	callback := func() []*types.MsgCommit {
 		if futureRounds == false {
 			return f.commit[view.Sequence][view.Round]
 		}
@@ -206,12 +218,14 @@ func (f validFeed) Commit(view *types.View, futureRounds bool) (<-chan func() []
 		return f.commit[view.Sequence][max]
 	}
 
+	c := make(chan store.MsgNotification[types.MsgCommit], 1)
+	c <- store.MsgReceiverFn[types.MsgCommit](callback)
+
 	return c, func() { close(c) }
 }
 
-func (f validFeed) RoundChange(view *types.View, futureRounds bool) (<-chan func() []*types.MsgRoundChange, func()) {
-	c := make(chan func() []*types.MsgRoundChange, 1)
-	c <- func() []*types.MsgRoundChange {
+func (f allRoundsFeed) RoundChangeMessages(view *types.View, futureRounds bool) (store.Subscription[types.MsgRoundChange], func()) {
+	callback := func() []*types.MsgRoundChange {
 		if futureRounds == false {
 			return f.roundChange[view.Sequence][view.Round]
 		}
@@ -229,6 +243,9 @@ func (f validFeed) RoundChange(view *types.View, futureRounds bool) (<-chan func
 
 		return f.roundChange[view.Sequence][max]
 	}
+
+	c := make(chan store.MsgNotification[types.MsgRoundChange], 1)
+	c <- store.MsgReceiverFn[types.MsgRoundChange](callback)
 
 	return c, func() { close(c) }
 }

@@ -31,20 +31,28 @@ func (s *Sequencer) awaitPrepare(ctx ibft.Context) error {
 }
 
 func (s *Sequencer) awaitQuorumPrepares(ctx ibft.Context) ([]*types.MsgPrepare, error) {
-	cache := newMsgCache(s.isValidMsgPrepare)
-
-	sub, cancelSub := ctx.Feed().Prepare(s.state.currentView, false)
+	sub, cancelSub := ctx.Feed().PrepareMessages(s.state.currentView, false)
 	defer cancelSub()
+
+	cache := newMsgCache(func(msg *types.MsgPrepare) bool {
+		if !s.HasValidSignature(msg) {
+			return false
+		}
+
+		return s.isValidMsgPrepare(msg)
+	})
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case unwrapMessages := <-sub:
-			cache = cache.Add(unwrapMessages())
+		case notification := <-sub:
+			messages := notification.Receive()
 
+			cache = cache.Add(messages)
 			validPrepares := cache.Messages()
-			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), types.ToMsg(validPrepares)) {
+
+			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), ibft.WrapMessages(validPrepares)) {
 				continue
 			}
 
