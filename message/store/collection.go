@@ -16,7 +16,7 @@ type syncCollection[M types.IBFTMessage] struct {
 
 func newSyncCollection[M types.IBFTMessage]() *syncCollection[M] {
 	return &syncCollection[M]{
-		collection:    newCollection[M](),
+		collection:    collection[M]{},
 		subscriptions: subscriptions[M]{},
 	}
 }
@@ -92,10 +92,6 @@ func (c *syncCollection[M]) Remove(view *types.View) {
 }
 
 type collection[M types.IBFTMessage] map[uint64]map[uint64]msgSet[M]
-
-func newCollection[M types.IBFTMessage]() collection[M] {
-	return collection[M]{}
-}
 
 func (c *collection[M]) AddMessage(msg *M, view *types.View, from []byte) {
 	c.Set(view)[string(from)] = msg
