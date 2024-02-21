@@ -1,4 +1,3 @@
-//nolint:all
 package sequencer
 
 import (
@@ -64,6 +63,7 @@ func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	assert.Nil(t, <-c)
 }
 
+//nolint:dupl // cases are not entirely different
 func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 	t.Parallel()
 
@@ -220,7 +220,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
 				isValidBlockFn:      func(_ []byte) bool { return true },
 				isValidatorFn:       func(_ []byte, _ uint64) bool { return true },
-				isProposerFn: func(from []byte, sequence, round uint64) bool {
+				isProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -300,7 +300,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			verifier: mockVerifier{
 				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
 				isValidBlockFn:      func(_ []byte) bool { return true },
-				isProposerFn: func(from []byte, sequence, round uint64) bool {
+				isProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
@@ -402,7 +402,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			verifier: mockVerifier{
 				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
 				isValidBlockFn:      func(_ []byte) bool { return true },
-				isProposerFn: func(from []byte, sequence, round uint64) bool {
+				isProposerFn: func(from []byte, _, round uint64) bool {
 					if round == 0 {
 						return false
 					}
@@ -482,7 +482,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			verifier: mockVerifier{
 				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
 				isValidBlockFn:      func(_ []byte) bool { return true },
-				isProposerFn: func(from []byte, sequence, round uint64) bool {
+				isProposerFn: func(from []byte, _, round uint64) bool {
 					if round == 1 {
 						return bytes.Equal(from, []byte("my validator"))
 					}
@@ -688,7 +688,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				isValidBlockFn: func(_ []byte) bool {
 					return true
 				},
-				isProposerFn: func(from []byte, sequence, round uint64) bool {
+				isProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 				isValidatorFn: func(_ []byte, _ uint64) bool {
@@ -933,7 +933,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			verifier: mockVerifier{
 				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
 				isValidBlockFn:      func(_ []byte) bool { return true },
-				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
@@ -1030,7 +1030,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			verifier: mockVerifier{
 				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
 				isValidBlockFn:      func(_ []byte) bool { return true },
-				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
@@ -1161,7 +1161,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			verifier: mockVerifier{
 				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
 				isValidBlockFn:      func(_ []byte) bool { return true },
-				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
@@ -1298,7 +1298,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			verifier: mockVerifier{
 				hasValidSignatureFn: func(_ ibft.Message) bool { return true },
 				isValidBlockFn:      func(_ []byte) bool { return true },
-				isProposerFn: func(from []byte, _ uint64, round uint64) bool {
+				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
