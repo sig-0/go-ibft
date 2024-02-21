@@ -1085,7 +1085,7 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 				PreprepareData: &proto.PrePrepareMessage{
 					Proposal: &proto.Proposal{
 						Block: proposal,
-						Round: 0,
+						Round: 1,
 					},
 					ProposalHash: proposalHash,
 					Certificate: &proto.RoundChangeCertificate{
@@ -1108,7 +1108,7 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 				PreprepareData: &proto.PrePrepareMessage{
 					Proposal: &proto.Proposal{
 						Block: proposal,
-						Round: 0,
+						Round: 1,
 					},
 					ProposalHash: proposalHash,
 					Certificate: &proto.RoundChangeCertificate{
@@ -1290,7 +1290,7 @@ func TestRunNewRound_Round1_Accepts_Round0_Proposal(t *testing.T) {
 			PreprepareData: &proto.PrePrepareMessage{
 				Proposal: &proto.Proposal{
 					Block: round0Proposal,
-					Round: 0,
+					Round: 1,
 				},
 				ProposalHash: round0ProposalHash,
 				Certificate: &proto.RoundChangeCertificate{
@@ -1879,7 +1879,7 @@ func TestIBFT_FutureProposal(t *testing.T) {
 					PreprepareData: &proto.PrePrepareMessage{
 						Proposal: &proto.Proposal{
 							Block: proposal,
-							Round: 0,
+							Round: testCase.proposalView.Round,
 						},
 						ProposalHash: proposalHash,
 						Certificate: &proto.RoundChangeCertificate{
@@ -2590,7 +2590,11 @@ func TestIBFT_ValidateProposal(t *testing.T) {
 			View: baseView,
 			Type: proto.MessageType_PREPREPARE,
 			Payload: &proto.Message_PreprepareData{
-				PreprepareData: &proto.PrePrepareMessage{},
+				PreprepareData: &proto.PrePrepareMessage{
+					Proposal: &proto.Proposal{
+						Round: 0,
+					},
+				},
 			},
 		}
 

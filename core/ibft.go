@@ -646,6 +646,11 @@ func (i *IBFT) validateProposal(msg *proto.Message, view *proto.View) bool {
 		return false
 	}
 
+	// Proposal round must match the view round
+	if messages.ExtractProposal(msg).Round != view.Round {
+		return false
+	}
+
 	// Make sure common proposal validations pass
 	if !i.validateProposalCommon(msg, view) {
 		return false
