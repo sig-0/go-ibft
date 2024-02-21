@@ -68,6 +68,7 @@ func TestMsgBytes(t *testing.T) {
 		mm := &MsgPrepare{}
 		require.NoError(t, proto.Unmarshal(m.Bytes(), mm))
 		require.True(t, reflect.DeepEqual(m.Bytes(), mm.Bytes()))
+		require.True(t, reflect.DeepEqual(m.Payload(), mm.Payload()))
 	})
 
 	t.Run("MsgCommit", func(t *testing.T) {
@@ -84,6 +85,7 @@ func TestMsgBytes(t *testing.T) {
 		mm := &MsgCommit{}
 		require.NoError(t, proto.Unmarshal(m.Bytes(), mm))
 		require.True(t, reflect.DeepEqual(m.Bytes(), mm.Bytes()))
+		require.True(t, reflect.DeepEqual(m.Payload(), mm.Payload()))
 	})
 
 	t.Run("MsgRoundChange", func(t *testing.T) {
@@ -116,5 +118,6 @@ func TestMsgBytes(t *testing.T) {
 		mm := &MsgRoundChange{}
 		require.NoError(t, proto.Unmarshal(m.Bytes(), mm))
 		require.True(t, reflect.DeepEqual(m.Bytes(), mm.Bytes()))
+		require.True(t, reflect.DeepEqual(m.Payload(), mm.Payload()))
 	})
 }

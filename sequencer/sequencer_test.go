@@ -21,43 +21,50 @@ var (
 )
 
 type testTable struct {
-	validator              ibft.Validator
-	verifier               ibft.Verifier
-	ctx                    ibft.Context
+	validator ibft.Validator
+	verifier  ibft.Verifier
+
+	// context fields
+	transport    ibft.Transport
+	msgFeed      ibft.Feed
+	quorumFn     ibft.Quorum
+	keccakFn     ibft.Keccak
+	sigRecoverFn ibft.SigRecover
+
 	expectedFinalizedBlock *types.FinalizedBlock
 	name                   string
 }
 
-func TestFinalizeSequenceCancelled(t *testing.T) {
+func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	t.Parallel()
 
-	seq := New(
-		mockValidator{idFn: func() []byte { return nil }},
-		mockVerifier{isProposerFn: func(_ []byte, _ uint64, _ uint64) bool { return false }},
-		time.Millisecond*10,
+	var (
+		validator = mockValidator{idFn: func() []byte { return nil }}
+		verifier  = mockVerifier{isProposerFn: func(_ []byte, _, _ uint64) bool { return false }}
+		msgFeed   = singleRoundFeed(feed{
+			proposal: messagesByView[types.MsgProposal]{
+				101: {},
+			},
+		})
+
+		seq = New(validator, verifier, 10*time.Millisecond)
 	)
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
-
-	feed := singleRoundFeed(feed{
-		proposal: messagesByView[types.MsgProposal]{101: {}},
-	})
-
-	ctxIBFT := ibft.NewIBFTContext(ctx).WithFeed(feed)
-
 	c := make(chan *types.FinalizedBlock)
-	go func() {
-		fb := seq.FinalizeSequence(ctxIBFT, 101)
 
-		c <- fb
-		close(c)
-	}()
+	go func(ctx context.Context) {
+		defer close(c)
+
+		c <- seq.FinalizeSequence(ibft.NewIBFTContext(ctx).WithFeed(msgFeed), 101)
+	}(ctx)
 
 	cancelCtx()
+
 	assert.Nil(t, <-c)
 }
 
-func TestHappyFlow(t *testing.T) {
+func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 	t.Parallel()
 
 	table := []testTable{
@@ -86,14 +93,14 @@ func TestHappyFlow(t *testing.T) {
 				isValidatorFn:       func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithTransport(DummyTransport).
-				WithQuorum(NonZeroQuorum).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(allRoundsFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {0: {
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			msgFeed: allRoundsFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						0: {
 							{
 								View:      &types.View{Sequence: 101, Round: 0},
 								From:      []byte("proposer"),
@@ -103,30 +110,35 @@ func TestHappyFlow(t *testing.T) {
 									Round: 0,
 								},
 							},
-						}},
+						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {0: {
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						0: {
 							{
 								View:      &types.View{Sequence: 101, Round: 0},
 								From:      []byte("some validator"),
 								BlockHash: []byte("block hash"),
 							},
-						}},
+						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {0: {
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						0: {
 							{
 								View:       &types.View{Sequence: 101, Round: 0},
 								From:       []byte("some validator"),
 								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
-						}},
+						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -154,51 +166,38 @@ func TestHappyFlow(t *testing.T) {
 				isValidatorFn:       func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithTransport(DummyTransport).
-				WithQuorum(NonZeroQuorum).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(allRoundsFeed(feed{
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {0: {
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			msgFeed: allRoundsFeed(feed{
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						0: {
 							{
 								View:      &types.View{Sequence: 101, Round: 0},
 								From:      []byte("some validator"),
 								BlockHash: []byte("block hash"),
 							},
-						}},
+						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {0: {
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						0: {
 							{
 								View:       &types.View{Sequence: 101, Round: 0},
 								From:       []byte("some validator"),
 								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("some validator"),
 							},
-						}},
+						},
 					},
-				})),
+				},
+			}),
 		},
-	}
 
-	for _, tt := range table {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			s := New(tt.validator, tt.verifier, time.Millisecond*500)
-			assert.True(t, reflect.DeepEqual(tt.expectedFinalizedBlock, s.FinalizeSequence(tt.ctx, 101)))
-		})
-	}
-}
-
-func TestUnhappyFlow(t *testing.T) {
-	t.Parallel()
-
-	table := []testTable{
 		{
 			name: "round 1 proposal is valid with empty PB and PC",
 			expectedFinalizedBlock: &types.FinalizedBlock{
@@ -226,55 +225,58 @@ func TestUnhappyFlow(t *testing.T) {
 				},
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithTransport(DummyTransport).
-				WithKeccak(BlockHashKeccak).
-				WithQuorum(NonZeroQuorum).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("my validator") })).
-				WithFeed(allRoundsFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {
-							0: nil,
-							1: {
-								{
-									View:          &types.View{Sequence: 101, Round: 1},
-									From:          []byte("proposer"),
-									BlockHash:     []byte("block hash"),
-									ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
-									RoundChangeCertificate: &types.RoundChangeCertificate{
-										Messages: []*types.MsgRoundChange{
-											{
-												View: &types.View{Sequence: 101, Round: 1},
-												From: []byte("my validator"),
-											},
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("my validator") }),
+			msgFeed: allRoundsFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						0: nil,
+						1: {
+							{
+								View:          &types.View{Sequence: 101, Round: 1},
+								From:          []byte("proposer"),
+								BlockHash:     []byte("block hash"),
+								ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
+								RoundChangeCertificate: &types.RoundChangeCertificate{
+									Messages: []*types.MsgRoundChange{
+										{
+											View: &types.View{Sequence: 101, Round: 1},
+											From: []byte("my validator"),
 										},
 									},
 								},
 							},
 						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {1: {
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						1: {
 							{
 								View:      &types.View{Sequence: 101, Round: 1},
 								From:      []byte("my validator"),
 								BlockHash: []byte("block hash"),
 							},
-						}},
+						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {1: {
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						1: {
 							{
 								View:       &types.View{Sequence: 101, Round: 1},
 								From:       []byte("my validator"),
 								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
-						}},
+						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -304,42 +306,40 @@ func TestUnhappyFlow(t *testing.T) {
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithQuorum(NonZeroQuorum).
-				WithTransport(DummyTransport).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(allRoundsFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {
-							0: nil,
-							1: {
-								{
-									View:          &types.View{Sequence: 101, Round: 1},
-									From:          []byte("proposer"),
-									ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 1},
-									BlockHash:     []byte("block hash"),
-									RoundChangeCertificate: &types.RoundChangeCertificate{
-										Messages: []*types.MsgRoundChange{
-											{
-												View: &types.View{Sequence: 101, Round: 1},
-												From: []byte("some validator"),
-												LatestPreparedCertificate: &types.PreparedCertificate{
-													ProposalMessage: &types.MsgProposal{
-														View:          &types.View{Sequence: 101, Round: 0},
-														From:          []byte("proposer"),
-														ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
-														BlockHash:     []byte("block hash"),
-													},
-													PrepareMessages: []*types.MsgPrepare{
-														{
-															View: &types.View{
-																Sequence: 101,
-																Round:    0,
-															},
-															From:      []byte("some validator"),
-															BlockHash: []byte("block hash"),
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			msgFeed: allRoundsFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						0: nil,
+						1: {
+							{
+								View:          &types.View{Sequence: 101, Round: 1},
+								From:          []byte("proposer"),
+								ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 1},
+								BlockHash:     []byte("block hash"),
+								RoundChangeCertificate: &types.RoundChangeCertificate{
+									Messages: []*types.MsgRoundChange{
+										{
+											View: &types.View{Sequence: 101, Round: 1},
+											From: []byte("some validator"),
+											LatestPreparedCertificate: &types.PreparedCertificate{
+												ProposalMessage: &types.MsgProposal{
+													View:          &types.View{Sequence: 101, Round: 0},
+													From:          []byte("proposer"),
+													ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
+													BlockHash:     []byte("block hash"),
+												},
+												PrepareMessages: []*types.MsgPrepare{
+													{
+														View: &types.View{
+															Sequence: 101,
+															Round:    0,
 														},
+														From:      []byte("some validator"),
+														BlockHash: []byte("block hash"),
 													},
 												},
 											},
@@ -349,28 +349,33 @@ func TestUnhappyFlow(t *testing.T) {
 							},
 						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {1: {
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						1: {
 							{
 								View:      &types.View{Sequence: 101, Round: 1},
 								From:      []byte("some validator"),
 								BlockHash: []byte("block hash"),
 							},
-						}},
+						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {1: {
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						1: {
 							{
 								View:       &types.View{Sequence: 101, Round: 1},
 								From:       []byte("some validator"),
 								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
-						}},
+						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -407,48 +412,53 @@ func TestUnhappyFlow(t *testing.T) {
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithTransport(DummyTransport).
-				WithKeccak(BlockHashKeccak).
-				WithQuorum(NonZeroQuorum).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(allRoundsFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {
-							0: nil,
-						},
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			msgFeed: allRoundsFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						0: nil,
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {1: {
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						1: {
 							{
 								View:      &types.View{Sequence: 101, Round: 1},
 								From:      []byte("some validator"),
 								BlockHash: []byte("block hash"),
 							},
-						}},
+						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {1: {
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						1: {
 							{
 								View:       &types.View{Sequence: 101, Round: 1},
 								From:       []byte("some validator"),
 								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
-						}},
+						},
 					},
+				},
 
-					roundChange: messagesByView[types.MsgRoundChange]{
-						101: {1: {
+				roundChange: messagesByView[types.MsgRoundChange]{
+					101: {
+						1: {
 							{
 								View: &types.View{Sequence: 101, Round: 1},
 								From: []byte("some validator"),
 							},
-						}},
+						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -483,78 +493,81 @@ func TestUnhappyFlow(t *testing.T) {
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithQuorum(NonZeroQuorum).
-				WithTransport(DummyTransport).
-				WithSigRecover(SigRecoverFn(func(_ []byte, sig []byte) []byte {
-					if bytes.Equal(sig, []byte("commit seal")) {
-						return []byte("some validator")
-					}
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, sig []byte) []byte {
+				if bytes.Equal(sig, []byte("commit seal")) {
+					return []byte("some validator")
+				}
 
-					return []byte("proposer")
-				})).
-				WithFeed(allRoundsFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {
-							0: nil,
-						},
+				return []byte("proposer")
+			}),
+			msgFeed: allRoundsFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						0: nil,
 					},
+				},
 
-					roundChange: messagesByView[types.MsgRoundChange]{
-						101: {
-							1: {
-								{
-									View: &types.View{Sequence: 101, Round: 1},
-									From: []byte("some validator"),
-									LatestPreparedProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 0 block"),
-										Round: 0,
-									},
-									LatestPreparedCertificate: &types.PreparedCertificate{
-										ProposalMessage: &types.MsgProposal{
-											View:      &types.View{Sequence: 101, Round: 0},
-											From:      []byte("proposer"),
-											BlockHash: []byte("block hash"),
-											ProposedBlock: &types.ProposedBlock{
-												Block: []byte("round 0 block"),
-												Round: 0,
-											},
+				roundChange: messagesByView[types.MsgRoundChange]{
+					101: {
+						1: {
+							{
+								View: &types.View{Sequence: 101, Round: 1},
+								From: []byte("some validator"),
+								LatestPreparedProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 0 block"),
+									Round: 0,
+								},
+								LatestPreparedCertificate: &types.PreparedCertificate{
+									ProposalMessage: &types.MsgProposal{
+										View:      &types.View{Sequence: 101, Round: 0},
+										From:      []byte("proposer"),
+										BlockHash: []byte("block hash"),
+										ProposedBlock: &types.ProposedBlock{
+											Block: []byte("round 0 block"),
+											Round: 0,
 										},
-										PrepareMessages: []*types.MsgPrepare{
-											{
-												View:      &types.View{Sequence: 101, Round: 0},
-												From:      []byte("some validator"),
-												BlockHash: []byte("block hash"),
-											},
+									},
+									PrepareMessages: []*types.MsgPrepare{
+										{
+											View:      &types.View{Sequence: 101, Round: 0},
+											From:      []byte("some validator"),
+											BlockHash: []byte("block hash"),
 										},
 									},
 								},
 							},
 						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {1: {
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						1: {
 							{
 								View:      &types.View{Sequence: 101, Round: 1},
 								From:      []byte("some validator"),
 								BlockHash: []byte("block hash"),
 							},
-						}},
+						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {1: {
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						1: {
 							{
 								View:       &types.View{Sequence: 101, Round: 1},
 								From:       []byte("some validator"),
 								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
-						}},
+						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -582,22 +595,22 @@ func TestUnhappyFlow(t *testing.T) {
 				isProposerFn:        func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithQuorum(NonZeroQuorum).
-				WithTransport(DummyTransport).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(allRoundsFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {3: {
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			msgFeed: allRoundsFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						3: {
 							{
-								View: &types.View{Sequence: 101, Round: 3},
-								From: []byte("proposer"),
+								View:      &types.View{Sequence: 101, Round: 3},
+								From:      []byte("proposer"),
+								BlockHash: []byte("block hash"),
 								ProposedBlock: &types.ProposedBlock{
 									Block: []byte("block"),
 									Round: 3,
 								},
-								BlockHash: []byte("block hash"),
 								RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 									{
 										View: &types.View{Sequence: 101, Round: 3},
@@ -605,39 +618,46 @@ func TestUnhappyFlow(t *testing.T) {
 									},
 								}},
 							},
-						}},
+						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {3: {
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						3: {
 							{
 								View:      &types.View{Sequence: 101, Round: 3},
 								From:      []byte("some validator"),
 								BlockHash: []byte("block hash"),
 							},
-						}},
+						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {3: {
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						3: {
 							{
 								View:       &types.View{Sequence: 101, Round: 3},
 								From:       []byte("some validator"),
 								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
-						}},
+						},
 					},
+				},
 
-					roundChange: messagesByView[types.MsgRoundChange]{
-						101: {3: {
+				roundChange: messagesByView[types.MsgRoundChange]{
+					101: {
+						3: {
 							{
 								View: &types.View{Sequence: 101, Round: 3},
 								From: []byte("some validator"),
 							},
-						}},
+						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -676,14 +696,14 @@ func TestUnhappyFlow(t *testing.T) {
 				},
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithQuorum(NonZeroQuorum).
-				WithTransport(DummyTransport).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(allRoundsFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {5: {
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			msgFeed: allRoundsFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						5: {
 							{
 								View: &types.View{Sequence: 101, Round: 5},
 								From: []byte("proposer"),
@@ -699,11 +719,13 @@ func TestUnhappyFlow(t *testing.T) {
 									},
 								}},
 							},
-						}},
+						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {5: {
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						5: {
 							{
 								View: &types.View{
 									Sequence: 101,
@@ -712,11 +734,13 @@ func TestUnhappyFlow(t *testing.T) {
 								From:      []byte("some validator"),
 								BlockHash: []byte("block hash"),
 							},
-						}},
+						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {5: {
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						5: {
 							{
 								View: &types.View{
 									Sequence: 101,
@@ -726,9 +750,10 @@ func TestUnhappyFlow(t *testing.T) {
 								BlockHash:  []byte("block hash"),
 								CommitSeal: []byte("commit seal"),
 							},
-						}},
+						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -759,46 +784,45 @@ func TestUnhappyFlow(t *testing.T) {
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithTransport(DummyTransport).
-				WithQuorum(NonZeroQuorum).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(singleRoundFeed(feed{
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("some validator"),
-									BlockHash: []byte("block hash"),
-								},
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			msgFeed: singleRoundFeed(feed{
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("some validator"),
+								BlockHash: []byte("block hash"),
 							},
 						},
 					},
-					commit: messagesByView[types.MsgCommit]{
-						101: {
-							1: {
-								{
-									View:       &types.View{Sequence: 101, Round: 1},
-									From:       []byte("some validator"),
-									BlockHash:  []byte("block hash"),
-									CommitSeal: []byte("commit seal"),
-								},
+				},
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						1: {
+							{
+								View:       &types.View{Sequence: 101, Round: 1},
+								From:       []byte("some validator"),
+								BlockHash:  []byte("block hash"),
+								CommitSeal: []byte("commit seal"),
 							},
 						},
 					},
-					roundChange: messagesByView[types.MsgRoundChange]{
-						101: {
-							1: {
-								{
-									View: &types.View{Sequence: 101, Round: 1},
-									From: []byte("some validator"),
-								},
+				},
+				roundChange: messagesByView[types.MsgRoundChange]{
+					101: {
+						1: {
+							{
+								View: &types.View{Sequence: 101, Round: 1},
+								From: []byte("some validator"),
 							},
 						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -829,64 +853,63 @@ func TestUnhappyFlow(t *testing.T) {
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithTransport(DummyTransport).
-				WithQuorum(NonZeroQuorum).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(singleRoundFeed(feed{
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("some validator"),
-									BlockHash: []byte("block hash"),
-								},
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			msgFeed: singleRoundFeed(feed{
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("some validator"),
+								BlockHash: []byte("block hash"),
 							},
 						},
 					},
-					commit: messagesByView[types.MsgCommit]{
-						101: {
-							1: {
-								{
-									View:       &types.View{Sequence: 101, Round: 1},
-									From:       []byte("some validator"),
-									BlockHash:  []byte("block hash"),
-									CommitSeal: []byte("commit seal"),
-								},
+				},
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						1: {
+							{
+								View:       &types.View{Sequence: 101, Round: 1},
+								From:       []byte("some validator"),
+								BlockHash:  []byte("block hash"),
+								CommitSeal: []byte("commit seal"),
 							},
 						},
 					},
-					roundChange: messagesByView[types.MsgRoundChange]{
-						101: {
-							1: {
-								{
-									View: &types.View{Sequence: 101, Round: 1},
-									From: []byte("some validator"),
-									LatestPreparedProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 0 block"),
-										Round: 0,
+				},
+				roundChange: messagesByView[types.MsgRoundChange]{
+					101: {
+						1: {
+							{
+								View: &types.View{Sequence: 101, Round: 1},
+								From: []byte("some validator"),
+								LatestPreparedProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 0 block"),
+									Round: 0,
+								},
+								LatestPreparedCertificate: &types.PreparedCertificate{
+									ProposalMessage: &types.MsgProposal{
+										View:      &types.View{Sequence: 101, Round: 0},
+										From:      []byte("proposer"),
+										BlockHash: []byte("block hash"),
 									},
-									LatestPreparedCertificate: &types.PreparedCertificate{
-										ProposalMessage: &types.MsgProposal{
+									PrepareMessages: []*types.MsgPrepare{
+										{
 											View:      &types.View{Sequence: 101, Round: 0},
-											From:      []byte("proposer"),
+											From:      []byte("some validator"),
 											BlockHash: []byte("block hash"),
 										},
-										PrepareMessages: []*types.MsgPrepare{
-											{
-												View:      &types.View{Sequence: 101, Round: 0},
-												From:      []byte("some validator"),
-												BlockHash: []byte("block hash"),
-											},
-										},
 									},
 								},
 							},
 						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -916,71 +939,70 @@ func TestUnhappyFlow(t *testing.T) {
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithTransport(DummyTransport).
-				WithQuorum(NonZeroQuorum).
-				WithSigRecover(SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") })).
-				WithFeed(singleRoundFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {
-							0: {
-								{
-									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("proposer"),
-									BlockHash: []byte("block hash"),
-									ProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 0 block"),
-										Round: 0,
+			keccakFn:     BlockHashKeccak,
+			transport:    DummyTransport,
+			quorumFn:     NonZeroQuorum,
+			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			msgFeed: singleRoundFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						0: {
+							{
+								View:      &types.View{Sequence: 101, Round: 0},
+								From:      []byte("proposer"),
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 0 block"),
+									Round: 0,
+								},
+							},
+						},
+
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("proposer"),
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 1 block"),
+									Round: 1,
+								},
+								RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
+									{
+										View: &types.View{Sequence: 101, Round: 1},
+										From: []byte("some validator"),
 									},
-								},
-							},
-
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("proposer"),
-									BlockHash: []byte("block hash"),
-									ProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 1 block"),
-										Round: 1,
-									},
-									RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-										{
-											View: &types.View{Sequence: 101, Round: 1},
-											From: []byte("some validator"),
-										},
-									}},
-								},
+								}},
 							},
 						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("some validator"),
-									BlockHash: []byte("block hash"),
-								},
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("some validator"),
+								BlockHash: []byte("block hash"),
 							},
 						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {
-							1: {
-								{
-									View:       &types.View{Sequence: 101, Round: 1},
-									From:       []byte("some validator"),
-									BlockHash:  []byte("block hash"),
-									CommitSeal: []byte("commit seal"),
-								},
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						1: {
+							{
+								View:       &types.View{Sequence: 101, Round: 1},
+								From:       []byte("some validator"),
+								BlockHash:  []byte("block hash"),
+								CommitSeal: []byte("commit seal"),
 							},
 						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -1014,104 +1036,104 @@ func TestUnhappyFlow(t *testing.T) {
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
-					if bytes.Equal(cs, []byte("commit seal")) {
-						return []byte("validator")
-					}
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 }),
+			sigRecoverFn: SigRecoverFn(func(_ []byte, cs []byte) []byte {
+				if bytes.Equal(cs, []byte("commit seal")) {
+					return []byte("validator")
+				}
 
-					if bytes.Equal(cs, []byte("other commit seal")) {
-						return []byte("other validator")
-					}
+				if bytes.Equal(cs, []byte("other commit seal")) {
+					return []byte("other validator")
+				}
 
-					return nil
-				})).
-				WithFeed(singleRoundFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {
-							0: {
-								{
-									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("proposer"),
-									BlockHash: []byte("block hash"),
-									ProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 0 block"),
-										Round: 0,
+				return nil
+			}),
+
+			msgFeed: singleRoundFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						0: {
+							{
+								View:      &types.View{Sequence: 101, Round: 0},
+								From:      []byte("proposer"),
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 0 block"),
+									Round: 0,
+								},
+							},
+						},
+
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("proposer"),
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 1 block"),
+									Round: 1,
+								},
+								RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
+									{
+										View: &types.View{Sequence: 101, Round: 1},
+										From: []byte("validator"),
 									},
-								},
-							},
-
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("proposer"),
-									BlockHash: []byte("block hash"),
-									ProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 1 block"),
-										Round: 1,
+									{
+										View: &types.View{Sequence: 101, Round: 1},
+										From: []byte("other validator"),
 									},
-									RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-										{
-											View: &types.View{Sequence: 101, Round: 1},
-											From: []byte("validator"),
-										},
-										{
-											View: &types.View{Sequence: 101, Round: 1},
-											From: []byte("other validator"),
-										},
-									}},
-								},
+								}},
 							},
 						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {
-							0: {
-								{
-									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("validator"),
-									BlockHash: []byte("block hash"),
-								},
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						0: {
+							{
+								View:      &types.View{Sequence: 101, Round: 0},
+								From:      []byte("validator"),
+								BlockHash: []byte("block hash"),
 							},
+						},
 
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("validator"),
-									BlockHash: []byte("block hash"),
-								},
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("other validator"),
-									BlockHash: []byte("block hash"),
-								},
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("validator"),
+								BlockHash: []byte("block hash"),
+							},
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("other validator"),
+								BlockHash: []byte("block hash"),
 							},
 						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {
-							1: {
-								{
-									View:       &types.View{Sequence: 101, Round: 1},
-									From:       []byte("validator"),
-									CommitSeal: []byte("commit seal"),
-									BlockHash:  []byte("block hash"),
-								},
-								{
-									View:       &types.View{Sequence: 101, Round: 1},
-									From:       []byte("other validator"),
-									CommitSeal: []byte("other commit seal"),
-									BlockHash:  []byte("block hash"),
-								},
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						1: {
+							{
+								View:       &types.View{Sequence: 101, Round: 1},
+								From:       []byte("validator"),
+								CommitSeal: []byte("commit seal"),
+								BlockHash:  []byte("block hash"),
+							},
+							{
+								View:       &types.View{Sequence: 101, Round: 1},
+								From:       []byte("other validator"),
+								CommitSeal: []byte("other commit seal"),
+								BlockHash:  []byte("block hash"),
 							},
 						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -1145,110 +1167,110 @@ func TestUnhappyFlow(t *testing.T) {
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
-					if bytes.Equal(cs, []byte("commit seal")) {
-						return []byte("validator")
-					}
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 }),
+			sigRecoverFn: SigRecoverFn(func(_ []byte, cs []byte) []byte {
+				if bytes.Equal(cs, []byte("commit seal")) {
+					return []byte("validator")
+				}
 
-					if bytes.Equal(cs, []byte("other commit seal")) {
-						return []byte("other validator")
-					}
+				if bytes.Equal(cs, []byte("other commit seal")) {
+					return []byte("other validator")
+				}
 
-					return nil
-				})).
-				WithFeed(singleRoundFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {
-							0: {
-								{
-									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("proposer"),
-									BlockHash: []byte("block hash"),
-									ProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 0 block"),
-										Round: 0,
+				return nil
+			}),
+
+			msgFeed: singleRoundFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						0: {
+							{
+								View:      &types.View{Sequence: 101, Round: 0},
+								From:      []byte("proposer"),
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 0 block"),
+									Round: 0,
+								},
+							},
+						},
+
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("proposer"),
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 1 block"),
+									Round: 1,
+								},
+								RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
+									{
+										View: &types.View{Sequence: 101, Round: 1},
+										From: []byte("validator"),
 									},
-								},
-							},
-
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("proposer"),
-									BlockHash: []byte("block hash"),
-									ProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 1 block"),
-										Round: 1,
+									{
+										View: &types.View{Sequence: 101, Round: 1},
+										From: []byte("other validator"),
 									},
-									RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-										{
-											View: &types.View{Sequence: 101, Round: 1},
-											From: []byte("validator"),
-										},
-										{
-											View: &types.View{Sequence: 101, Round: 1},
-											From: []byte("other validator"),
-										},
-									}},
-								},
+								}},
 							},
 						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {
-							0: {
-								{
-									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("validator"),
-									BlockHash: []byte("block hash"),
-								},
-								{
-									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("validator"),
-									BlockHash: []byte("block hash"),
-								},
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						0: {
+							{
+								View:      &types.View{Sequence: 101, Round: 0},
+								From:      []byte("validator"),
+								BlockHash: []byte("block hash"),
 							},
+							{
+								View:      &types.View{Sequence: 101, Round: 0},
+								From:      []byte("validator"),
+								BlockHash: []byte("block hash"),
+							},
+						},
 
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("validator"),
-									BlockHash: []byte("block hash"),
-								},
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("other validator"),
-									BlockHash: []byte("block hash"),
-								},
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("validator"),
+								BlockHash: []byte("block hash"),
+							},
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("other validator"),
+								BlockHash: []byte("block hash"),
 							},
 						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {
-							1: {
-								{
-									View:       &types.View{Sequence: 101, Round: 1},
-									From:       []byte("validator"),
-									CommitSeal: []byte("commit seal"),
-									BlockHash:  []byte("block hash"),
-								},
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						1: {
+							{
+								View:       &types.View{Sequence: 101, Round: 1},
+								From:       []byte("validator"),
+								CommitSeal: []byte("commit seal"),
+								BlockHash:  []byte("block hash"),
+							},
 
-								{
-									View:       &types.View{Sequence: 101, Round: 1},
-									From:       []byte("other validator"),
-									CommitSeal: []byte("other commit seal"),
-									BlockHash:  []byte("block hash"),
-								},
+							{
+								View:       &types.View{Sequence: 101, Round: 1},
+								From:       []byte("other validator"),
+								CommitSeal: []byte("other commit seal"),
+								BlockHash:  []byte("block hash"),
 							},
 						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -1282,119 +1304,119 @@ func TestUnhappyFlow(t *testing.T) {
 				isValidatorFn: func(_ []byte, _ uint64) bool { return true },
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
-					if bytes.Equal(cs, []byte("commit seal")) {
-						return []byte("validator")
-					}
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 }),
+			sigRecoverFn: SigRecoverFn(func(_ []byte, cs []byte) []byte {
+				if bytes.Equal(cs, []byte("commit seal")) {
+					return []byte("validator")
+				}
 
-					if bytes.Equal(cs, []byte("other commit seal")) {
-						return []byte("other validator")
-					}
+				if bytes.Equal(cs, []byte("other commit seal")) {
+					return []byte("other validator")
+				}
 
-					return nil
-				})).
-				WithFeed(singleRoundFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {
-							0: {
-								{
-									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("proposer"),
-									BlockHash: []byte("block hash"),
-									ProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 0 block"),
-										Round: 0,
+				return nil
+			}),
+
+			msgFeed: singleRoundFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						0: {
+							{
+								View:      &types.View{Sequence: 101, Round: 0},
+								From:      []byte("proposer"),
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 0 block"),
+									Round: 0,
+								},
+							},
+						},
+
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("proposer"),
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 1 block"),
+									Round: 1,
+								},
+								RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
+									{
+										View: &types.View{Sequence: 101, Round: 1},
+										From: []byte("validator"),
 									},
-								},
-							},
-
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("proposer"),
-									BlockHash: []byte("block hash"),
-									ProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 1 block"),
-										Round: 1,
+									{
+										View: &types.View{Sequence: 101, Round: 1},
+										From: []byte("other validator"),
 									},
-									RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-										{
-											View: &types.View{Sequence: 101, Round: 1},
-											From: []byte("validator"),
-										},
-										{
-											View: &types.View{Sequence: 101, Round: 1},
-											From: []byte("other validator"),
-										},
-									}},
-								},
+								}},
 							},
 						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {
-							0: {
-								{
-									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("validator"),
-									BlockHash: []byte("block hash"),
-								},
-								{
-									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("other validator"),
-									BlockHash: []byte("block hash"),
-								},
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						0: {
+							{
+								View:      &types.View{Sequence: 101, Round: 0},
+								From:      []byte("validator"),
+								BlockHash: []byte("block hash"),
 							},
+							{
+								View:      &types.View{Sequence: 101, Round: 0},
+								From:      []byte("other validator"),
+								BlockHash: []byte("block hash"),
+							},
+						},
 
-							1: {
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("validator"),
-									BlockHash: []byte("block hash"),
-								},
-								{
-									View:      &types.View{Sequence: 101, Round: 1},
-									From:      []byte("other validator"),
-									BlockHash: []byte("block hash"),
-								},
+						1: {
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("validator"),
+								BlockHash: []byte("block hash"),
+							},
+							{
+								View:      &types.View{Sequence: 101, Round: 1},
+								From:      []byte("other validator"),
+								BlockHash: []byte("block hash"),
 							},
 						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {
-							0: {
-								{
-									View:       &types.View{Sequence: 101, Round: 0},
-									From:       []byte("validator"),
-									CommitSeal: []byte("commit seal"),
-									BlockHash:  []byte("block hash"),
-								},
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						0: {
+							{
+								View:       &types.View{Sequence: 101, Round: 0},
+								From:       []byte("validator"),
+								CommitSeal: []byte("commit seal"),
+								BlockHash:  []byte("block hash"),
+							},
+						},
+
+						1: {
+							{
+								View:       &types.View{Sequence: 101, Round: 1},
+								From:       []byte("validator"),
+								CommitSeal: []byte("commit seal"),
+								BlockHash:  []byte("block hash"),
 							},
 
-							1: {
-								{
-									View:       &types.View{Sequence: 101, Round: 1},
-									From:       []byte("validator"),
-									CommitSeal: []byte("commit seal"),
-									BlockHash:  []byte("block hash"),
-								},
-
-								{
-									View:       &types.View{Sequence: 101, Round: 1},
-									From:       []byte("other validator"),
-									CommitSeal: []byte("other commit seal"),
-									BlockHash:  []byte("block hash"),
-								},
+							{
+								View:       &types.View{Sequence: 101, Round: 1},
+								From:       []byte("other validator"),
+								CommitSeal: []byte("other commit seal"),
+								BlockHash:  []byte("block hash"),
 							},
 						},
 					},
-				})),
+				},
+			}),
 		},
 
 		{
@@ -1428,98 +1450,98 @@ func TestUnhappyFlow(t *testing.T) {
 				},
 			},
 
-			ctx: ibft.NewIBFTContext(context.Background()).
-				WithKeccak(BlockHashKeccak).
-				WithTransport(DummyTransport).
-				WithQuorum(QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 })).
-				WithSigRecover(SigRecoverFn(func(_ []byte, cs []byte) []byte {
-					if bytes.Equal(cs, []byte("commit seal")) {
-						return []byte("validator")
-					}
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 }),
+			sigRecoverFn: SigRecoverFn(func(_ []byte, cs []byte) []byte {
+				if bytes.Equal(cs, []byte("commit seal")) {
+					return []byte("validator")
+				}
 
-					if bytes.Equal(cs, []byte("other commit seal")) {
-						return []byte("other validator")
-					}
+				if bytes.Equal(cs, []byte("other commit seal")) {
+					return []byte("other validator")
+				}
 
-					return nil
-				})).
-				WithFeed(singleRoundFeed(feed{
-					proposal: messagesByView[types.MsgProposal]{
-						101: {
-							2: {
-								{
-									View: &types.View{
-										Sequence: 101,
-										Round:    2,
+				return nil
+			}),
+
+			msgFeed: singleRoundFeed(feed{
+				proposal: messagesByView[types.MsgProposal]{
+					101: {
+						2: {
+							{
+								View: &types.View{
+									Sequence: 101,
+									Round:    2,
+								},
+								From: []byte("proposer"),
+								ProposedBlock: &types.ProposedBlock{
+									Block: []byte("round 2 block"),
+									Round: 2,
+								},
+								BlockHash: []byte("block hash"),
+								RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
+									{
+										View: &types.View{Sequence: 101, Round: 2},
+										From: []byte("validator"),
 									},
-									From: []byte("proposer"),
-									ProposedBlock: &types.ProposedBlock{
-										Block: []byte("round 2 block"),
-										Round: 2,
+									{
+										View: &types.View{Sequence: 101, Round: 2},
+										From: []byte("other validator"),
 									},
-									BlockHash: []byte("block hash"),
-									RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-										{
-											View: &types.View{Sequence: 101, Round: 2},
-											From: []byte("validator"),
-										},
-										{
-											View: &types.View{Sequence: 101, Round: 2},
-											From: []byte("other validator"),
-										},
-									}},
-								},
+								}},
 							},
 						},
 					},
+				},
 
-					prepare: messagesByView[types.MsgPrepare]{
-						101: {
-							2: {
-								{
-									View:      &types.View{Sequence: 101, Round: 2},
-									From:      []byte("validator"),
-									BlockHash: []byte("block hash"),
-								},
-								{
-									View:      &types.View{Sequence: 101, Round: 2},
-									From:      []byte("other validator"),
-									BlockHash: []byte("block hash"),
-								},
+				prepare: messagesByView[types.MsgPrepare]{
+					101: {
+						2: {
+							{
+								View:      &types.View{Sequence: 101, Round: 2},
+								From:      []byte("validator"),
+								BlockHash: []byte("block hash"),
+							},
+							{
+								View:      &types.View{Sequence: 101, Round: 2},
+								From:      []byte("other validator"),
+								BlockHash: []byte("block hash"),
 							},
 						},
 					},
+				},
 
-					commit: messagesByView[types.MsgCommit]{
-						101: {
-							2: {
-								{
-									View:       &types.View{Sequence: 101, Round: 2},
-									From:       []byte("validator"),
-									BlockHash:  []byte("block hash"),
-									CommitSeal: []byte("commit seal"),
-								},
-								{
-									View:       &types.View{Sequence: 101, Round: 2},
-									From:       []byte("other validator"),
-									BlockHash:  []byte("block hash"),
-									CommitSeal: []byte("other commit seal"),
-								},
+				commit: messagesByView[types.MsgCommit]{
+					101: {
+						2: {
+							{
+								View:       &types.View{Sequence: 101, Round: 2},
+								From:       []byte("validator"),
+								BlockHash:  []byte("block hash"),
+								CommitSeal: []byte("commit seal"),
+							},
+							{
+								View:       &types.View{Sequence: 101, Round: 2},
+								From:       []byte("other validator"),
+								BlockHash:  []byte("block hash"),
+								CommitSeal: []byte("other commit seal"),
 							},
 						},
 					},
+				},
 
-					roundChange: messagesByView[types.MsgRoundChange]{
-						101: {
-							1: {
-								{
-									View: &types.View{Sequence: 101, Round: 1},
-									From: []byte("validator"),
-								},
+				roundChange: messagesByView[types.MsgRoundChange]{
+					101: {
+						1: {
+							{
+								View: &types.View{Sequence: 101, Round: 1},
+								From: []byte("validator"),
 							},
 						},
 					},
-				})),
+				},
+			}),
 		},
 	}
 
@@ -1528,8 +1550,15 @@ func TestUnhappyFlow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := New(tt.validator, tt.verifier, time.Millisecond*100)
-			assert.True(t, reflect.DeepEqual(tt.expectedFinalizedBlock, s.FinalizeSequence(tt.ctx, 101)))
+			ctx := ibft.NewIBFTContext(context.Background())
+			ctx = ctx.WithTransport(tt.transport)
+			ctx = ctx.WithFeed(tt.msgFeed)
+			ctx = ctx.WithSigRecover(tt.sigRecoverFn)
+			ctx = ctx.WithQuorum(tt.quorumFn)
+			ctx = ctx.WithKeccak(tt.keccakFn)
+
+			s := New(tt.validator, tt.verifier, time.Millisecond*500)
+			assert.True(t, reflect.DeepEqual(tt.expectedFinalizedBlock, s.FinalizeSequence(ctx, 101)))
 		})
 	}
 }
