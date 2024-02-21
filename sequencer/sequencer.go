@@ -40,7 +40,7 @@ func New(
 
 // FinalizeSequence runs the block finalization loop. This method returns a non-nil value only if
 // consensus is reached for the given sequence. Otherwise, it runs forever until cancelled by the caller
-func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.FinalizedBlock {
+func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.FinalizedProposal {
 	s.state = state{
 		currentView: &types.View{
 			Sequence: sequence,
@@ -48,7 +48,7 @@ func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.F
 		},
 	}
 
-	c := make(chan *types.FinalizedBlock, 1)
+	c := make(chan *types.FinalizedProposal, 1)
 	go func() {
 		defer close(c)
 
@@ -72,7 +72,7 @@ func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.F
 
 // finalize starts the round runner loop. In each round (loop iteration), 4 processes run in parallel.
 // This method returns only if the block finalization algorithm is complete or if the caller cancelled the context
-func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedBlock {
+func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedProposal {
 	for {
 		ctxRound, cancelRound := ctx.WithCancel()
 		teardown := func() {
@@ -194,8 +194,8 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx ibft.Context) <-chan *types.RoundCha
 }
 
 // awaitFinalizedBlockInCurrentRound starts the block finalization algorithm for the current round
-func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *types.FinalizedBlock {
-	c := make(chan *types.FinalizedBlock, 1)
+func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *types.FinalizedProposal {
+	c := make(chan *types.FinalizedProposal, 1)
 
 	s.wg.Add(1)
 

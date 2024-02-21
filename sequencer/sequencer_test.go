@@ -41,7 +41,7 @@ type testTable struct {
 	keccakFn     ibft.Keccak
 	sigRecoverFn ibft.SigRecover
 
-	expectedFinalizedBlock *types.FinalizedBlock
+	expectedFinalizedBlock *types.FinalizedProposal
 	name                   string
 }
 
@@ -61,7 +61,7 @@ func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	)
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	c := make(chan *types.FinalizedBlock)
+	c := make(chan *types.FinalizedProposal)
 
 	go func(ctx context.Context) {
 		defer close(c)
@@ -81,9 +81,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 	table := []testTable{
 		{
 			name: "validator is not the proposer",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("block"),
-				Round: 0,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("block"),
+				Round:    0,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -154,9 +154,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "validator is the proposer",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("block"),
-				Round: 0,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("block"),
+				Round:    0,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -211,9 +211,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "round 1 proposal is valid with empty PB and PC",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("my validator"),
@@ -293,9 +293,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "round 1 proposal is valid with non-nil PB and PC",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 0 block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 0 block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -393,9 +393,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "propose new block in round 1",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 1 block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 1 block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -474,9 +474,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "propose old block in round 1",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 0 block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 0 block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -582,9 +582,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "future rcc triggers round jump and new block is finalized",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("block"),
-				Round: 3,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("block"),
+				Round:    3,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -672,8 +672,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "future proposal triggers round jump and new block is finalized",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 5 block"),
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 5 block"),
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -759,9 +759,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "round timer triggers round jump and proposer finalizes new block",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 1 block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 1 block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -828,9 +828,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "round timer triggers round jump and proposer finalizes new block",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 0 block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 0 block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -915,9 +915,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "no prepare msgs in round 0 so new block is finalized in round 1",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 1 block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 1 block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("some validator"),
@@ -1008,9 +1008,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "no quorum prepare msgs in round 0 so new block is finalized in round 1",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 1 block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 1 block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("validator"),
@@ -1139,9 +1139,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "no commit msgs in round 0 so new block is finalized in round 1",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 1 block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 1 block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("validator"),
@@ -1276,9 +1276,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "no quorum commit msgs in round 0 so new block is finalized in round 1",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 1 block"),
-				Round: 1,
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 1 block"),
+				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("validator"),
@@ -1422,8 +1422,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 		{
 			name: "round 1 proposer fails to build block so new block is finalized in round 2",
-			expectedFinalizedBlock: &types.FinalizedBlock{
-				Block: []byte("round 2 block"),
+			expectedFinalizedBlock: &types.FinalizedProposal{
+				Proposal: []byte("round 2 block"),
 				Seals: []types.FinalizedSeal{
 					{
 						From:       []byte("validator"),

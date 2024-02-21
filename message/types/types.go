@@ -6,24 +6,26 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// IBFTMessage defines the 4 message types used by the IBFT 2.0 protocol
+// to reach network-wide consensus on some proposal for a particular sequence
 type IBFTMessage interface {
 	MsgProposal | MsgPrepare | MsgCommit | MsgRoundChange
 }
 
-// FinalizedSeal is proof that a specific validator committed to a block
+// FinalizedSeal is proof that a validator committed to a specific proposal
 type FinalizedSeal struct {
 	From, CommitSeal []byte
 }
 
-// FinalizedBlock is the consensus verified block
-type FinalizedBlock struct {
-	// block that was finalized
-	Block []byte
+// FinalizedProposal is a consensus verified proposal of some sequence
+type FinalizedProposal struct {
+	// proposal that was finalized
+	Proposal []byte
 
-	// seals of validators who committed to this block
+	// seals of validators who committed to this proposal
 	Seals []FinalizedSeal
 
-	// round in which the block was finalized
+	// round in which the proposal was finalized
 	Round uint64
 }
 

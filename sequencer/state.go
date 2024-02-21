@@ -86,10 +86,10 @@ func (s *state) AcceptSeal(from, seal []byte) {
 	})
 }
 
-func (s *state) FinalizedBlock() *types.FinalizedBlock {
-	return &types.FinalizedBlock{
-		Block: s.AcceptedProposedBlock().Block,
-		Round: s.CurrentRound(),
-		Seals: s.seals,
+func (s *state) FinalizedBlock() *types.FinalizedProposal {
+	return &types.FinalizedProposal{
+		Proposal: s.AcceptedProposedBlock().Block,
+		Round:    s.CurrentRound(),
+		Seals:    s.seals,
 	}
 }
