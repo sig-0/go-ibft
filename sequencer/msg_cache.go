@@ -6,20 +6,20 @@ import (
 )
 
 type msgCache[M types.IBFTMessage] struct {
-	filterFn func(*M) bool
+	filterFn func(M) bool
 	seen     map[string]struct{}
-	filtered []*M
+	filtered []M
 }
 
-func newMsgCache[M types.IBFTMessage](filterFn func(*M) bool) msgCache[M] {
+func newMsgCache[M types.IBFTMessage](filterFn func(M) bool) msgCache[M] {
 	return msgCache[M]{
 		filterFn: filterFn,
-		filtered: make([]*M, 0),
+		filtered: make([]M, 0),
 		seen:     make(map[string]struct{}),
 	}
 }
 
-func (c msgCache[M]) Add(messages []*M) msgCache[M] {
+func (c msgCache[M]) Add(messages []M) msgCache[M] {
 	for _, msg := range messages {
 		from := any(msg).(ibft.Message).GetFrom() //nolint:forcetypeassert // msg constraint
 		if _, ok := c.seen[string(from)]; ok {
@@ -38,6 +38,6 @@ func (c msgCache[M]) Add(messages []*M) msgCache[M] {
 	return c
 }
 
-func (c msgCache[M]) Messages() []*M {
+func (c msgCache[M]) Messages() []M {
 	return c.filtered
 }

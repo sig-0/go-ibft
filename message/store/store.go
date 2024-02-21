@@ -4,25 +4,22 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-//
-//// MsgSigRecover extracts the sender associated with data and sig
-
 // Store is a thread-safe storage for consensus messages with a built-in feed mechanism
 type Store struct {
-	proposal    *syncCollection[types.MsgProposal]
-	prepare     *syncCollection[types.MsgPrepare]
-	commit      *syncCollection[types.MsgCommit]
-	roundChange *syncCollection[types.MsgRoundChange]
+	proposal    *syncCollection[*types.MsgProposal]
+	prepare     *syncCollection[*types.MsgPrepare]
+	commit      *syncCollection[*types.MsgCommit]
+	roundChange *syncCollection[*types.MsgRoundChange]
 }
 
 // New returns a new Store instance. MsgReceiverFn added to this store
 // have their signatures verified before being included
 func New() *Store {
 	s := &Store{
-		proposal:    newSyncCollection[types.MsgProposal](),
-		prepare:     newSyncCollection[types.MsgPrepare](),
-		commit:      newSyncCollection[types.MsgCommit](),
-		roundChange: newSyncCollection[types.MsgRoundChange](),
+		proposal:    newSyncCollection[*types.MsgProposal](),
+		prepare:     newSyncCollection[*types.MsgPrepare](),
+		commit:      newSyncCollection[*types.MsgCommit](),
+		roundChange: newSyncCollection[*types.MsgRoundChange](),
 	}
 
 	return s

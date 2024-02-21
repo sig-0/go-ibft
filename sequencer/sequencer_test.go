@@ -52,7 +52,7 @@ func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 		validator = mockValidator{idFn: func() []byte { return nil }}
 		verifier  = mockVerifier{isProposerFn: func(_ []byte, _, _ uint64) bool { return false }}
 		msgFeed   = singleRoundFeed(feed{
-			proposal: messagesByView[types.MsgProposal]{
+			proposal: messagesByView[*types.MsgProposal]{
 				101: {},
 			},
 		})
@@ -109,7 +109,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
 			msgFeed: allRoundsFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
 							{
@@ -125,7 +125,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						0: {
 							{
@@ -137,7 +137,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						0: {
 							{
@@ -182,7 +182,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
 			msgFeed: allRoundsFeed(feed{
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						0: {
 							{
@@ -194,7 +194,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						0: {
 							{
@@ -241,7 +241,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("my validator") }),
 			msgFeed: allRoundsFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: nil,
 						1: {
@@ -264,7 +264,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						1: {
 							{
@@ -276,7 +276,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						1: {
 							{
@@ -323,7 +323,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
 			msgFeed: allRoundsFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: nil,
 						1: {
@@ -364,7 +364,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						1: {
 							{
@@ -376,7 +376,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						1: {
 							{
@@ -428,13 +428,13 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
 			msgFeed: allRoundsFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: nil,
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						1: {
 							{
@@ -446,7 +446,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						1: {
 							{
@@ -459,7 +459,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				roundChange: messagesByView[types.MsgRoundChange]{
+				roundChange: messagesByView[*types.MsgRoundChange]{
 					101: {
 						1: {
 							{
@@ -514,13 +514,13 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				return []byte("proposer")
 			}),
 			msgFeed: allRoundsFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: nil,
 					},
 				},
 
-				roundChange: messagesByView[types.MsgRoundChange]{
+				roundChange: messagesByView[*types.MsgRoundChange]{
 					101: {
 						1: {
 							{
@@ -553,7 +553,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						1: {
 							{
@@ -565,7 +565,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						1: {
 							{
@@ -610,7 +610,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
 			msgFeed: allRoundsFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						3: {
 							{
@@ -632,7 +632,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						3: {
 							{
@@ -644,7 +644,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						3: {
 							{
@@ -657,7 +657,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				roundChange: messagesByView[types.MsgRoundChange]{
+				roundChange: messagesByView[*types.MsgRoundChange]{
 					101: {
 						3: {
 							{
@@ -702,7 +702,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
 			msgFeed: allRoundsFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						5: {
 							{
@@ -724,7 +724,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						5: {
 							{
@@ -739,7 +739,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						5: {
 							{
@@ -790,7 +790,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
 			msgFeed: singleRoundFeed(feed{
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						1: {
 							{
@@ -801,7 +801,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 						},
 					},
 				},
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						1: {
 							{
@@ -813,7 +813,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 						},
 					},
 				},
-				roundChange: messagesByView[types.MsgRoundChange]{
+				roundChange: messagesByView[*types.MsgRoundChange]{
 					101: {
 						1: {
 							{
@@ -859,7 +859,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
 			msgFeed: singleRoundFeed(feed{
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						1: {
 							{
@@ -870,7 +870,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 						},
 					},
 				},
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						1: {
 							{
@@ -882,7 +882,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 						},
 					},
 				},
-				roundChange: messagesByView[types.MsgRoundChange]{
+				roundChange: messagesByView[*types.MsgRoundChange]{
 					101: {
 						1: {
 							{
@@ -945,7 +945,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
 			msgFeed: singleRoundFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
 							{
@@ -979,7 +979,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						1: {
 							{
@@ -991,7 +991,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						1: {
 							{
@@ -1053,7 +1053,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			}),
 
 			msgFeed: singleRoundFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
 							{
@@ -1091,7 +1091,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						0: {
 							{
@@ -1116,7 +1116,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						1: {
 							{
@@ -1184,7 +1184,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			}),
 
 			msgFeed: singleRoundFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
 							{
@@ -1222,7 +1222,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						0: {
 							{
@@ -1252,7 +1252,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						1: {
 							{
@@ -1321,7 +1321,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			}),
 
 			msgFeed: singleRoundFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
 							{
@@ -1359,7 +1359,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						0: {
 							{
@@ -1389,7 +1389,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						0: {
 							{
@@ -1467,7 +1467,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			}),
 
 			msgFeed: singleRoundFeed(feed{
-				proposal: messagesByView[types.MsgProposal]{
+				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						2: {
 							{
@@ -1496,7 +1496,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				prepare: messagesByView[types.MsgPrepare]{
+				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						2: {
 							{
@@ -1513,7 +1513,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				commit: messagesByView[types.MsgCommit]{
+				commit: messagesByView[*types.MsgCommit]{
 					101: {
 						2: {
 							{
@@ -1532,7 +1532,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					},
 				},
 
-				roundChange: messagesByView[types.MsgRoundChange]{
+				roundChange: messagesByView[*types.MsgRoundChange]{
 					101: {
 						1: {
 							{

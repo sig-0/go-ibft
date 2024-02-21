@@ -9,7 +9,7 @@ import (
 // IBFTMessage defines the 4 message types used by the IBFT 2.0 protocol
 // to reach network-wide consensus on some proposal for a particular sequence
 type IBFTMessage interface {
-	MsgProposal | MsgPrepare | MsgCommit | MsgRoundChange
+	*MsgProposal | *MsgPrepare | *MsgCommit | *MsgRoundChange
 }
 
 // FinalizedSeal is proof that a validator committed to a specific proposal

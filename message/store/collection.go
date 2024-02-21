@@ -44,7 +44,7 @@ func (c *syncCollection[M]) RegisterSubscription(sub subscription[M]) func() {
 	}
 }
 
-func (c *syncCollection[M]) AddMessage(msg *M, view *types.View, from []byte) {
+func (c *syncCollection[M]) AddMessage(msg M, view *types.View, from []byte) {
 	c.collectionMux.Lock()
 	c.collection.AddMessage(msg, view, from)
 	c.collectionMux.Unlock()
@@ -64,7 +64,7 @@ func (c *syncCollection[M]) AddMessage(msg *M, view *types.View, from []byte) {
 	c.subscriptionMux.RUnlock()
 }
 
-func (c *syncCollection[M]) GetMessages(view *types.View) []*M {
+func (c *syncCollection[M]) GetMessages(view *types.View) []M {
 	c.collectionMux.RLock()
 	defer c.collectionMux.RUnlock()
 
@@ -72,7 +72,7 @@ func (c *syncCollection[M]) GetMessages(view *types.View) []*M {
 }
 
 func (c *syncCollection[M]) unwrapMessagesFn(view *types.View, higherRounds bool) MsgReceiverFn[M] {
-	return func() []*M {
+	return func() []M {
 		c.collectionMux.RLock()
 		defer c.collectionMux.RUnlock()
 
@@ -93,11 +93,11 @@ func (c *syncCollection[M]) Remove(view *types.View) {
 
 type collection[M types.IBFTMessage] map[uint64]map[uint64]msgSet[M]
 
-func (c *collection[M]) AddMessage(msg *M, view *types.View, from []byte) {
+func (c *collection[M]) AddMessage(msg M, view *types.View, from []byte) {
 	c.Set(view)[string(from)] = msg
 }
 
-func (c *collection[M]) GetMessages(view *types.View) []*M {
+func (c *collection[M]) GetMessages(view *types.View) []M {
 	return c.Get(view).Messages()
 }
 
@@ -131,7 +131,7 @@ func (c *collection[M]) Get(view *types.View) msgSet[M] {
 	return set
 }
 
-func (c *collection[M]) GetHighestRoundMessages(view *types.View) []*M {
+func (c *collection[M]) GetHighestRoundMessages(view *types.View) []M {
 	maxRound := view.Round
 	for round := range (*c)[view.Sequence] {
 		if maxRound >= round {
@@ -158,10 +158,10 @@ func (c *collection[M]) RemoveMessagesWithView(view *types.View) {
 	delete((*c)[view.Sequence], view.Round)
 }
 
-type msgSet[M types.IBFTMessage] map[string]*M
+type msgSet[M types.IBFTMessage] map[string]M
 
-func (s msgSet[M]) Messages() []*M {
-	messages := make([]*M, 0, len(s))
+func (s msgSet[M]) Messages() []M {
+	messages := make([]M, 0, len(s))
 	for _, msg := range s {
 		messages = append(messages, msg)
 	}
