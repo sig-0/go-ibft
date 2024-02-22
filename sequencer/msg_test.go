@@ -34,7 +34,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 				ProposedBlock: &types.ProposedBlock{Round: 0},
 			},
 
-			validator: mockValidator{idFn: func() []byte {
+			validator: MockValidator{IDFn: func() []byte {
 				return []byte("my validator")
 			}},
 		},
@@ -50,8 +50,8 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte {
+			validator: MockValidator{
+				IDFn: func() []byte {
 					return []byte("my validator")
 				},
 			},
@@ -68,11 +68,11 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -90,11 +90,11 @@ func TestIsValidMsgProposal(t *testing.T) {
 				BlockHash: []byte("invalid block hash"),
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -114,14 +114,14 @@ func TestIsValidMsgProposal(t *testing.T) {
 				BlockHash: []byte("block hash"),
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
 			},
@@ -142,14 +142,14 @@ func TestIsValidMsgProposal(t *testing.T) {
 				BlockHash: []byte("block hash"),
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
 			},
@@ -170,14 +170,14 @@ func TestIsValidMsgProposal(t *testing.T) {
 				RoundChangeCertificate: nil,
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
 			},
@@ -198,14 +198,14 @@ func TestIsValidMsgProposal(t *testing.T) {
 				RoundChangeCertificate: &types.RoundChangeCertificate{},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
 			},
@@ -230,14 +230,14 @@ func TestIsValidMsgProposal(t *testing.T) {
 				}},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
 			},
@@ -262,14 +262,14 @@ func TestIsValidMsgProposal(t *testing.T) {
 				}},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
 			},
@@ -295,17 +295,17 @@ func TestIsValidMsgProposal(t *testing.T) {
 				}},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
-				isValidatorFn: func(from []byte, _ uint64) bool {
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
 			},
@@ -335,17 +335,17 @@ func TestIsValidMsgProposal(t *testing.T) {
 				}},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
-				isValidatorFn: func(from []byte, _ uint64) bool {
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
 			},
@@ -371,17 +371,17 @@ func TestIsValidMsgProposal(t *testing.T) {
 				}},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
-				isValidatorFn: func(from []byte, _ uint64) bool {
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
 			},
@@ -409,17 +409,17 @@ func TestIsValidMsgProposal(t *testing.T) {
 				}},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
-				isValidatorFn: func(from []byte, _ uint64) bool {
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
 			},
@@ -461,17 +461,17 @@ func TestIsValidMsgProposal(t *testing.T) {
 				}},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
-				isValidatorFn: func(from []byte, _ uint64) bool {
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
 			},
@@ -499,17 +499,17 @@ func TestIsValidMsgProposal(t *testing.T) {
 				}},
 			},
 
-			validator: mockValidator{
-				idFn: func() []byte { return []byte("my validator") },
+			validator: MockValidator{
+				IDFn: func() []byte { return []byte("my validator") },
 			},
-			verifier: mockVerifier{
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidBlockFn: func(block []byte) bool {
+				IsValidBlockFn: func(block []byte) bool {
 					return bytes.Equal(block, []byte("block"))
 				},
-				isValidatorFn: func(from []byte, _ uint64) bool {
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
 			},
@@ -546,7 +546,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 				View: &types.View{Sequence: 101},
 				From: []byte("not a validator"),
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 		},
@@ -558,7 +558,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 				From:      []byte("validator"),
 				BlockHash: []byte("invalid block hash"),
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 			acceptedProposal: &types.MsgProposal{
@@ -574,7 +574,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 				From:      []byte("validator"),
 				BlockHash: []byte("block hash"),
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 			acceptedProposal: &types.MsgProposal{
@@ -626,7 +626,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 				BlockHash: []byte("block hash"),
 			},
 
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 			acceptedProposal: &types.MsgProposal{
@@ -643,7 +643,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 				CommitSeal: []byte("invalid commit seal"),
 			},
 
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 			acceptedProposal: &types.MsgProposal{
@@ -665,7 +665,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 				CommitSeal: []byte("commit seal"),
 			},
 
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 			acceptedProposal: &types.MsgProposal{
@@ -708,7 +708,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				View: &types.View{Sequence: 101},
 				From: []byte("not a validator"),
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 		},
@@ -720,7 +720,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				View: &types.View{Sequence: 101},
 				From: []byte("validator"),
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 		},
@@ -732,7 +732,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				From:                      []byte("validator"),
 				LatestPreparedCertificate: &types.PreparedCertificate{},
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 		},
@@ -744,7 +744,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				From:                        []byte("validator"),
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 		},
@@ -759,7 +759,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					ProposalMessage: nil,
 				},
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 		},
@@ -775,7 +775,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					PrepareMessages: nil,
 				},
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 		},
@@ -793,7 +793,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					PrepareMessages: []*types.MsgPrepare{},
 				},
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 		},
@@ -814,7 +814,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					PrepareMessages: []*types.MsgPrepare{},
 				},
 			},
-			verifier: mockVerifier{isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
 				return bytes.Equal(from, []byte("validator"))
 			}},
 		},
@@ -840,11 +840,11 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					},
 				},
 			},
-			verifier: mockVerifier{
-				isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -868,11 +868,11 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					},
 				},
 			},
-			verifier: mockVerifier{
-				isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -896,11 +896,11 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					},
 				},
 			},
-			verifier: mockVerifier{
-				isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -926,11 +926,11 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					},
 				},
 			},
-			verifier: mockVerifier{
-				isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -957,11 +957,11 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					},
 				},
 			},
-			verifier: mockVerifier{
-				isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -993,11 +993,11 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					},
 				},
 			},
-			verifier: mockVerifier{
-				isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -1024,11 +1024,11 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					},
 				},
 			},
-			verifier: mockVerifier{
-				isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -1057,11 +1057,11 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					},
 				},
 			},
-			verifier: mockVerifier{
-				isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -1093,11 +1093,11 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 
-			verifier: mockVerifier{
-				isValidatorFn: func(from []byte, _ uint64) bool {
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
 				},
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},

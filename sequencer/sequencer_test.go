@@ -49,8 +49,8 @@ func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	t.Parallel()
 
 	var (
-		validator = mockValidator{idFn: func() []byte { return nil }}
-		verifier  = mockVerifier{isProposerFn: func(_ []byte, _, _ uint64) bool { return false }}
+		validator = MockValidator{IDFn: func() []byte { return nil }}
+		verifier  = MockVerifier{IsProposerFn: func(_ []byte, _, _ uint64) bool { return false }}
 		msgFeed   = singleRoundFeed(feed{
 			proposal: messagesByView[*types.MsgProposal]{
 				101: {},
@@ -92,16 +92,16 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isProposerFn:        func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
-				isValidatorFn:       TrueValidator,
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsProposerFn:        func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
+				IsValidatorFn:       TrueValidator,
 			},
 
 			keccakFn:     BlockHashKeccak,
@@ -165,16 +165,16 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:         MyValidator,
-				signFn:       NilSignature,
-				buildBlockFn: func() []byte { return []byte("block") },
+			validator: MockValidator{
+				IDFn:            MyValidator,
+				SignFn:          NilSignature,
+				BuildProposalFn: func() []byte { return []byte("block") },
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isProposerFn:        func(_ []byte, _, _ uint64) bool { return true },
-				isValidatorFn:       TrueValidator,
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsProposerFn:        func(_ []byte, _, _ uint64) bool { return true },
+				IsValidatorFn:       TrueValidator,
 			},
 
 			keccakFn:     BlockHashKeccak,
@@ -222,16 +222,16 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: func(_ []byte) []byte { return []byte("commit seal") },
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: func(_ []byte) []byte { return []byte("commit seal") },
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isValidatorFn:       TrueValidator,
-				isProposerFn: func(from []byte, _, _ uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsValidatorFn:       TrueValidator,
+				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
@@ -304,18 +304,18 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isProposerFn: func(from []byte, _, _ uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidatorFn: TrueValidator,
+				IsValidatorFn: TrueValidator,
 			},
 
 			keccakFn:     BlockHashKeccak,
@@ -404,17 +404,17 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:         MyValidator,
-				signFn:       NilSignature,
-				buildBlockFn: func() []byte { return []byte("round 1 block") },
+			validator: MockValidator{
+				IDFn:            MyValidator,
+				SignFn:          NilSignature,
+				BuildProposalFn: func() []byte { return []byte("round 1 block") },
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isValidatorFn:       TrueValidator,
-				isProposerFn: func(from []byte, _, round uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsValidatorFn:       TrueValidator,
+				IsProposerFn: func(from []byte, _, round uint64) bool {
 					if round == 0 {
 						return false
 					}
@@ -485,16 +485,16 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isValidatorFn:       TrueValidator,
-				isProposerFn: func(from []byte, _, round uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsValidatorFn:       TrueValidator,
+				IsProposerFn: func(from []byte, _, round uint64) bool {
 					if round == 1 {
 						return bytes.Equal(from, []byte("my validator"))
 					}
@@ -593,16 +593,16 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: func(_ []byte) []byte { return []byte("commit seal") },
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: func(_ []byte) []byte { return []byte("commit seal") },
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isValidatorFn:       TrueValidator,
-				isProposerFn:        func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsValidatorFn:       TrueValidator,
+				IsProposerFn:        func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
 			},
 
 			keccakFn:     BlockHashKeccak,
@@ -683,18 +683,18 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				Round: 5,
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isProposerFn: func(from []byte, _, _ uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidatorFn: TrueValidator,
+				IsValidatorFn: TrueValidator,
 			},
 
 			keccakFn:     BlockHashKeccak,
@@ -770,19 +770,19 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:         MyValidator,
-				signFn:       NilSignature,
-				buildBlockFn: func() []byte { return []byte("round 1 block") },
+			validator: MockValidator{
+				IDFn:            MyValidator,
+				SignFn:          NilSignature,
+				BuildProposalFn: func() []byte { return []byte("round 1 block") },
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isProposerFn: func(from []byte, _, round uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsProposerFn: func(from []byte, _, round uint64) bool {
 					return bytes.Equal(from, []byte("my validator")) && round == 1
 				},
-				isValidatorFn: TrueValidator,
+				IsValidatorFn: TrueValidator,
 			},
 
 			keccakFn:     BlockHashKeccak,
@@ -839,19 +839,19 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isProposerFn: func(from []byte, _, round uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsProposerFn: func(from []byte, _, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer")) ||
 						bytes.Equal(from, []byte("my validator")) && round == 1
 				},
-				isValidatorFn: TrueValidator,
+				IsValidatorFn: TrueValidator,
 			},
 
 			keccakFn:     BlockHashKeccak,
@@ -926,18 +926,18 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isProposerFn: func(from []byte, _ uint64, _ uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidatorFn: TrueValidator,
+				IsValidatorFn: TrueValidator,
 			},
 
 			keccakFn:     BlockHashKeccak,
@@ -1023,18 +1023,18 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isProposerFn: func(from []byte, _, _ uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidatorFn: TrueValidator,
+				IsValidatorFn: TrueValidator,
 			},
 
 			keccakFn:  BlockHashKeccak,
@@ -1154,18 +1154,18 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isProposerFn: func(from []byte, _, _ uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidatorFn: TrueValidator,
+				IsValidatorFn: TrueValidator,
 			},
 
 			keccakFn:  BlockHashKeccak,
@@ -1291,18 +1291,18 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
 
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isProposerFn: func(from []byte, _, _ uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
-				isValidatorFn: TrueValidator,
+				IsValidatorFn: TrueValidator,
 			},
 
 			keccakFn:  BlockHashKeccak,
@@ -1437,15 +1437,15 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				Round: 2,
 			},
 
-			validator: mockValidator{
-				idFn:   MyValidator,
-				signFn: NilSignature,
+			validator: MockValidator{
+				IDFn:   MyValidator,
+				SignFn: NilSignature,
 			},
-			verifier: mockVerifier{
-				hasValidSignatureFn: TrueSignature,
-				isValidBlockFn:      TrueBlock,
-				isValidatorFn:       TrueValidator,
-				isProposerFn: func(from []byte, _, round uint64) bool {
+			verifier: MockVerifier{
+				HasValidSignatureFn: TrueSignature,
+				IsValidBlockFn:      TrueBlock,
+				IsValidatorFn:       TrueValidator,
+				IsProposerFn: func(from []byte, _, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer")) ||
 						bytes.Equal(from, []byte("my validator")) && round == 1
 				},

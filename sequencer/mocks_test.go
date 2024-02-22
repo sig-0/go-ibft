@@ -1,4 +1,3 @@
-//nolint:all
 package sequencer
 
 import (
@@ -6,69 +5,68 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type QuorumFn func(uint64, []ibft.Message) bool
+type (
+	QuorumFn     func(uint64, []ibft.Message) bool
+	TransportFn  func(ibft.Message)
+	KeccakFn     func([]byte) []byte
+	SigRecoverFn func([]byte, []byte) []byte
+)
 
 func (q QuorumFn) HasQuorum(sequence uint64, msgs []ibft.Message) bool {
 	return q(sequence, msgs)
 }
 
-type TransportFn func(ibft.Message)
-
 func (t TransportFn) Multicast(msg ibft.Message) {
 	t(msg)
 }
-
-type KeccakFn func([]byte) []byte
 
 func (k KeccakFn) Hash(data []byte) []byte {
 	return k(data)
 }
 
-type SigRecoverFn func([]byte, []byte) []byte
-
 func (r SigRecoverFn) From(data, sig []byte) []byte {
 	return r(data, sig)
 }
 
-type mockValidator struct {
-	idFn         func() []byte
-	signFn       func([]byte) []byte
-	buildBlockFn func() []byte
+type MockValidator struct {
+	IDFn            func() []byte
+	SignFn          func([]byte) []byte
+	BuildProposalFn func() []byte
 }
 
-func (v mockValidator) ID() []byte {
-	return v.idFn()
+func (v MockValidator) ID() []byte {
+	return v.IDFn()
 }
 
-func (v mockValidator) Sign(bytes []byte) []byte {
-	return v.signFn(bytes)
+func (v MockValidator) Sign(bytes []byte) []byte {
+	return v.SignFn(bytes)
 }
 
-func (v mockValidator) BuildProposal(uint64) []byte {
-	return v.buildBlockFn()
+func (v MockValidator) BuildProposal(uint64) []byte {
+	return v.BuildProposalFn()
 }
 
-type mockVerifier struct {
-	hasValidSignatureFn func(ibft.Message) bool
-	isValidBlockFn      func([]byte) bool
-	isProposerFn        func([]byte, uint64, uint64) bool
-	isValidatorFn       func([]byte, uint64) bool
+type MockVerifier struct {
+	HasValidSignatureFn func(ibft.Message) bool
+	IsValidBlockFn      func([]byte) bool
+	IsProposerFn        func([]byte, uint64, uint64) bool
+	IsValidatorFn       func([]byte, uint64) bool
 }
 
-func (v mockVerifier) HasValidSignature(msg ibft.Message) bool {
-	return v.hasValidSignatureFn(msg)
+func (v MockVerifier) HasValidSignature(msg ibft.Message) bool {
+	return v.HasValidSignatureFn(msg)
 }
 
-func (v mockVerifier) IsValidProposal(block []byte, _ uint64) bool {
-	return v.isValidBlockFn(block)
+func (v MockVerifier) IsValidProposal(block []byte, _ uint64) bool {
+	return v.IsValidBlockFn(block)
 }
 
-func (v mockVerifier) IsProposer(id []byte, sequence, round uint64) bool {
-	return v.isProposerFn(id, sequence, round)
+func (v MockVerifier) IsProposer(id []byte, sequence, round uint64) bool {
+	return v.IsProposerFn(id, sequence, round)
 }
 
-func (v mockVerifier) IsValidator(id []byte, height uint64) bool {
-	return v.isValidatorFn(id, height)
+func (v MockVerifier) IsValidator(id []byte, height uint64) bool {
+	return v.IsValidatorFn(id, height)
 }
 
 type messagesByView[M types.IBFTMessage] map[uint64]map[uint64][]M
