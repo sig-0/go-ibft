@@ -58,7 +58,7 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			messages := notification.Receive()
+			messages := notification.Unwrap()
 
 			cache = cache.Add(messages)
 			validRoundChanges := cache.Messages()

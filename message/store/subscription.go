@@ -1,6 +1,7 @@
 package store
 
 import (
+	"github.com/madz-lab/go-ibft"
 	"github.com/rs/xid"
 
 	"github.com/madz-lab/go-ibft/message/types"
@@ -8,7 +9,7 @@ import (
 
 type subscription[M types.IBFTMessage] struct {
 	View         *types.View
-	Channel      Subscription[M]
+	Channel      ibft.Subscription[M]
 	HigherRounds bool
 }
 
@@ -16,11 +17,11 @@ func newSubscription[M types.IBFTMessage](view *types.View, higherRounds bool) s
 	return subscription[M]{
 		View:         view,
 		HigherRounds: higherRounds,
-		Channel:      make(Subscription[M], 1),
+		Channel:      make(ibft.Subscription[M], 1),
 	}
 }
 
-func (s *subscription[M]) Notify(receiver MsgReceiverFn[M]) {
+func (s *subscription[M]) Notify(receiver ibft.NotificationFn[M]) {
 	select {
 	case s.Channel <- receiver:
 	default:

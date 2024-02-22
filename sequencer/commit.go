@@ -51,7 +51,7 @@ func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, er
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			messages := notification.Receive()
+			messages := notification.Unwrap()
 
 			cache = cache.Add(messages)
 			validCommits := cache.Messages()

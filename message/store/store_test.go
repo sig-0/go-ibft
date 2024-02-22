@@ -10,64 +10,64 @@ import (
 )
 
 type testTable[M types.IBFTMessage] struct {
-	msg       *M
-	runTestFn func(*Store, *M)
+	msg       M
+	runTestFn func(*Store, M)
 	name      string
 }
 
 func TestStore_MsgProposal(t *testing.T) {
 	t.Parallel()
 
-	table := []testTable[types.MsgProposal]{
+	table := []testTable[*types.MsgProposal]{
 		{
-			name: "msg added",
+			name: "message added",
 			msg: &types.MsgProposal{
 				View:      &types.View{Sequence: 101, Round: 0},
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
 			runTestFn: func(store *Store, msg *types.MsgProposal) {
-				AddMessage(msg, store)
-				assert.Len(t, GetMessages[types.MsgProposal](msg.View, store), 1)
+				store.ProposalMessages.AddMessage(msg)
+				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
 			},
 		},
 
 		{
-			name: "msg removed",
+			name: "message removed",
 			msg: &types.MsgProposal{
 				View:      &types.View{Sequence: 101, Round: 0},
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
 			runTestFn: func(store *Store, msg *types.MsgProposal) {
-				require.Len(t, GetMessages[types.MsgProposal](msg.View, store), 0)
-				AddMessage(msg, store)
+				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 0)
+				store.ProposalMessages.AddMessage(msg)
 
 				view := &types.View{Sequence: msg.View.Sequence + 1}
-				RemoveMessages[types.MsgProposal](view, store)
-				require.Len(t, GetMessages[types.MsgProposal](msg.View, store), 1)
+				store.ProposalMessages.RemoveMessages(view)
+				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
 
 				view = &types.View{Sequence: msg.View.Sequence, Round: msg.View.Round + 1}
-				RemoveMessages[types.MsgProposal](view, store)
-				require.Len(t, GetMessages[types.MsgProposal](msg.View, store), 1)
+				store.ProposalMessages.RemoveMessages(view)
+				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
 
-				RemoveMessages[types.MsgProposal](msg.View, store)
-				assert.Len(t, GetMessages[types.MsgProposal](msg.View, store), 0)
+				store.ProposalMessages.RemoveMessages(msg.View)
+				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 0)
 			},
 		},
 
 		{
-			name: "no duplicate msg when added twice",
+			name: "no duplicate message when added twice",
 			msg: &types.MsgProposal{
 				View:      &types.View{Sequence: 101, Round: 0},
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
 			runTestFn: func(store *Store, msg *types.MsgProposal) {
-				AddMessage(msg, store)
-				AddMessage(msg, store)
+				store.ProposalMessages.AddMessage(msg)
+				store.ProposalMessages.AddMessage(msg)
 
-				assert.Len(t, GetMessages[types.MsgProposal](msg.View, store), 1)
+				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
 			},
 		},
 
@@ -86,11 +86,11 @@ func TestStore_MsgProposal(t *testing.T) {
 					Signature: []byte("other signature"),
 				}
 
-				AddMessage(msg, store)
-				AddMessage(msg2, store)
+				store.ProposalMessages.AddMessage(msg)
+				store.ProposalMessages.AddMessage(msg2)
 
-				assert.Len(t, GetMessages[types.MsgProposal](msg.View, store), 1)
-				assert.Len(t, GetMessages[types.MsgProposal](msg2.View, store), 1)
+				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
+				assert.Len(t, store.ProposalMessages.GetMessages(msg2.View), 1)
 			},
 		},
 
@@ -109,11 +109,11 @@ func TestStore_MsgProposal(t *testing.T) {
 					Signature: []byte("other signature"),
 				}
 
-				AddMessage(msg, store)
-				AddMessage(msg2, store)
+				store.ProposalMessages.AddMessage(msg)
+				store.ProposalMessages.AddMessage(msg2)
 
-				assert.Len(t, GetMessages[types.MsgProposal](msg.View, store), 1)
-				assert.Len(t, GetMessages[types.MsgProposal](msg2.View, store), 1)
+				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
+				assert.Len(t, store.ProposalMessages.GetMessages(msg2.View), 1)
 			},
 		},
 
@@ -125,14 +125,15 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 			runTestFn: func(store *Store, msg *types.MsgProposal) {
-				AddMessage(msg, store)
-				AddMessage(&types.MsgProposal{
+				store.ProposalMessages.AddMessage(msg)
+				store.ProposalMessages.AddMessage(&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
 					From:      []byte("other from"),
 					Signature: []byte("other signature"),
-				}, store)
+				})
 
-				assert.Len(t, GetMessages[types.MsgProposal](msg.View, store), 2)
+				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 2)
+				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 2)
 			},
 		},
 
@@ -145,13 +146,10 @@ func TestStore_MsgProposal(t *testing.T) {
 			},
 
 			runTestFn: func(store *Store, msg *types.MsgProposal) {
-				AddMessage(msg, store)
+				store.ProposalMessages.AddMessage(msg)
 
 				view := &types.View{Sequence: msg.View.Sequence, Round: msg.View.Round + 1}
-				GetMessages[types.MsgProposal](msg.View, store)
-				msgs := GetMessages[types.MsgProposal](view, store)
-
-				assert.Len(t, msgs, 0)
+				assert.Len(t, store.ProposalMessages.GetMessages(view), 0)
 			},
 		},
 	}
@@ -164,4 +162,197 @@ func TestStore_MsgProposal(t *testing.T) {
 			tt.runTestFn(New(), tt.msg)
 		})
 	}
+}
+
+func TestFeed_MsgProposal(t *testing.T) {
+	t.Parallel()
+
+	t.Run("message received", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &types.View{Sequence: 101, Round: 0}
+			msg  = &types.MsgProposal{
+				View:      view,
+				Signature: []byte("sig"),
+			}
+		)
+
+		store := New()
+		feed := store.Feed()
+
+		store.ProposalMessages.AddMessage(msg)
+
+		sub, cancelSub := feed.ProposalMessages(view, false)
+		defer cancelSub()
+
+		r := <-sub
+		messages := r.Unwrap()
+
+		assert.Equal(t, msg, messages[0])
+	})
+
+	t.Run("message received with exact view", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view1 = &types.View{Sequence: 101, Round: 0}
+			msg1  = &types.MsgProposal{
+				View:      view1,
+				Signature: []byte("sig"),
+			}
+
+			view2 = &types.View{Sequence: 101, Round: 5}
+			msg2  = &types.MsgProposal{
+				View:      view2,
+				Signature: []byte("sig"),
+			}
+		)
+
+		store := New()
+		feed := store.Feed()
+
+		store.ProposalMessages.AddMessage(msg1)
+		store.ProposalMessages.AddMessage(msg2)
+
+		sub, cancelSub := feed.ProposalMessages(view1, false)
+		defer cancelSub()
+
+		r := <-sub
+		messages := r.Unwrap()
+
+		assert.Equal(t, msg1, messages[0])
+	})
+
+	t.Run("future round message received", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &types.View{Sequence: 101, Round: 1}
+			msg  = &types.MsgProposal{
+				View:      view,
+				Signature: []byte("signature 2"),
+			}
+		)
+
+		store := New()
+		feed := store.Feed()
+
+		store.ProposalMessages.AddMessage(msg)
+		require.Len(t, store.ProposalMessages.GetMessages(view), 1)
+
+		previousView := &types.View{Sequence: view.Sequence, Round: view.Round - 1}
+
+		sub, cancelSub := feed.ProposalMessages(previousView, true)
+		defer cancelSub()
+
+		r := <-sub
+		messages := r.Unwrap()
+
+		assert.Equal(t, msg, messages[0])
+	})
+
+	t.Run("highest round message received", func(t *testing.T) {
+		t.Parallel()
+
+		store := New()
+		feed := store.Feed()
+
+		sub, cancelSub := feed.ProposalMessages(&types.View{
+			Sequence: 101,
+			Round:    6,
+		},
+			true,
+		)
+		defer cancelSub()
+
+		r := <-sub
+		assert.Len(t, r.Unwrap(), 0)
+
+		var (
+			view1 = &types.View{Sequence: 101, Round: 1}
+			msg1  = &types.MsgProposal{
+				View:      view1,
+				Signature: []byte("signature"),
+			}
+
+			view3 = &types.View{Sequence: 101, Round: 10}
+			msg3  = &types.MsgProposal{
+				View:      view3,
+				Signature: []byte("signature"),
+			}
+		)
+
+		store.ProposalMessages.AddMessage(msg3)
+		store.ProposalMessages.AddMessage(msg1)
+
+		r = <-sub
+		messages := r.Unwrap()
+
+		require.Len(t, messages, 1)
+		assert.Equal(t, msg3, messages[0])
+	})
+
+	t.Run("subscription not notified", func(t *testing.T) {
+		t.Parallel()
+
+		store := New()
+		feed := store.Feed()
+
+		view1 := &types.View{Sequence: 101, Round: 1}
+		view2 := &types.View{Sequence: 102, Round: 1}
+
+		// two subscriptions, same view
+		sub, cancelSub := feed.ProposalMessages(view1, true)
+
+		r := <-sub
+		require.Len(t, r.Unwrap(), 0)
+
+		msg := &types.MsgProposal{
+			View:      view2,
+			Signature: []byte("signature"),
+		}
+
+		store.ProposalMessages.AddMessage(msg)
+
+		cancelSub() // close the sub so the channel can be read
+
+		_, ok := <-sub
+		assert.False(t, ok)
+	})
+
+	t.Run("subscription gets latest notification", func(t *testing.T) {
+		t.Parallel()
+
+		store := New()
+		feed := store.Feed()
+
+		view1 := &types.View{Sequence: 101, Round: 1}
+		view2 := &types.View{Sequence: 101, Round: 2}
+
+		// two subscriptions, same view
+		sub, cancelSub := feed.ProposalMessages(view1, true)
+		defer cancelSub()
+
+		var (
+			msg1 = &types.MsgProposal{
+				View:      view1,
+				Signature: []byte("signature"),
+			}
+
+			msg2 = &types.MsgProposal{
+				View:      view2,
+				Signature: []byte("signature"),
+			}
+		)
+
+		store.ProposalMessages.AddMessage(msg1)
+		store.ProposalMessages.AddMessage(msg2)
+
+		r := <-sub
+		messages := r.Unwrap()
+
+		require.Len(t, messages, 1)
+		assert.Equal(t, msg2, messages[0])
+	})
 }

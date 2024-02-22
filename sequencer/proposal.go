@@ -60,7 +60,7 @@ func (s *Sequencer) awaitProposal(ctx ibft.Context, view *types.View, higherRoun
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			messages := notification.Receive()
+			messages := notification.Unwrap()
 
 			cache = cache.Add(messages)
 			validProposals := cache.Messages()

@@ -1,94 +1,58 @@
 package store
 
 import (
+	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-// Store is a thread-safe storage for consensus messages with a built-in feed mechanism
-type Store struct {
-	proposal    *syncCollection[*types.MsgProposal]
-	prepare     *syncCollection[*types.MsgPrepare]
-	commit      *syncCollection[*types.MsgCommit]
-	roundChange *syncCollection[*types.MsgRoundChange]
+type message interface {
+	types.IBFTMessage
+
+	GetView() *types.View
+	GetFrom() []byte
 }
 
-// New returns a new Store instance. MsgReceiverFn added to this store
+// Store is a thread-safe storage for consensus messages with a built-in Feed mechanism
+type Store struct {
+	ProposalMessages    Collection[*types.MsgProposal]
+	PrepareMessages     Collection[*types.MsgPrepare]
+	CommitMessages      Collection[*types.MsgCommit]
+	RoundChangeMessages Collection[*types.MsgRoundChange]
+}
+
+// New returns a new Store instance. NotificationFn added to this store
 // have their signatures verified before being included
 func New() *Store {
 	s := &Store{
-		proposal:    newSyncCollection[*types.MsgProposal](),
-		prepare:     newSyncCollection[*types.MsgPrepare](),
-		commit:      newSyncCollection[*types.MsgCommit](),
-		roundChange: newSyncCollection[*types.MsgRoundChange](),
+		ProposalMessages:    NewCollection[*types.MsgProposal](),
+		PrepareMessages:     NewCollection[*types.MsgPrepare](),
+		CommitMessages:      NewCollection[*types.MsgCommit](),
+		RoundChangeMessages: NewCollection[*types.MsgRoundChange](),
 	}
 
 	return s
 }
 
-// AddMessage stores the provided msg if its signature is valid
-func AddMessage[M types.IBFTMessage](m *M, store *Store) {
-	switch msg := any(m).(type) {
-	case *types.MsgProposal:
-		store.proposal.AddMessage(msg, msg.View, msg.From)
-	case *types.MsgPrepare:
-		store.prepare.AddMessage(msg, msg.View, msg.From)
-	case *types.MsgCommit:
-		store.commit.AddMessage(msg, msg.View, msg.From)
-	case *types.MsgRoundChange:
-		store.roundChange.AddMessage(msg, msg.View, msg.From)
-	}
+func (s *Store) Feed() ibft.MessageFeed {
+	return Feed{s}
 }
 
-func GetMessages[M types.IBFTMessage](view *types.View, store *Store) []*M {
-	var (
-		m        *M
-		messages []*M
-	)
-
-	switch any(m).(type) {
-	case *types.MsgProposal:
-		typedMessages := store.proposal.GetMessages(view)
-		messages = make([]*M, 0, len(typedMessages))
-
-		for _, msg := range typedMessages {
-			messages = append(messages, any(msg).(*M)) //nolint:forcetypeassert, gocritic
-		}
-	case *types.MsgPrepare:
-		typedMessages := store.prepare.GetMessages(view)
-		messages = make([]*M, 0, len(typedMessages))
-
-		for _, msg := range typedMessages {
-			messages = append(messages, any(msg).(*M)) //nolint:forcetypeassert, gocritic
-		}
-	case *types.MsgCommit:
-		typedMessages := store.commit.GetMessages(view)
-		messages = make([]*M, 0, len(typedMessages))
-
-		for _, msg := range store.commit.GetMessages(view) {
-			messages = append(messages, any(msg).(*M)) //nolint:forcetypeassert, gocritic
-		}
-	case *types.MsgRoundChange:
-		typedMessages := store.roundChange.GetMessages(view)
-		messages = make([]*M, 0, len(typedMessages))
-
-		for _, msg := range store.roundChange.GetMessages(view) {
-			messages = append(messages, any(msg).(*M)) //nolint:forcetypeassert, gocritic
-		}
-	}
-
-	return messages
+type Feed struct {
+	*Store
 }
 
-func RemoveMessages[M types.IBFTMessage](view *types.View, store *Store) {
-	var m *M
-	switch any(m).(type) {
-	case *types.MsgProposal:
-		store.proposal.Remove(view)
-	case *types.MsgPrepare:
-		store.prepare.Remove(view)
-	case *types.MsgCommit:
-		store.commit.Remove(view)
-	case *types.MsgRoundChange:
-		store.roundChange.Remove(view)
-	}
+func (f Feed) ProposalMessages(view *types.View, futureRounds bool) (ibft.Subscription[*types.MsgProposal], func()) {
+	return f.Store.ProposalMessages.Subscribe(view, futureRounds)
+}
+
+func (f Feed) PrepareMessages(view *types.View, futureRounds bool) (ibft.Subscription[*types.MsgPrepare], func()) {
+	return f.Store.PrepareMessages.Subscribe(view, futureRounds)
+}
+
+func (f Feed) CommitMessages(view *types.View, futureRounds bool) (ibft.Subscription[*types.MsgCommit], func()) {
+	return f.Store.CommitMessages.Subscribe(view, futureRounds)
+}
+
+func (f Feed) RoundChangeMessages(view *types.View, futureRounds bool) (ibft.Subscription[*types.MsgRoundChange], func()) {
+	return f.Store.RoundChangeMessages.Subscribe(view, futureRounds)
 }

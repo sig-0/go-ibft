@@ -36,7 +36,7 @@ type testTable struct {
 	verifier  ibft.Verifier
 
 	transport    ibft.Transport
-	msgFeed      ibft.Feed
+	msgFeed      ibft.MessageFeed
 	quorumFn     ibft.Quorum
 	keccakFn     ibft.Keccak
 	sigRecoverFn ibft.SigRecover
