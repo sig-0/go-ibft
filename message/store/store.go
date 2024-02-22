@@ -41,18 +41,30 @@ type Feed struct {
 	*Store
 }
 
-func (f Feed) ProposalMessages(view *types.View, futureRounds bool) (ibft.Subscription[*types.MsgProposal], func()) {
+func (f Feed) ProposalMessages(
+	view *types.View,
+	futureRounds bool,
+) (ibft.Subscription[*types.MsgProposal], func()) {
 	return f.Store.ProposalMessages.Subscribe(view, futureRounds)
 }
 
-func (f Feed) PrepareMessages(view *types.View, futureRounds bool) (ibft.Subscription[*types.MsgPrepare], func()) {
+func (f Feed) PrepareMessages(
+	view *types.View,
+	futureRounds bool,
+) (ibft.Subscription[*types.MsgPrepare], func()) {
 	return f.Store.PrepareMessages.Subscribe(view, futureRounds)
 }
 
-func (f Feed) CommitMessages(view *types.View, futureRounds bool) (ibft.Subscription[*types.MsgCommit], func()) {
+func (f Feed) CommitMessages(
+	view *types.View,
+	futureRounds bool,
+) (ibft.Subscription[*types.MsgCommit], func()) {
 	return f.Store.CommitMessages.Subscribe(view, futureRounds)
 }
 
-func (f Feed) RoundChangeMessages(view *types.View, futureRounds bool) (ibft.Subscription[*types.MsgRoundChange], func()) {
+func (f Feed) RoundChangeMessages(
+	view *types.View,
+	futureRounds bool,
+) (ibft.Subscription[*types.MsgRoundChange], func()) {
 	return f.Store.RoundChangeMessages.Subscribe(view, futureRounds)
 }

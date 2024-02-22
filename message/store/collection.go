@@ -65,6 +65,7 @@ func (c *syncCollection[M]) AddMessage(msg M) {
 		defer c.subscriptionMux.RUnlock()
 
 		view := msg.GetView()
+
 		c.subscriptions.Notify(func(sub subscription[M]) {
 			// match the sequence
 			if view.Sequence != sub.View.Sequence {

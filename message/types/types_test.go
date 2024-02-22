@@ -2,10 +2,10 @@ package types
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -199,6 +199,7 @@ func Test_RCC_Highest_Round_Block(t *testing.T) {
 
 	for i, tt := range table {
 		tt := tt
+
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			t.Parallel()
 
@@ -278,6 +279,7 @@ func Test_RCC_Highest_Round_Block_Hash(t *testing.T) {
 
 	for i, tt := range table {
 		tt := tt
+
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			t.Parallel()
 

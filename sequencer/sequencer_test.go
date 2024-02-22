@@ -51,7 +51,7 @@ func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	var (
 		validator = MockValidator{IDFn: func() []byte { return nil }}
 		verifier  = MockVerifier{IsProposerFn: func(_ []byte, _, _ uint64) bool { return false }}
-		msgFeed   = singleRoundFeed(feed{
+		msgFeed   = singleRoundFeed(MockFeed{
 			proposal: messagesByView[*types.MsgProposal]{
 				101: {},
 			},
@@ -108,7 +108,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
-			msgFeed: allRoundsFeed(feed{
+			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
@@ -181,7 +181,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
-			msgFeed: allRoundsFeed(feed{
+			msgFeed: allRoundsFeed(MockFeed{
 				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						0: {
@@ -240,7 +240,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("my validator") }),
-			msgFeed: allRoundsFeed(feed{
+			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: nil,
@@ -322,7 +322,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
-			msgFeed: allRoundsFeed(feed{
+			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: nil,
@@ -427,7 +427,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
-			msgFeed: allRoundsFeed(feed{
+			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: nil,
@@ -513,7 +513,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 				return []byte("proposer")
 			}),
-			msgFeed: allRoundsFeed(feed{
+			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: nil,
@@ -609,7 +609,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
-			msgFeed: allRoundsFeed(feed{
+			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						3: {
@@ -701,7 +701,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
-			msgFeed: allRoundsFeed(feed{
+			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						5: {
@@ -789,7 +789,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
-			msgFeed: singleRoundFeed(feed{
+			msgFeed: singleRoundFeed(MockFeed{
 				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						1: {
@@ -858,7 +858,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
-			msgFeed: singleRoundFeed(feed{
+			msgFeed: singleRoundFeed(MockFeed{
 				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
 						1: {
@@ -944,7 +944,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			transport:    DummyTransport,
 			quorumFn:     NonZeroQuorum,
 			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
-			msgFeed: singleRoundFeed(feed{
+			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
@@ -1052,7 +1052,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				return nil
 			}),
 
-			msgFeed: singleRoundFeed(feed{
+			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
@@ -1183,7 +1183,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				return nil
 			}),
 
-			msgFeed: singleRoundFeed(feed{
+			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
@@ -1320,7 +1320,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				return nil
 			}),
 
-			msgFeed: singleRoundFeed(feed{
+			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						0: {
@@ -1466,7 +1466,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				return nil
 			}),
 
-			msgFeed: singleRoundFeed(feed{
+			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
 						2: {
