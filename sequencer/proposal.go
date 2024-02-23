@@ -21,7 +21,7 @@ func (s *Sequencer) multicastProposal(ctx ibft.Context, block []byte) {
 		RoundChangeCertificate: s.state.roundChangeCertificate,
 	}
 
-	msg.Signature = s.Sign(msg.Payload())
+	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	s.state.acceptedProposal = msg
 

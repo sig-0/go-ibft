@@ -14,7 +14,7 @@ func (s *Sequencer) multicastPrepare(ctx ibft.Context) {
 		BlockHash: s.state.AcceptedBlockHash(),
 	}
 
-	msg.Signature = s.Sign(msg.Payload())
+	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	ctx.Transport().Multicast(msg)
 }
