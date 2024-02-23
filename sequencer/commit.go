@@ -12,10 +12,10 @@ func (s *Sequencer) multicastCommit(ctx ibft.Context) {
 		From:       s.ID(),
 		View:       s.state.currentView,
 		BlockHash:  s.state.AcceptedBlockHash(),
-		CommitSeal: s.Sign(ctx.Keccak().Hash(s.state.AcceptedBlockHash())),
+		CommitSeal: s.Sign(s.state.AcceptedBlockHash()),
 	}
 
-	msg.Signature = s.Sign(msg.Payload())
+	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	ctx.Transport().Multicast(msg)
 }

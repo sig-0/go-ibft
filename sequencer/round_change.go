@@ -15,7 +15,7 @@ func (s *Sequencer) multicastRoundChange(ctx ibft.Context) {
 		LatestPreparedCertificate:   s.state.latestPreparedCertificate,
 	}
 
-	msg.Signature = s.Sign(msg.Payload())
+	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	ctx.Transport().Multicast(msg)
 }

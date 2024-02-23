@@ -59,10 +59,10 @@ type Validator interface {
 /** External functionalities required by the IBFT block finalization algorithm	**/
 
 type (
-	// Signer is used to generate a sender-unique signature of arbitrary data
+	// Signer is used to generate a sender-unique signature of a keccak hash
 	Signer interface {
-		// Sign computes the sender-unique signature of data
-		Sign(data []byte) []byte
+		// Sign returns the signature of given keccak
+		Sign(keccak []byte) []byte
 	}
 
 	// SigRecover is used to extract the sender associated with some payload and its signature
