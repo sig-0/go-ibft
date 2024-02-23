@@ -35,14 +35,12 @@ func (v IBFTValidator) BuildProposal(sequence uint64) []byte {
 
 type SilentValidator IBFTValidator
 
-func (v SilentValidator) Sign(keccak []byte) []byte {
-	//TODO implement me
-	panic("implement me")
+func (v SilentValidator) Sign(digest []byte) []byte {
+	return IBFTValidator(v).Sign(digest)
 }
 
 func (v SilentValidator) ID() []byte {
-	//TODO implement me
-	panic("implement me")
+	return IBFTValidator(v).ID()
 }
 
 func (v SilentValidator) BuildProposal(_ uint64) []byte {

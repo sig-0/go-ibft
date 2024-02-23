@@ -1,9 +1,9 @@
 package test
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_All_Honest_Validators(t *testing.T) {
@@ -14,10 +14,5 @@ func Test_All_Honest_Validators(t *testing.T) {
 		val4 = HonestValidator(NewIBFTValidator())
 	)
 
-	network := NewIBFTNetwork(val1, val2, val3, val4)
-
-	latestSequence, err := network.FinalizeBlocks(10, 101)
-	require.NoError(t, err)
-
-	assert.Equal(t, 111, int(latestSequence))
+	require.NoError(t, NewIBFTNetwork(val1, val2, val3, val4).FinalizeSequence(101, Round0Timeout))
 }
