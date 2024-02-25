@@ -1,6 +1,8 @@
 package sequencer
 
 import (
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"math"
 	"sync"
 	"time"
@@ -83,6 +85,8 @@ func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedProposal {
 		select {
 		case _, ok := <-s.startRoundTimer(ctxRound):
 			teardown()
+
+			fmt.Printf("%s round timer expired (seq=%d round=%d)\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentSequence(), s.state.CurrentRound())
 
 			if !ok {
 				return nil
@@ -206,6 +210,7 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *
 		}()
 
 		if s.shouldPropose() {
+			fmt.Printf("%s building proposal... (seq=%d round=%d)\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentSequence(), s.state.CurrentRound())
 			if err := s.propose(ctx); err != nil {
 				return
 			}
@@ -216,6 +221,8 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *
 				return
 			}
 
+			fmt.Printf("%s received proposal... (seq=%d round=%d)\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentSequence(), s.state.CurrentRound())
+
 			s.multicastPrepare(ctx)
 		}
 
@@ -223,11 +230,15 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *
 			return
 		}
 
+		fmt.Printf("%s received quorum prepare... (seq=%d round=%d)\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentSequence(), s.state.CurrentRound())
+
 		s.multicastCommit(ctx)
 
 		if err := s.awaitCommit(ctx); err != nil {
 			return
 		}
+
+		fmt.Printf("%s received quorum commits... (seq=%d round=%d)\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentSequence(), s.state.CurrentRound())
 
 		c <- s.state.FinalizedBlock()
 	}()
@@ -270,6 +281,8 @@ func (s *Sequencer) buildBlock(ctx ibft.Context) ([]byte, error) {
 	}
 
 	rcc := s.state.roundChangeCertificate
+
+	fmt.Printf("Got RCC %#v\n", rcc)
 
 	block, _ := rcc.HighestRoundBlock()
 	if block == nil {

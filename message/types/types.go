@@ -53,6 +53,14 @@ func (x *MsgProposal) Payload() []byte {
 	return bz
 }
 
+func (x *MsgProposal) GetSequence() uint64 {
+	return x.View.Sequence
+}
+
+func (x *MsgProposal) GetRound() uint64 {
+	return x.View.Round
+}
+
 func (x *MsgPrepare) Bytes() []byte {
 	bz, err := proto.Marshal(x)
 	if err != nil {
@@ -73,6 +81,14 @@ func (x *MsgPrepare) Payload() []byte {
 	}
 
 	return bz
+}
+
+func (x *MsgPrepare) GetSequence() uint64 {
+	return x.View.Sequence
+}
+
+func (x *MsgPrepare) GetRound() uint64 {
+	return x.View.Round
 }
 
 func (x *MsgCommit) Bytes() []byte {
@@ -98,6 +114,14 @@ func (x *MsgCommit) Payload() []byte {
 	return bz
 }
 
+func (x *MsgCommit) GetSequence() uint64 {
+	return x.View.Sequence
+}
+
+func (x *MsgCommit) GetRound() uint64 {
+	return x.View.Round
+}
+
 func (x *MsgRoundChange) Bytes() []byte {
 	bz, err := proto.Marshal(x)
 	if err != nil {
@@ -119,6 +143,14 @@ func (x *MsgRoundChange) Payload() []byte {
 	}
 
 	return bz
+}
+
+func (x *MsgRoundChange) GetSequence() uint64 {
+	return x.View.Sequence
+}
+
+func (x *MsgRoundChange) GetRound() uint64 {
+	return x.View.Round
 }
 
 func (x *ProposedBlock) Bytes() []byte {

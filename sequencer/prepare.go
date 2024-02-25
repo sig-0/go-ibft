@@ -10,7 +10,7 @@ import (
 func (s *Sequencer) multicastPrepare(ctx ibft.Context) {
 	msg := &types.MsgPrepare{
 		From:      s.ID(),
-		View:      s.state.currentView,
+		View:      s.state.CurrentView(),
 		BlockHash: s.state.AcceptedBlockHash(),
 	}
 

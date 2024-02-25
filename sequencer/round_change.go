@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
@@ -9,13 +10,15 @@ import (
 
 func (s *Sequencer) multicastRoundChange(ctx ibft.Context) {
 	msg := &types.MsgRoundChange{
-		View:                        s.state.currentView,
+		View:                        s.state.CurrentView(),
 		From:                        s.ID(),
 		LatestPreparedProposedBlock: s.state.latestPreparedProposedBlock,
 		LatestPreparedCertificate:   s.state.latestPreparedCertificate,
 	}
 
 	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
+
+	println("multicasted round change message", msg.String())
 
 	ctx.Transport().Multicast(msg)
 }
@@ -47,10 +50,16 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 
 	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
 		if !s.HasValidSignature(msg) {
+			println("invalid sig in rc msg")
 			return false
 		}
 
-		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
+		if !s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak()) {
+			println("invalid rc msg")
+			return false
+		}
+
+		return true
 	})
 
 	for {
@@ -66,6 +75,8 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 			if len(validRoundChanges) == 0 {
 				continue
 			}
+
+			println("got round change messages")
 
 			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), ibft.WrapMessages(validRoundChanges)) {
 				continue
@@ -95,14 +106,17 @@ func (s *Sequencer) isValidMsgRoundChange(
 	}
 
 	if pb == nil && pc != nil || pb != nil && pc == nil {
+		println("malformed rcc")
 		return false
 	}
 
 	if !s.isValidPC(pc, msg, quorum) {
+		fmt.Printf("invalid pc: %#v", pc.String())
 		return false
 	}
 
 	if !bytes.Equal(pc.ProposalMessage.BlockHash, keccak.Hash(pb.Bytes())) {
+		println("invalid keccak")
 		return false
 	}
 

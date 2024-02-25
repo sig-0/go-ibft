@@ -5,9 +5,8 @@ import (
 )
 
 var (
-	Block            = []byte("block")
-	ValidBlockByte   = byte(1)
-	InvalidBlockByte = byte(0)
+	Block          = []byte("block")
+	ValidBlockByte = byte(1)
 )
 
 type IBFTValidator struct {
@@ -31,38 +30,4 @@ func (v IBFTValidator) BuildProposal(sequence uint64) []byte {
 	binary.BigEndian.PutUint64(buf, sequence)
 
 	return append(buf, Block...)
-}
-
-type SilentValidator IBFTValidator
-
-func (v SilentValidator) Sign(digest []byte) []byte {
-	return IBFTValidator(v).Sign(digest)
-}
-
-func (v SilentValidator) ID() []byte {
-	return IBFTValidator(v).ID()
-}
-
-func (v SilentValidator) BuildProposal(_ uint64) []byte {
-	return nil
-}
-
-type HonestValidator IBFTValidator
-
-func (v HonestValidator) Sign(keccak []byte) []byte {
-	return IBFTValidator(v).Sign(keccak)
-}
-
-func (v HonestValidator) ID() []byte {
-	return IBFTValidator(v).ID()
-}
-
-func (v HonestValidator) BuildProposal(sequence uint64) []byte {
-	return append(IBFTValidator(v).BuildProposal(sequence), ValidBlockByte)
-}
-
-type MaliciousValidator IBFTValidator
-
-func (v MaliciousValidator) BuildProposal(sequence uint64) []byte {
-	return append(IBFTValidator(v).BuildProposal(sequence), InvalidBlockByte)
 }

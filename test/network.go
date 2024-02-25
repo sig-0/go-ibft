@@ -13,6 +13,54 @@ import (
 	"github.com/madz-lab/go-ibft/sequencer"
 )
 
+type MessageOption func(m ibft.Message) bool
+
+func ExcludeMsgIf(opts ...MessageOption) MessageOption {
+	return func(m ibft.Message) bool {
+		for _, opt := range opts {
+			if !opt(m) {
+				return true
+			}
+		}
+
+		return false
+	}
+}
+
+func IsMsgProposal() MessageOption {
+	return func(m ibft.Message) bool {
+		_, ok := m.(*types.MsgProposal)
+		return ok
+	}
+}
+
+func IsMsgPrepare() MessageOption {
+	return func(m ibft.Message) bool {
+		_, ok := m.(*types.MsgPrepare)
+		return ok
+	}
+}
+
+func IsMsgCommit() MessageOption {
+	return func(m ibft.Message) bool {
+		_, ok := m.(*types.MsgCommit)
+		return ok
+	}
+}
+
+func IsMsgRoundChange() MessageOption {
+	return func(m ibft.Message) bool {
+		_, ok := m.(*types.MsgRoundChange)
+		return ok
+	}
+}
+
+func HasRound(r uint64) MessageOption {
+	return func(m ibft.Message) bool {
+		return m.GetRound() == r
+	}
+}
+
 type IBFTNetwork struct {
 	Validators map[string]ibft.Validator
 	Messages   *store.Store
@@ -64,12 +112,25 @@ func (n IBFTNetwork) PoAQuorum() ibft.Quorum {
 	return QuorumFn(q)
 }
 
-type TransportOption func(m ibft.Message) bool
+type FinalizedProposals map[string]*types.FinalizedProposal
 
-func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Duration) error {
-	ch := make(chan *types.FinalizedProposal, len(n.Validators))
+func (fp FinalizedProposals) From(id []byte) *types.FinalizedProposal {
+	return fp[string(id)]
+}
 
-	var wg sync.WaitGroup
+func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Duration) (FinalizedProposals, error) {
+	type tuple struct {
+		Validator []byte
+		Proposal  *types.FinalizedProposal
+	}
+
+	var (
+		proposals = make(FinalizedProposals)
+		ch        = make(chan tuple, len(n.Validators))
+		wg        sync.WaitGroup
+	)
+
+	defer close(ch)
 
 	wg.Add(len(n.Validators))
 
@@ -84,27 +145,28 @@ func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Durati
 			ctx = ctx.WithSigRecover(ECRecover)
 			ctx = ctx.WithTransport(n.Transport)
 
-			seq := sequencer.New(v, NewIBFTVerifier(n), Round0Timeout)
+			fp := sequencer.New(v, NewIBFTVerifier(n), round0Timeout).FinalizeSequence(ctx, sequence)
 
-			ch <- seq.FinalizeSequence(ctx, sequence)
+			ch <- tuple{v.ID(), fp}
 		}(validator)
 	}
 
 	wg.Wait()
 
-	var proposals []*types.FinalizedProposal
 	for i := 0; i < len(n.Validators); i++ {
-		proposals = append(proposals, <-ch)
+		t := <-ch
+		proposals[string(t.Validator)] = t.Proposal
 	}
 
-	// todo: do something with these
-	_ = proposals
-
-	return nil
-
+	return proposals, nil
 }
 
-func (n IBFTNetwork) GetTransportFn(opts ...TransportOption) TransportFn {
+func (n IBFTNetwork) WithTransport(opts ...MessageOption) IBFTNetwork {
+	n.Transport = n.GetTransportFn(opts...)
+	return n
+}
+
+func (n IBFTNetwork) GetTransportFn(opts ...MessageOption) TransportFn {
 	return func(m ibft.Message) {
 		// check opts
 		for _, opt := range opts {

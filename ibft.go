@@ -4,6 +4,12 @@ import "github.com/madz-lab/go-ibft/message/types"
 
 // Message is a convenience wrapper for the IBFT consensus messages. See types.IBFTMessage for concrete types
 type Message interface {
+	// GetSequence returns the sequence for which this Message was created
+	GetSequence() uint64
+
+	// GetRound returns the round in which this Message was created
+	GetRound() uint64
+
 	// GetFrom returns the address associated with this Message
 	GetFrom() []byte
 
@@ -40,7 +46,7 @@ type Verifier interface {
 	// IsValidProposal checks if the provided proposal is valid for given sequence
 	IsValidProposal(proposal []byte, sequence uint64) bool
 
-	// IsProposer checks if the id is the elected proposer for given sequence and round
+	// IsProposer asserts if id is the elected proposer for given sequence and round
 	IsProposer(id []byte, sequence, round uint64) bool
 }
 

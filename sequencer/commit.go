@@ -10,7 +10,7 @@ import (
 func (s *Sequencer) multicastCommit(ctx ibft.Context) {
 	msg := &types.MsgCommit{
 		From:       s.ID(),
-		View:       s.state.currentView,
+		View:       s.state.CurrentView(),
 		BlockHash:  s.state.AcceptedBlockHash(),
 		CommitSeal: s.Sign(s.state.AcceptedBlockHash()),
 	}

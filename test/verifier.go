@@ -42,19 +42,19 @@ func (v IBFTVerifier) IsValidProposal(proposal []byte, sequence uint64) bool {
 		return false
 	}
 
-	if proposal[len(proposal)-1] != ValidBlockByte {
+	if !bytes.Equal(proposal[8:], Block) {
 		return false
 	}
 
 	return true
 }
 
-func (v IBFTVerifier) IsProposer(id []byte, sequence, round uint64) bool {
+func (v IBFTVerifier) IsProposer(id []byte, _, round uint64) bool {
 	set := v.network.ValidatorSet()
 	num := len(set)
 	idx := int(round) % num
 
-	if ok := bytes.Equal(id, set[idx].ID()); !ok {
+	if !bytes.Equal(id, set[idx].ID()) {
 		return false
 	}
 

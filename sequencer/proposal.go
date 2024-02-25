@@ -15,7 +15,7 @@ func (s *Sequencer) multicastProposal(ctx ibft.Context, block []byte) {
 
 	msg := &types.MsgProposal{
 		From:                   s.ID(),
-		View:                   s.state.currentView,
+		View:                   s.state.CurrentView(),
 		ProposedBlock:          pb,
 		BlockHash:              ctx.Keccak().Hash(pb.Bytes()),
 		RoundChangeCertificate: s.state.roundChangeCertificate,
