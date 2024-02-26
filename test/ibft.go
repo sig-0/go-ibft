@@ -66,10 +66,12 @@ func (v IBFTValidator) ID() []byte {
 }
 
 func (v IBFTValidator) BuildProposal(sequence uint64) []byte {
+	proposal := make([]byte, 0, 8+len(Block))
+
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, sequence)
 
-	return append(buf, Block...)
+	return append(append(proposal, buf...), Block...)
 }
 
 type IBFTVerifier struct {

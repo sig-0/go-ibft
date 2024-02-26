@@ -1,8 +1,6 @@
 package sequencer
 
 import (
-	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"math"
 	"sync"
 	"time"
@@ -92,8 +90,6 @@ func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedProposal {
 
 			s.state.MoveToNextRound()
 			s.multicastRoundChange(ctx)
-
-			fmt.Printf("%s round timer expired: view=%s\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentView().String())
 
 		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound):
 			teardown()
@@ -220,28 +216,18 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *
 				return
 			}
 
-			fmt.Printf("%s got proposal\t view=%s\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentView().String())
-
 			s.multicastPrepare(ctx)
-
-			fmt.Printf("%s multicast prepare\t view=%s\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentView().String())
-
 		}
 
 		if err := s.awaitPrepare(ctx); err != nil {
 			return
 		}
 
-		fmt.Printf("%s got quorum prepares\t view=%s\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentView().String())
-
 		s.multicastCommit(ctx)
-		fmt.Printf("%s multicast commit\t view=%s\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentView().String())
 
 		if err := s.awaitCommit(ctx); err != nil {
 			return
 		}
-
-		fmt.Printf("%s got quorum commits\t view=%s\n", common.BytesToAddress(s.ID()).Hex(), s.state.CurrentView().String())
 
 		c <- s.state.FinalizedBlock()
 	}()
@@ -275,12 +261,12 @@ func (s *Sequencer) buildBlock(ctx ibft.Context) ([]byte, error) {
 
 	if s.state.roundChangeCertificate == nil {
 		// round jump triggered by round timer -> justify proposal with rcc
-		rCc, err := s.awaitRCC(ctx, s.state.currentView, false)
+		RCC, err := s.awaitRCC(ctx, s.state.currentView, false)
 		if err != nil {
 			return nil, err
 		}
 
-		s.state.roundChangeCertificate = rCc
+		s.state.roundChangeCertificate = RCC
 	}
 
 	rcc := s.state.roundChangeCertificate
