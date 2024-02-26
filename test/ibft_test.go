@@ -11,6 +11,8 @@ import (
 )
 
 func Test_Finalize_Sequence_4_Validators(t *testing.T) {
+	t.Parallel()
+
 	validators := []ibft.Validator{
 		NewIBFTValidator(),
 		NewIBFTValidator(),
@@ -20,18 +22,18 @@ func Test_Finalize_Sequence_4_Validators(t *testing.T) {
 
 	table := []struct {
 		name                   string
+		opts                   []MessageOption
 		round0Timeout          time.Duration
 		expectedFinalizedRound uint64
-		opts                   []MessageOption
 	}{
 		{
-			name:                   "proposal finalized in round 0",
+			name:                   "proposal 0 finalized",
 			round0Timeout:          50 * time.Millisecond,
 			expectedFinalizedRound: 0,
 		},
 
 		{
-			name:                   "proposal finalized in round 1 because proposal was missed",
+			name:                   "proposal 1 finalized because proposal 0 was missed",
 			round0Timeout:          100 * time.Millisecond,
 			expectedFinalizedRound: 1,
 			opts: []MessageOption{
@@ -40,7 +42,7 @@ func Test_Finalize_Sequence_4_Validators(t *testing.T) {
 		},
 
 		{
-			name:                   "proposal finalized in round 1 because all prepare messages were missed",
+			name:                   "proposal 1 finalized because all prepare messages were missed",
 			round0Timeout:          100 * time.Millisecond,
 			expectedFinalizedRound: 1,
 			opts: []MessageOption{
@@ -49,7 +51,7 @@ func Test_Finalize_Sequence_4_Validators(t *testing.T) {
 		},
 
 		{
-			name:                   "proposal finalized in round 1 because all commit messages were missed",
+			name:                   "proposal 1 finalized because all commit messages were missed",
 			round0Timeout:          100 * time.Millisecond,
 			expectedFinalizedRound: 1,
 			opts: []MessageOption{
@@ -58,7 +60,7 @@ func Test_Finalize_Sequence_4_Validators(t *testing.T) {
 		},
 
 		{
-			name:                   "proposal finalized in round 2 because first 2 proposals were missed",
+			name:                   "proposal 2 finalized because first 2 proposals were missed",
 			round0Timeout:          100 * time.Millisecond,
 			expectedFinalizedRound: 2,
 			opts: []MessageOption{

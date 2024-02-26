@@ -115,7 +115,7 @@ func (c *syncCollection[M]) RemoveMessages(view *types.View) {
 type msgCollection[M message] map[uint64]map[uint64]msgSet[M]
 
 func (c *msgCollection[M]) add(msg M) {
-	c.loadOrStoreSet(msg.GetView())[string(msg.GetFrom())] = msg
+	c.loadOrStoreSet(msg.GetView())[string(msg.GetSender())] = msg
 }
 
 func (c *msgCollection[M]) loadOrStoreSet(view *types.View) msgSet[M] {

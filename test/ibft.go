@@ -17,14 +17,6 @@ var (
 	DefaultKeccak ibft.Keccak = KeccakFn(func(data []byte) []byte {
 		return crypto.Keccak256(data)
 	})
-	//ECRecover ibft.SigRecover = SigRecoverFn(func(digest, sig []byte) []byte {
-	//	pubKey, err := crypto.SigToPub(digest, sig)
-	//	if err != nil {
-	//		panic(fmt.Errorf("failed to extract pub key: %w", err).Error())
-	//	}
-	//
-	//	return crypto.PubkeyToAddress(*pubKey).Bytes()
-	//})
 )
 
 type ECDSAKey struct {
@@ -89,7 +81,7 @@ func NewIBFTVerifier(network IBFTNetwork) ibft.Verifier {
 	return IBFTVerifier{network}
 }
 
-func (v IBFTVerifier) IsValidSignature(sender []byte, digest []byte, sig []byte) bool {
+func (v IBFTVerifier) IsValidSignature(sender, digest, sig []byte) bool {
 	pubKey, err := crypto.SigToPub(digest, sig)
 	if err != nil {
 		panic(fmt.Errorf("failed to extract pub key: %w", err).Error())
@@ -102,7 +94,7 @@ func (v IBFTVerifier) IsValidSignature(sender []byte, digest []byte, sig []byte)
 	return true
 }
 
-func (v IBFTVerifier) IsValidator(id []byte, sequence uint64) bool {
+func (v IBFTVerifier) IsValidator(_ []byte, _ uint64) bool {
 	return true
 }
 
@@ -111,11 +103,7 @@ func (v IBFTVerifier) IsValidProposal(proposal []byte, sequence uint64) bool {
 		return false
 	}
 
-	if !bytes.Equal(proposal[8:], Block) {
-		return false
-	}
-
-	return true
+	return bytes.Equal(proposal[8:], Block)
 }
 
 func (v IBFTVerifier) IsProposer(id []byte, _, round uint64) bool {
@@ -123,11 +111,7 @@ func (v IBFTVerifier) IsProposer(id []byte, _, round uint64) bool {
 	num := len(set)
 	idx := int(round) % num
 
-	if !bytes.Equal(id, set[idx].ID()) {
-		return false
-	}
-
-	return true
+	return bytes.Equal(id, set[idx].ID())
 }
 
 type (

@@ -21,7 +21,7 @@ func newMsgCache[M types.IBFTMessage](filterFn func(M) bool) msgCache[M] {
 
 func (c msgCache[M]) Add(messages []M) msgCache[M] {
 	for _, msg := range messages {
-		from := any(msg).(ibft.Message).GetFrom() //nolint:forcetypeassert // msg constraint
+		from := any(msg).(ibft.Message).GetSender() //nolint:forcetypeassert // msg constraint
 		if _, ok := c.seen[string(from)]; ok {
 			continue
 		}

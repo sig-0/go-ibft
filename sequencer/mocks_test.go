@@ -65,7 +65,7 @@ func (v MockValidator) BuildProposal(uint64) []byte {
 	return v.BuildProposalFn()
 }
 
-func (v MockVerifier) IsValidSignature(sender []byte, digest []byte, sig []byte) bool {
+func (v MockVerifier) IsValidSignature(sender, digest, sig []byte) bool {
 	return v.IsValidSignatureFn(sender, digest, sig)
 }
 

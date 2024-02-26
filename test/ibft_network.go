@@ -31,6 +31,7 @@ func ExcludeMsgIf(opts ...MessageOption) MessageOption {
 func IsMsgProposal() MessageOption {
 	return func(m ibft.Message) bool {
 		_, ok := m.(*types.MsgProposal)
+
 		return ok
 	}
 }
@@ -38,6 +39,7 @@ func IsMsgProposal() MessageOption {
 func IsMsgPrepare() MessageOption {
 	return func(m ibft.Message) bool {
 		_, ok := m.(*types.MsgPrepare)
+
 		return ok
 	}
 }
@@ -45,6 +47,7 @@ func IsMsgPrepare() MessageOption {
 func IsMsgCommit() MessageOption {
 	return func(m ibft.Message) bool {
 		_, ok := m.(*types.MsgCommit)
+
 		return ok
 	}
 }
@@ -52,6 +55,7 @@ func IsMsgCommit() MessageOption {
 func IsMsgRoundChange() MessageOption {
 	return func(m ibft.Message) bool {
 		_, ok := m.(*types.MsgRoundChange)
+
 		return ok
 	}
 }
@@ -98,6 +102,7 @@ func (n IBFTNetwork) ValidatorSet() []ibft.Validator {
 
 func (n IBFTNetwork) PoAQuorum() ibft.Quorum {
 	validatorCount := len(n.Validators)
+
 	var quorum int
 
 	if (validatorCount-1)/3 == 0 {
@@ -113,7 +118,10 @@ func (n IBFTNetwork) PoAQuorum() ibft.Quorum {
 	return QuorumFn(q)
 }
 
-func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Duration) ([]*types.FinalizedProposal, error) {
+func (n IBFTNetwork) FinalizeSequence(
+	sequence uint64,
+	round0Timeout time.Duration,
+) ([]*types.FinalizedProposal, error) {
 	var (
 		proposals    = make([]*types.FinalizedProposal, 0)
 		wg           sync.WaitGroup
@@ -138,7 +146,6 @@ func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Durati
 			defer proposalsMux.Unlock()
 
 			proposals = append(proposals, fp)
-
 		}(validator)
 	}
 
@@ -149,6 +156,7 @@ func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Durati
 
 func (n IBFTNetwork) WithTransport(opts ...MessageOption) IBFTNetwork {
 	n.Transport = n.GetTransportFn(opts...)
+
 	return n
 }
 
@@ -178,40 +186,40 @@ func AllValidProposals(network IBFTNetwork, proposals []*types.FinalizedProposal
 		return false // all validators must have finalized proposals
 	}
 
-	allProposals := make([][]byte, 0, len(proposals))
+	var (
+		allProposals = make([][]byte, 0, len(proposals))
+		allRounds    = make([]uint64, 0, len(proposals))
+		allSeals     = make(map[string][]byte)
+	)
+
 	for _, p := range proposals {
 		allProposals = append(allProposals, p.Proposal)
 	}
 
-	p := allProposals[0]
+	// all proposals are the same
 	for _, pp := range allProposals[1:] {
-		if !bytes.Equal(p, pp) {
+		if !bytes.Equal(allProposals[0], pp) {
 			return false
 		}
 	}
 
-	allRounds := make([]uint64, 0, len(proposals))
 	for _, p := range proposals {
 		allRounds = append(allRounds, p.Round)
 	}
 
-	r := allRounds[0]
+	// all rounds are the same
 	for _, round := range allRounds[1:] {
-		if r != round {
+		if allRounds[0] != round {
 			return false
 		}
 	}
 
-	seals := make(map[string][]byte)
+	// all seals are unique
 	for _, p := range proposals {
 		for _, seal := range p.Seals {
-			seals[string(seal.From)] = seal.CommitSeal
+			allSeals[string(seal.From)] = seal.CommitSeal
 		}
 	}
 
-	if len(proposals) != len(seals) {
-		return false
-	}
-
-	return true
+	return len(proposals) == len(allSeals)
 }

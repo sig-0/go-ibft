@@ -22,8 +22,8 @@ type Message interface {
 	// GetRound returns the round in which this Message was created
 	GetRound() uint64
 
-	// GetFrom returns the address associated with this Message
-	GetFrom() []byte
+	// GetSender returns the sender ID associated with this Message
+	GetSender() []byte
 
 	// GetSignature returns the signature of this Message
 	GetSignature() []byte
@@ -67,8 +67,8 @@ type Validator interface {
 type (
 	// Signer is used to generate a sender-unique signature of a keccak hash
 	Signer interface {
-		// Sign returns the signature of given keccak
-		Sign(keccak []byte) []byte
+		// Sign computes the signature of given digest
+		Sign(digest []byte) []byte
 	}
 
 	// Transport is used to gossip a consensus message to the network

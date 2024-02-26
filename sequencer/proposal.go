@@ -48,7 +48,7 @@ func (s *Sequencer) awaitProposal(ctx ibft.Context, view *types.View, higherRoun
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgProposal) bool {
-		if !s.IsValidSignature(msg.GetFrom(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
+		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
 
@@ -60,11 +60,7 @@ func (s *Sequencer) awaitProposal(ctx ibft.Context, view *types.View, higherRoun
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			messages := notification.Unwrap()
-
-			cache = cache.Add(messages)
-			validProposals := cache.Messages()
-
+			validProposals := cache.Add(notification.Unwrap()).Messages()
 			if len(validProposals) == 0 {
 				continue
 			}

@@ -631,7 +631,8 @@ func TestIsValidMsgCommit(t *testing.T) {
 			verifier: MockVerifier{
 				IsValidatorFn: func(from []byte, _ uint64) bool {
 					return bytes.Equal(from, []byte("validator"))
-				}},
+				},
+			},
 
 			acceptedProposal: &types.MsgProposal{
 				BlockHash: []byte("block hash"),
@@ -691,7 +692,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 			s := New(nil, tt.verifier, 0)
 			s.state.acceptedProposal = tt.acceptedProposal
 
-			assert.Equal(t, tt.isValid, s.isValidCommit(tt.msg))
+			assert.Equal(t, tt.isValid, s.isValidMsgCommit(tt.msg))
 		})
 	}
 }

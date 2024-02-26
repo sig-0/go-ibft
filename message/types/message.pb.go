@@ -291,7 +291,7 @@ func (x *MsgProposal) GetView() *View {
 	return nil
 }
 
-func (x *MsgProposal) GetFrom() []byte {
+func (x *MsgProposal) GetSender() []byte {
 	if x != nil {
 		return x.From
 	}
@@ -377,7 +377,7 @@ func (x *MsgPrepare) GetView() *View {
 	return nil
 }
 
-func (x *MsgPrepare) GetFrom() []byte {
+func (x *MsgPrepare) GetSender() []byte {
 	if x != nil {
 		return x.From
 	}
@@ -450,7 +450,7 @@ func (x *MsgCommit) GetView() *View {
 	return nil
 }
 
-func (x *MsgCommit) GetFrom() []byte {
+func (x *MsgCommit) GetSender() []byte {
 	if x != nil {
 		return x.From
 	}
@@ -530,7 +530,7 @@ func (x *MsgRoundChange) GetView() *View {
 	return nil
 }
 
-func (x *MsgRoundChange) GetFrom() []byte {
+func (x *MsgRoundChange) GetSender() []byte {
 	if x != nil {
 		return x.From
 	}

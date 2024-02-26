@@ -9,7 +9,7 @@ type message interface {
 	types.IBFTMessage
 
 	GetView() *types.View
-	GetFrom() []byte
+	GetSender() []byte
 }
 
 // Store is a thread-safe storage for consensus messages with a built-in Feed mechanism

@@ -35,7 +35,7 @@ func (s *Sequencer) awaitQuorumPrepares(ctx ibft.Context) ([]*types.MsgPrepare, 
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgPrepare) bool {
-		if !s.IsValidSignature(msg.GetFrom(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
+		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
 
@@ -47,11 +47,7 @@ func (s *Sequencer) awaitQuorumPrepares(ctx ibft.Context) ([]*types.MsgPrepare, 
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			messages := notification.Unwrap()
-
-			cache = cache.Add(messages)
-			validPrepares := cache.Messages()
-
+			validPrepares := cache.Add(notification.Unwrap()).Messages()
 			if !ctx.Quorum().HasQuorum(ibft.WrapMessages(validPrepares...)) {
 				continue
 			}

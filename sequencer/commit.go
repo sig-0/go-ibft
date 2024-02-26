@@ -35,11 +35,11 @@ func (s *Sequencer) awaitCommit(ctx ibft.Context) error {
 
 func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, error) {
 	cache := newMsgCache(func(msg *types.MsgCommit) bool {
-		if !s.IsValidSignature(msg.GetFrom(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
+		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
 
-		return s.isValidCommit(msg)
+		return s.isValidMsgCommit(msg)
 	})
 
 	sub, cancelSub := ctx.Feed().CommitMessages(s.state.currentView, false)
@@ -50,11 +50,7 @@ func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, er
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			messages := notification.Unwrap()
-
-			cache = cache.Add(messages)
-			validCommits := cache.Messages()
-
+			validCommits := cache.Add(notification.Unwrap()).Messages()
 			if len(validCommits) == 0 {
 				continue
 			}
@@ -68,7 +64,7 @@ func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, er
 	}
 }
 
-func (s *Sequencer) isValidCommit(msg *types.MsgCommit) bool {
+func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit) bool {
 	if !s.IsValidator(msg.From, msg.View.Sequence) {
 		return false
 	}
@@ -78,7 +74,7 @@ func (s *Sequencer) isValidCommit(msg *types.MsgCommit) bool {
 		return false
 	}
 
-	if !s.IsValidSignature(msg.GetFrom(), acceptedBlockHash, msg.CommitSeal) {
+	if !s.IsValidSignature(msg.GetSender(), acceptedBlockHash, msg.CommitSeal) {
 		return false
 	}
 
