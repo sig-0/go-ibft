@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bytes"
 	"context"
 	"math"
 	"sort"
@@ -112,25 +113,12 @@ func (n IBFTNetwork) PoAQuorum() ibft.Quorum {
 	return QuorumFn(q)
 }
 
-type FinalizedProposals map[string]*types.FinalizedProposal
-
-func (fp FinalizedProposals) From(id []byte) *types.FinalizedProposal {
-	return fp[string(id)]
-}
-
-func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Duration) (FinalizedProposals, error) {
-	type tuple struct {
-		Validator []byte
-		Proposal  *types.FinalizedProposal
-	}
-
+func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Duration) ([]*types.FinalizedProposal, error) {
 	var (
-		proposals = make(FinalizedProposals)
-		ch        = make(chan tuple, len(n.Validators))
-		wg        sync.WaitGroup
+		proposals    = make([]*types.FinalizedProposal, 0)
+		wg           sync.WaitGroup
+		proposalsMux sync.Mutex
 	)
-
-	defer close(ch)
 
 	wg.Add(len(n.Validators))
 
@@ -147,16 +135,15 @@ func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Durati
 
 			fp := sequencer.New(v, NewIBFTVerifier(n), round0Timeout).FinalizeSequence(ctx, sequence)
 
-			ch <- tuple{v.ID(), fp}
+			proposalsMux.Lock()
+			defer proposalsMux.Unlock()
+
+			proposals = append(proposals, fp)
+
 		}(validator)
 	}
 
 	wg.Wait()
-
-	for i := 0; i < len(n.Validators); i++ {
-		t := <-ch
-		proposals[string(t.Validator)] = t.Proposal
-	}
 
 	return proposals, nil
 }
@@ -168,7 +155,6 @@ func (n IBFTNetwork) WithTransport(opts ...MessageOption) IBFTNetwork {
 
 func (n IBFTNetwork) GetTransportFn(opts ...MessageOption) TransportFn {
 	return func(m ibft.Message) {
-		// check opts
 		for _, opt := range opts {
 			if !opt(m) {
 				return
@@ -186,4 +172,47 @@ func (n IBFTNetwork) GetTransportFn(opts ...MessageOption) TransportFn {
 			n.Messages.RoundChangeMessages.AddMessage(m)
 		}
 	}
+}
+
+func AllValidProposals(network IBFTNetwork, proposals []*types.FinalizedProposal) bool {
+	if len(network.Validators) != len(proposals) {
+		return false // all validators must have finalized proposals
+	}
+
+	allProposals := make([][]byte, 0, len(proposals))
+	for _, p := range proposals {
+		allProposals = append(allProposals, p.Proposal)
+	}
+
+	p := allProposals[0]
+	for _, pp := range allProposals[1:] {
+		if !bytes.Equal(p, pp) {
+			return false
+		}
+	}
+
+	allRounds := make([]uint64, 0, len(proposals))
+	for _, p := range proposals {
+		allRounds = append(allRounds, p.Round)
+	}
+
+	r := allRounds[0]
+	for _, round := range allRounds[1:] {
+		if r != round {
+			return false
+		}
+	}
+
+	seals := make(map[string][]byte)
+	for _, p := range proposals {
+		for _, seal := range p.Seals {
+			seals[string(seal.From)] = seal.CommitSeal
+		}
+	}
+
+	if len(proposals) != len(seals) {
+		return false
+	}
+
+	return true
 }
