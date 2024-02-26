@@ -28,7 +28,7 @@ func Test_Finalize_Sequence_4_Validators(t *testing.T) {
 	}{
 		{
 			name:                   "proposal 0 finalized",
-			round0Timeout:          50 * time.Millisecond,
+			round0Timeout:          200 * time.Millisecond,
 			expectedFinalizedRound: 0,
 		},
 

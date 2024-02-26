@@ -62,16 +62,18 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			validRoundChanges := cache.Add(notification.Unwrap()).Messages()
-			if len(validRoundChanges) == 0 {
+			cache = cache.Add(notification.Unwrap())
+
+			roundChanges := cache.Get()
+			if len(roundChanges) == 0 {
 				continue
 			}
 
-			if !ctx.Quorum().HasQuorum(ibft.WrapMessages(validRoundChanges...)) {
+			if !ctx.Quorum().HasQuorum(ibft.WrapMessages(roundChanges...)) {
 				continue
 			}
 
-			return validRoundChanges, nil
+			return roundChanges, nil
 		}
 	}
 }

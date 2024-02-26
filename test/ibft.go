@@ -12,8 +12,7 @@ import (
 )
 
 var (
-	Block = []byte("block")
-
+	Block                     = []byte("block")
 	DefaultKeccak ibft.Keccak = KeccakFn(func(data []byte) []byte {
 		return crypto.Keccak256(data)
 	})
@@ -115,10 +114,9 @@ func (v IBFTVerifier) IsProposer(id []byte, _, round uint64) bool {
 }
 
 type (
-	TransportFn  func(ibft.Message)
-	QuorumFn     func([]ibft.Message) bool
-	SigRecoverFn func(digest, sig []byte) []byte
-	KeccakFn     func([]byte) []byte
+	TransportFn func(ibft.Message)
+	QuorumFn    func([]ibft.Message) bool
+	KeccakFn    func([]byte) []byte
 )
 
 func (f TransportFn) Multicast(msg ibft.Message) {
@@ -127,10 +125,6 @@ func (f TransportFn) Multicast(msg ibft.Message) {
 
 func (f QuorumFn) HasQuorum(messages []ibft.Message) bool {
 	return f(messages)
-}
-
-func (f SigRecoverFn) From(digest, sig []byte) []byte {
-	return f(digest, sig)
 }
 
 func (f KeccakFn) Hash(data []byte) []byte {

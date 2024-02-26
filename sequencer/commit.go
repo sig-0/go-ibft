@@ -50,16 +50,19 @@ func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, er
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			validCommits := cache.Add(notification.Unwrap()).Messages()
-			if len(validCommits) == 0 {
+			messages := notification.Unwrap()
+			cache = cache.Add(messages)
+
+			commits := notification.Unwrap()
+			if len(commits) == 0 {
 				continue
 			}
 
-			if !ctx.Quorum().HasQuorum(ibft.WrapMessages(validCommits...)) {
+			if !ctx.Quorum().HasQuorum(ibft.WrapMessages(commits...)) {
 				continue
 			}
 
-			return validCommits, nil
+			return commits, nil
 		}
 	}
 }

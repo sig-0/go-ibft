@@ -38,6 +38,6 @@ func (c msgCache[M]) Add(messages []M) msgCache[M] {
 	return c
 }
 
-func (c msgCache[M]) Messages() []M {
-	return c.filtered
+func (c msgCache[M]) Get() []M {
+	return append(make([]M, 0, len(c.filtered)), c.filtered...)
 }

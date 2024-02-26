@@ -6,10 +6,9 @@ import (
 )
 
 type (
-	QuorumFn     func([]ibft.Message) bool
-	TransportFn  func(ibft.Message)
-	KeccakFn     func([]byte) []byte
-	SigRecoverFn func([]byte, []byte) []byte
+	QuorumFn    func([]ibft.Message) bool
+	TransportFn func(ibft.Message)
+	KeccakFn    func([]byte) []byte
 
 	MockValidator struct {
 		IDFn            func() []byte
@@ -47,10 +46,6 @@ func (t TransportFn) Multicast(msg ibft.Message) {
 
 func (k KeccakFn) Hash(data []byte) []byte {
 	return k(data)
-}
-
-func (r SigRecoverFn) From(data, sig []byte) []byte {
-	return r(data, sig)
 }
 
 func (v MockValidator) ID() []byte {
