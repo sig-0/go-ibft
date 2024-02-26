@@ -17,14 +17,14 @@ var (
 	DefaultKeccak ibft.Keccak = KeccakFn(func(data []byte) []byte {
 		return crypto.Keccak256(data)
 	})
-	ECRecover ibft.SigRecover = SigRecoverFn(func(digest, sig []byte) []byte {
-		pubKey, err := crypto.SigToPub(digest, sig)
-		if err != nil {
-			panic(fmt.Errorf("failed to extract pub key: %w", err).Error())
-		}
-
-		return crypto.PubkeyToAddress(*pubKey).Bytes()
-	})
+	//ECRecover ibft.SigRecover = SigRecoverFn(func(digest, sig []byte) []byte {
+	//	pubKey, err := crypto.SigToPub(digest, sig)
+	//	if err != nil {
+	//		panic(fmt.Errorf("failed to extract pub key: %w", err).Error())
+	//	}
+	//
+	//	return crypto.PubkeyToAddress(*pubKey).Bytes()
+	//})
 )
 
 type ECDSAKey struct {
@@ -89,17 +89,13 @@ func NewIBFTVerifier(network IBFTNetwork) ibft.Verifier {
 	return IBFTVerifier{network}
 }
 
-func (v IBFTVerifier) HasValidSignature(msg ibft.Message) bool {
-	from := msg.GetFrom()
-	sig := msg.GetSignature()
-	digest := crypto.Keccak256(msg.Payload())
-
+func (v IBFTVerifier) IsValidSignature(sender []byte, digest []byte, sig []byte) bool {
 	pubKey, err := crypto.SigToPub(digest, sig)
 	if err != nil {
 		panic(fmt.Errorf("failed to extract pub key: %w", err).Error())
 	}
 
-	if !bytes.Equal(from, crypto.PubkeyToAddress(*pubKey).Bytes()) {
+	if !bytes.Equal(sender, crypto.PubkeyToAddress(*pubKey).Bytes()) {
 		return false
 	}
 

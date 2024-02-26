@@ -601,34 +601,38 @@ func TestIsValidMsgCommit(t *testing.T) {
 
 	table := []struct {
 		verifier         ibft.Verifier
-		recover          ibft.SigRecover
 		msg              *types.MsgCommit
 		acceptedProposal *types.MsgProposal
 		name             string
 		isValid          bool
 	}{
 		{
-			name: "invalid block hash",
+			name: "invalid sender",
 			msg: &types.MsgCommit{
-				BlockHash: []byte("invalid block hash"),
+				View: &types.View{Sequence: 101},
+				From: []byte("not a validator"),
 			},
 
-			acceptedProposal: &types.MsgProposal{
-				BlockHash: []byte("block hash"),
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				},
 			},
 		},
 
 		{
-			name: "invalid sender",
+			name: "invalid block hash",
 			msg: &types.MsgCommit{
 				View:      &types.View{Sequence: 101},
-				From:      []byte("not a validator"),
-				BlockHash: []byte("block hash"),
+				BlockHash: []byte("invalid block hash"),
+				From:      []byte("validator"),
 			},
 
-			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
-				return bytes.Equal(from, []byte("validator"))
-			}},
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				}},
+
 			acceptedProposal: &types.MsgProposal{
 				BlockHash: []byte("block hash"),
 			},
@@ -643,38 +647,39 @@ func TestIsValidMsgCommit(t *testing.T) {
 				CommitSeal: []byte("invalid commit seal"),
 			},
 
-			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
-				return bytes.Equal(from, []byte("validator"))
-			}},
+			verifier: MockVerifier{
+				IsValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				},
+				IsValidSignatureFn: func(_, _, _ []byte) bool {
+					return false
+				},
+			},
 			acceptedProposal: &types.MsgProposal{
 				BlockHash: []byte("block hash"),
 			},
-
-			recover: SigRecoverFn(func(_ []byte, _ []byte) []byte {
-				return []byte("commit seal")
-			}),
 		},
 
 		{
 			name:    "valid commit msg",
 			isValid: true,
 			msg: &types.MsgCommit{
-				View:       &types.View{Sequence: 101},
-				BlockHash:  []byte("block hash"),
-				From:       []byte("validator"),
-				CommitSeal: []byte("commit seal"),
+				View:      &types.View{Sequence: 101},
+				BlockHash: []byte("block hash"),
+				From:      []byte("validator"),
 			},
 
-			verifier: MockVerifier{IsValidatorFn: func(from []byte, _ uint64) bool {
-				return bytes.Equal(from, []byte("validator"))
-			}},
+			verifier: MockVerifier{
+				IsValidSignatureFn: func(_, _, _ []byte) bool {
+					return true
+				},
+				IsValidatorFn: func(from []byte, _ uint64) bool {
+					return bytes.Equal(from, []byte("validator"))
+				},
+			},
 			acceptedProposal: &types.MsgProposal{
 				BlockHash: []byte("block hash"),
 			},
-
-			recover: SigRecoverFn(func(_ []byte, _ []byte) []byte {
-				return []byte("validator")
-			}),
 		},
 	}
 
@@ -686,7 +691,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 			s := New(nil, tt.verifier, 0)
 			s.state.acceptedProposal = tt.acceptedProposal
 
-			assert.Equal(t, tt.isValid, s.isValidCommit(tt.msg, tt.recover))
+			assert.Equal(t, tt.isValid, s.isValidCommit(tt.msg))
 		})
 	}
 }

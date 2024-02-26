@@ -5,11 +5,10 @@ import "context"
 type ctxKey string
 
 const (
-	transport  ctxKey = "transport"
-	feed       ctxKey = "feed"
-	quorum     ctxKey = "quorum"
-	keccak     ctxKey = "keccak"
-	sigRecover ctxKey = "sig_recover"
+	transport ctxKey = "transport"
+	feed      ctxKey = "feed"
+	quorum    ctxKey = "quorum"
+	keccak    ctxKey = "keccak"
 )
 
 // Context is a convenience wrapper that provides external functionalities
@@ -69,14 +68,4 @@ func (c Context) WithKeccak(k Keccak) Context {
 // Keccak returns the Keccak hash generator associated with this context
 func (c Context) Keccak() Keccak {
 	return c.Value(keccak).(Keccak) //nolint:forcetypeassert // redundant
-}
-
-// WithSigRecover sets the required sender recovery callback
-func (c Context) WithSigRecover(s SigRecover) Context {
-	return Context{context.WithValue(c, sigRecover, s)}
-}
-
-// SigRecover returns the sender recovery callback associated with this context
-func (c Context) SigRecover() SigRecover {
-	return c.Value(sigRecover).(SigRecover) //nolint:forcetypeassert // redundant
 }

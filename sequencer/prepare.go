@@ -35,7 +35,7 @@ func (s *Sequencer) awaitQuorumPrepares(ctx ibft.Context) ([]*types.MsgPrepare, 
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgPrepare) bool {
-		if !s.HasValidSignature(msg) {
+		if !s.IsValidSignature(msg.GetFrom(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
 

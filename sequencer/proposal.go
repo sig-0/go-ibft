@@ -48,7 +48,7 @@ func (s *Sequencer) awaitProposal(ctx ibft.Context, view *types.View, higherRoun
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgProposal) bool {
-		if !s.HasValidSignature(msg) {
+		if !s.IsValidSignature(msg.GetFrom(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
 

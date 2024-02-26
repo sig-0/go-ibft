@@ -49,7 +49,7 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
-		if !s.HasValidSignature(msg) {
+		if !s.IsValidSignature(msg.GetFrom(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			println("invalid sig in rc msg")
 			return false
 		}

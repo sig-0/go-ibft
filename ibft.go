@@ -2,6 +2,18 @@ package ibft
 
 import "github.com/madz-lab/go-ibft/message/types"
 
+// WrapMessages wraps concrete message types into Message type
+func WrapMessages[M types.IBFTMessage](messages ...M) []Message {
+	wrapped := make([]Message, 0, len(messages))
+
+	for _, msg := range messages {
+		//nolint:forcetypeassert // guarded by the types.IBFTMessage constraint
+		wrapped = append(wrapped, any(msg).(Message))
+	}
+
+	return wrapped
+}
+
 // Message is a convenience wrapper for the IBFT consensus messages. See types.IBFTMessage for concrete types
 type Message interface {
 	// GetSequence returns the sequence for which this Message was created
@@ -23,22 +35,10 @@ type Message interface {
 	Bytes() []byte
 }
 
-// WrapMessages wraps concrete message types into Message type
-func WrapMessages[M types.IBFTMessage](messages ...M) []Message {
-	wrapped := make([]Message, 0, len(messages))
-
-	for _, msg := range messages {
-		//nolint:forcetypeassert // guarded by the types.IBFTMessage constraint
-		wrapped = append(wrapped, any(msg).(Message))
-	}
-
-	return wrapped
-}
-
-// Verifier authenticates consensus messages and their senders
+// Verifier authenticates consensus messages gossiped in the network
 type Verifier interface {
-	// HasValidSignature checks if the signature of the message is valid
-	HasValidSignature(msg Message) bool
+	// IsValidSignature checks if the signature of the message is valid
+	IsValidSignature(sender, digest, sig []byte) bool
 
 	// IsValidator checks if id is part of consensus for given sequence
 	IsValidator(id []byte, sequence uint64) bool
@@ -55,7 +55,7 @@ type Verifier interface {
 type Validator interface {
 	Signer
 
-	// ID returns the unique ID of this validator
+	// ID returns the network-unique ID of this validator
 	ID() []byte
 
 	// BuildProposal returns this validator's proposal for given sequence
@@ -69,12 +69,6 @@ type (
 	Signer interface {
 		// Sign returns the signature of given keccak
 		Sign(keccak []byte) []byte
-	}
-
-	// SigRecover is used to extract the sender associated with some payload and its signature
-	SigRecover interface {
-		// From returns the sender associated with this data and signature
-		From(data, sig []byte) []byte
 	}
 
 	// Transport is used to gossip a consensus message to the network

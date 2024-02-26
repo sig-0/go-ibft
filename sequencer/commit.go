@@ -34,13 +34,12 @@ func (s *Sequencer) awaitCommit(ctx ibft.Context) error {
 }
 
 func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, error) {
-	sigRecover := ctx.SigRecover()
 	cache := newMsgCache(func(msg *types.MsgCommit) bool {
-		if !s.HasValidSignature(msg) {
+		if !s.IsValidSignature(msg.GetFrom(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
 
-		return s.isValidCommit(msg, sigRecover)
+		return s.isValidCommit(msg)
 	})
 
 	sub, cancelSub := ctx.Feed().CommitMessages(s.state.currentView, false)
@@ -69,17 +68,17 @@ func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, er
 	}
 }
 
-func (s *Sequencer) isValidCommit(msg *types.MsgCommit, sigRecover ibft.SigRecover) bool {
+func (s *Sequencer) isValidCommit(msg *types.MsgCommit) bool {
+	if !s.IsValidator(msg.From, msg.View.Sequence) {
+		return false
+	}
+
 	acceptedBlockHash := s.state.AcceptedBlockHash()
 	if !bytes.Equal(msg.BlockHash, acceptedBlockHash) {
 		return false
 	}
 
-	if !s.IsValidator(msg.From, msg.View.Sequence) {
-		return false
-	}
-
-	if !bytes.Equal(msg.From, sigRecover.From(acceptedBlockHash, msg.CommitSeal)) {
+	if !s.IsValidSignature(msg.GetFrom(), acceptedBlockHash, msg.CommitSeal) {
 		return false
 	}
 

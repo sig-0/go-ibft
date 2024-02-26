@@ -130,7 +130,6 @@ func (n IBFTNetwork) FinalizeSequence(sequence uint64, round0Timeout time.Durati
 			ctx = ctx.WithFeed(n.Messages.Feed())
 			ctx = ctx.WithKeccak(DefaultKeccak)
 			ctx = ctx.WithQuorum(n.PoAQuorum())
-			ctx = ctx.WithSigRecover(ECRecover)
 			ctx = ctx.WithTransport(n.Transport)
 
 			fp := sequencer.New(v, NewIBFTVerifier(n), round0Timeout).FinalizeSequence(ctx, sequence)

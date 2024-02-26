@@ -23,7 +23,7 @@ var (
 
 	// ibft.Verifier methods
 	TrueBlock     = func(_ []byte) bool { return true }
-	TrueSignature = func(_ ibft.Message) bool { return true }
+	TrueSignature = func(_, _, _ []byte) bool { return true }
 	TrueValidator = func(_ []byte, _ uint64) bool { return true }
 
 	// ibft.Validator methods
@@ -35,11 +35,10 @@ type testTable struct {
 	validator ibft.Validator
 	verifier  ibft.Verifier
 
-	transport    ibft.Transport
-	msgFeed      ibft.MessageFeed
-	quorumFn     ibft.Quorum
-	keccakFn     ibft.Keccak
-	sigRecoverFn ibft.SigRecover
+	transport ibft.Transport
+	msgFeed   ibft.MessageFeed
+	quorumFn  ibft.Quorum
+	keccakFn  ibft.Keccak
 
 	expectedFinalizedBlock *types.FinalizedProposal
 	name                   string
@@ -98,16 +97,15 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
-				IsProposerFn:        func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
-				IsValidatorFn:       TrueValidator,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
+				IsProposerFn:       func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
+				IsValidatorFn:      TrueValidator,
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
@@ -172,15 +170,14 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsProposerFn:        func(_ []byte, _, _ uint64) bool { return true },
-				IsValidatorFn:       TrueValidator,
+				IsValidSignatureFn: TrueSignature,
+				IsProposerFn:       func(_ []byte, _, _ uint64) bool { return true },
+				IsValidatorFn:      TrueValidator,
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: allRoundsFeed(MockFeed{
 				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
@@ -228,18 +225,17 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
-				IsValidatorFn:       TrueValidator,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
+				IsValidatorFn:      TrueValidator,
 				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("my validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
@@ -310,18 +306,17 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
 				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 				IsValidatorFn: TrueValidator,
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
@@ -411,9 +406,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
-				IsValidatorFn:       TrueValidator,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
+				IsValidatorFn:      TrueValidator,
 				IsProposerFn: func(from []byte, _, round uint64) bool {
 					if round == 0 {
 						return false
@@ -423,10 +418,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
@@ -491,9 +485,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
-				IsValidatorFn:       TrueValidator,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
+				IsValidatorFn:      TrueValidator,
 				IsProposerFn: func(from []byte, _, round uint64) bool {
 					if round == 1 {
 						return bytes.Equal(from, []byte("my validator"))
@@ -506,13 +500,6 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			keccakFn:  BlockHashKeccak,
 			transport: DummyTransport,
 			quorumFn:  NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_ []byte, sig []byte) []byte {
-				if bytes.Equal(sig, []byte("commit seal")) {
-					return []byte("some validator")
-				}
-
-				return []byte("proposer")
-			}),
 			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
@@ -599,16 +586,15 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
-				IsValidatorFn:       TrueValidator,
-				IsProposerFn:        func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
+				IsValidatorFn:      TrueValidator,
+				IsProposerFn:       func(from []byte, _, _ uint64) bool { return bytes.Equal(from, []byte("proposer")) },
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
@@ -689,18 +675,17 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
 				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 				IsValidatorFn: TrueValidator,
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: allRoundsFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
@@ -777,18 +762,17 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
 				IsProposerFn: func(from []byte, _, round uint64) bool {
 					return bytes.Equal(from, []byte("my validator")) && round == 1
 				},
 				IsValidatorFn: TrueValidator,
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: singleRoundFeed(MockFeed{
 				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
@@ -845,8 +829,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
 				IsProposerFn: func(from []byte, _, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer")) ||
 						bytes.Equal(from, []byte("my validator")) && round == 1
@@ -854,10 +838,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				IsValidatorFn: TrueValidator,
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_ []byte, _ []byte) []byte { return []byte("some validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: singleRoundFeed(MockFeed{
 				prepare: messagesByView[*types.MsgPrepare]{
 					101: {
@@ -932,18 +915,17 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
 				IsProposerFn: func(from []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
 				IsValidatorFn: TrueValidator,
 			},
 
-			keccakFn:     BlockHashKeccak,
-			transport:    DummyTransport,
-			quorumFn:     NonZeroQuorum,
-			sigRecoverFn: SigRecoverFn(func(_, _ []byte) []byte { return []byte("some validator") }),
+			keccakFn:  BlockHashKeccak,
+			transport: DummyTransport,
+			quorumFn:  NonZeroQuorum,
 			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
@@ -1029,8 +1011,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
 				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
@@ -1040,18 +1022,6 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			keccakFn:  BlockHashKeccak,
 			transport: DummyTransport,
 			quorumFn:  QuorumFn(func(msgs []ibft.Message) bool { return len(msgs) == 2 }),
-			sigRecoverFn: SigRecoverFn(func(_ []byte, cs []byte) []byte {
-				if bytes.Equal(cs, []byte("commit seal")) {
-					return []byte("validator")
-				}
-
-				if bytes.Equal(cs, []byte("other commit seal")) {
-					return []byte("other validator")
-				}
-
-				return nil
-			}),
-
 			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
 					101: {
@@ -1160,8 +1130,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
 				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
@@ -1171,17 +1141,6 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			keccakFn:  BlockHashKeccak,
 			transport: DummyTransport,
 			quorumFn:  QuorumFn(func(msgs []ibft.Message) bool { return len(msgs) == 2 }),
-			sigRecoverFn: SigRecoverFn(func(_, cs []byte) []byte {
-				if bytes.Equal(cs, []byte("commit seal")) {
-					return []byte("validator")
-				}
-
-				if bytes.Equal(cs, []byte("other commit seal")) {
-					return []byte("other validator")
-				}
-
-				return nil
-			}),
 
 			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
@@ -1297,8 +1256,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			},
 
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
 				IsProposerFn: func(from []byte, _, _ uint64) bool {
 					return bytes.Equal(from, []byte("proposer"))
 				},
@@ -1308,17 +1267,6 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			keccakFn:  BlockHashKeccak,
 			transport: DummyTransport,
 			quorumFn:  QuorumFn(func(msgs []ibft.Message) bool { return len(msgs) == 2 }),
-			sigRecoverFn: SigRecoverFn(func(_, cs []byte) []byte {
-				if bytes.Equal(cs, []byte("commit seal")) {
-					return []byte("validator")
-				}
-
-				if bytes.Equal(cs, []byte("other commit seal")) {
-					return []byte("other validator")
-				}
-
-				return nil
-			}),
 
 			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
@@ -1442,9 +1390,9 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				SignFn: NilSignature,
 			},
 			verifier: MockVerifier{
-				HasValidSignatureFn: TrueSignature,
-				IsValidBlockFn:      TrueBlock,
-				IsValidatorFn:       TrueValidator,
+				IsValidSignatureFn: TrueSignature,
+				IsValidBlockFn:     TrueBlock,
+				IsValidatorFn:      TrueValidator,
 				IsProposerFn: func(from []byte, _, round uint64) bool {
 					return bytes.Equal(from, []byte("proposer")) ||
 						bytes.Equal(from, []byte("my validator")) && round == 1
@@ -1454,17 +1402,6 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			keccakFn:  BlockHashKeccak,
 			transport: DummyTransport,
 			quorumFn:  QuorumFn(func(msgs []ibft.Message) bool { return len(msgs) == 2 }),
-			sigRecoverFn: SigRecoverFn(func(_, cs []byte) []byte {
-				if bytes.Equal(cs, []byte("commit seal")) {
-					return []byte("validator")
-				}
-
-				if bytes.Equal(cs, []byte("other commit seal")) {
-					return []byte("other validator")
-				}
-
-				return nil
-			}),
 
 			msgFeed: singleRoundFeed(MockFeed{
 				proposal: messagesByView[*types.MsgProposal]{
@@ -1554,7 +1491,6 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 			ctx := ibft.NewIBFTContext(context.Background())
 			ctx = ctx.WithTransport(tt.transport)
 			ctx = ctx.WithFeed(tt.msgFeed)
-			ctx = ctx.WithSigRecover(tt.sigRecoverFn)
 			ctx = ctx.WithQuorum(tt.quorumFn)
 			ctx = ctx.WithKeccak(tt.keccakFn)
 

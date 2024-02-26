@@ -18,10 +18,10 @@ type (
 	}
 
 	MockVerifier struct {
-		HasValidSignatureFn func(ibft.Message) bool
-		IsValidBlockFn      func([]byte) bool
-		IsProposerFn        func([]byte, uint64, uint64) bool
-		IsValidatorFn       func([]byte, uint64) bool
+		IsValidSignatureFn func([]byte, []byte, []byte) bool
+		IsValidBlockFn     func([]byte) bool
+		IsProposerFn       func([]byte, uint64, uint64) bool
+		IsValidatorFn      func([]byte, uint64) bool
 	}
 
 	messagesByView[M types.IBFTMessage] map[uint64]map[uint64][]M
@@ -65,8 +65,8 @@ func (v MockValidator) BuildProposal(uint64) []byte {
 	return v.BuildProposalFn()
 }
 
-func (v MockVerifier) HasValidSignature(msg ibft.Message) bool {
-	return v.HasValidSignatureFn(msg)
+func (v MockVerifier) IsValidSignature(sender []byte, digest []byte, sig []byte) bool {
+	return v.IsValidSignatureFn(sender, digest, sig)
 }
 
 func (v MockVerifier) IsValidProposal(block []byte, _ uint64) bool {
