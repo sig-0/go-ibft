@@ -136,7 +136,7 @@ func (v IBFTVerifier) IsProposer(id []byte, _, round uint64) bool {
 
 type (
 	TransportFn  func(ibft.Message)
-	QuorumFn     func(uint64, []ibft.Message) bool
+	QuorumFn     func([]ibft.Message) bool
 	SigRecoverFn func(digest, sig []byte) []byte
 	KeccakFn     func([]byte) []byte
 )
@@ -145,8 +145,8 @@ func (f TransportFn) Multicast(msg ibft.Message) {
 	f(msg)
 }
 
-func (f QuorumFn) HasQuorum(sequence uint64, messages []ibft.Message) bool {
-	return f(sequence, messages)
+func (f QuorumFn) HasQuorum(messages []ibft.Message) bool {
+	return f(messages)
 }
 
 func (f SigRecoverFn) From(digest, sig []byte) []byte {

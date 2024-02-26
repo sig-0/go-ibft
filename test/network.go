@@ -106,7 +106,7 @@ func (n IBFTNetwork) PoAQuorum() ibft.Quorum {
 		quorum = int(math.Ceil(2 * float64(validatorCount) / 3))
 	}
 
-	q := func(_ uint64, msgs []ibft.Message) bool {
+	q := func(msgs []ibft.Message) bool {
 		return len(msgs) >= quorum
 	}
 

@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	FalseQuorum = QuorumFn(func(_ uint64, _ []ibft.Message) bool { return false })
-	TrueQuorum  = QuorumFn(func(_ uint64, _ []ibft.Message) bool { return true })
+	FalseQuorum = QuorumFn(func(_ []ibft.Message) bool { return false })
+	TrueQuorum  = QuorumFn(func(_ []ibft.Message) bool { return true })
 )
 
 func TestIsValidMsgProposal(t *testing.T) {

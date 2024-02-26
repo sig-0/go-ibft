@@ -86,7 +86,7 @@ type (
 	// Quorum is used to check whether the protocol reached consensus during a particular step
 	Quorum interface {
 		// HasQuorum returns true if messages accumulate consensus for a particular sequence
-		HasQuorum(sequence uint64, messages []Message) bool
+		HasQuorum(messages []Message) bool
 	}
 
 	// Keccak is used to obtain the Keccak encoding of arbitrary data

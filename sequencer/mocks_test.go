@@ -6,7 +6,7 @@ import (
 )
 
 type (
-	QuorumFn     func(uint64, []ibft.Message) bool
+	QuorumFn     func([]ibft.Message) bool
 	TransportFn  func(ibft.Message)
 	KeccakFn     func([]byte) []byte
 	SigRecoverFn func([]byte, []byte) []byte
@@ -37,8 +37,8 @@ type (
 	allRoundsFeed   MockFeed // higher rounds enabled
 )
 
-func (q QuorumFn) HasQuorum(sequence uint64, msgs []ibft.Message) bool {
-	return q(sequence, msgs)
+func (q QuorumFn) HasQuorum(messages []ibft.Message) bool {
+	return q(messages)
 }
 
 func (t TransportFn) Multicast(msg ibft.Message) {

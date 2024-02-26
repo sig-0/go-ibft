@@ -18,7 +18,7 @@ var (
 
 	// ibft.Context fields
 	DummyTransport  = TransportFn(func(_ ibft.Message) {})
-	NonZeroQuorum   = QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) != 0 })
+	NonZeroQuorum   = QuorumFn(func(msgs []ibft.Message) bool { return len(msgs) != 0 })
 	BlockHashKeccak = KeccakFn(func(_ []byte) []byte { return []byte("block hash") })
 
 	// ibft.Verifier methods
@@ -1039,7 +1039,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			keccakFn:  BlockHashKeccak,
 			transport: DummyTransport,
-			quorumFn:  QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 }),
+			quorumFn:  QuorumFn(func(msgs []ibft.Message) bool { return len(msgs) == 2 }),
 			sigRecoverFn: SigRecoverFn(func(_ []byte, cs []byte) []byte {
 				if bytes.Equal(cs, []byte("commit seal")) {
 					return []byte("validator")
@@ -1170,7 +1170,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			keccakFn:  BlockHashKeccak,
 			transport: DummyTransport,
-			quorumFn:  QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 }),
+			quorumFn:  QuorumFn(func(msgs []ibft.Message) bool { return len(msgs) == 2 }),
 			sigRecoverFn: SigRecoverFn(func(_, cs []byte) []byte {
 				if bytes.Equal(cs, []byte("commit seal")) {
 					return []byte("validator")
@@ -1307,7 +1307,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			keccakFn:  BlockHashKeccak,
 			transport: DummyTransport,
-			quorumFn:  QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 }),
+			quorumFn:  QuorumFn(func(msgs []ibft.Message) bool { return len(msgs) == 2 }),
 			sigRecoverFn: SigRecoverFn(func(_, cs []byte) []byte {
 				if bytes.Equal(cs, []byte("commit seal")) {
 					return []byte("validator")
@@ -1453,7 +1453,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			keccakFn:  BlockHashKeccak,
 			transport: DummyTransport,
-			quorumFn:  QuorumFn(func(_ uint64, msgs []ibft.Message) bool { return len(msgs) == 2 }),
+			quorumFn:  QuorumFn(func(msgs []ibft.Message) bool { return len(msgs) == 2 }),
 			sigRecoverFn: SigRecoverFn(func(_, cs []byte) []byte {
 				if bytes.Equal(cs, []byte("commit seal")) {
 					return []byte("validator")

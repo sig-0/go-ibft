@@ -52,7 +52,7 @@ func (s *Sequencer) awaitQuorumPrepares(ctx ibft.Context) ([]*types.MsgPrepare, 
 			cache = cache.Add(messages)
 			validPrepares := cache.Messages()
 
-			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), ibft.WrapMessages(validPrepares...)) {
+			if !ctx.Quorum().HasQuorum(ibft.WrapMessages(validPrepares...)) {
 				continue
 			}
 
