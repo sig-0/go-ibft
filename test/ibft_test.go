@@ -68,6 +68,16 @@ func Test_Finalize_Sequence_4_Validators(t *testing.T) {
 				ExcludeMsgIf(HasRound(1), IsMsgProposal()),
 			},
 		},
+
+		{
+			name:                   "proposal 3 finalized because proposal 1 and round change messages were missed",
+			round0Timeout:          50 * time.Millisecond,
+			expectedFinalizedRound: 2,
+			opts: []MessageOption{
+				ExcludeMsgIf(HasRound(0), IsMsgProposal()),
+				ExcludeMsgIf(HasRound(1), IsMsgRoundChange()),
+			},
+		},
 	}
 
 	for _, tt := range table {
