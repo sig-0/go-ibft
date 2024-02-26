@@ -78,7 +78,7 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 
 			println("got round change messages")
 
-			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), ibft.WrapMessages(validRoundChanges)) {
+			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), ibft.WrapMessages(validRoundChanges...)) {
 				continue
 			}
 
@@ -175,12 +175,10 @@ func (s *Sequencer) isValidPC(
 		return false
 	}
 
-	allMessages := []ibft.Message{pc.ProposalMessage}
-	for _, msg := range pc.PrepareMessages {
-		allMessages = append(allMessages, msg)
-	}
-
-	return quorum.HasQuorum(sequence, allMessages)
+	return quorum.HasQuorum(sequence, append(
+		ibft.WrapMessages(pc.ProposalMessage),
+		ibft.WrapMessages(pc.PrepareMessages...)...,
+	))
 }
 
 func (s *Sequencer) isValidRCC(
@@ -223,7 +221,7 @@ func (s *Sequencer) isValidRCC(
 		return false
 	}
 
-	if !quorum.HasQuorum(sequence, ibft.WrapMessages(rcc.Messages)) {
+	if !quorum.HasQuorum(sequence, ibft.WrapMessages(rcc.Messages...)) {
 		return false
 	}
 

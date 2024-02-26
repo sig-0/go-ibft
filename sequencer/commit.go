@@ -60,7 +60,7 @@ func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, er
 				continue
 			}
 
-			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), ibft.WrapMessages(validCommits)) {
+			if !ctx.Quorum().HasQuorum(s.state.CurrentSequence(), ibft.WrapMessages(validCommits...)) {
 				continue
 			}
 

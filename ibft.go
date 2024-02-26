@@ -24,7 +24,7 @@ type Message interface {
 }
 
 // WrapMessages wraps concrete message types into Message type
-func WrapMessages[M types.IBFTMessage](messages []M) []Message {
+func WrapMessages[M types.IBFTMessage](messages ...M) []Message {
 	wrapped := make([]Message, 0, len(messages))
 
 	for _, msg := range messages {
