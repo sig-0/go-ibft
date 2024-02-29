@@ -65,7 +65,7 @@ func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	go func(ctx context.Context) {
 		defer close(c)
 
-		c <- seq.FinalizeSequence(ibft.NewIBFTContext(ctx).WithFeed(msgFeed), 101)
+		c <- seq.FinalizeSequence(NewContext(ctx, WithMessageFeed(msgFeed)), 101)
 	}(ctx)
 
 	cancelCtx()
@@ -1488,11 +1488,12 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := ibft.NewIBFTContext(context.Background())
-			ctx = ctx.WithTransport(tt.transport)
-			ctx = ctx.WithFeed(tt.msgFeed)
-			ctx = ctx.WithQuorum(tt.quorumFn)
-			ctx = ctx.WithKeccak(tt.keccakFn)
+			ctx := NewContext(context.Background(),
+				WithMessageFeed(tt.msgFeed),
+				WithTransport(tt.transport),
+				WithKeccak(tt.keccakFn),
+				WithQuorum(tt.quorumFn),
+			)
 
 			s := New(tt.validator, tt.verifier, time.Millisecond*100)
 			assert.True(t, reflect.DeepEqual(tt.expectedFinalizedBlock, s.FinalizeSequence(ctx, 101)))

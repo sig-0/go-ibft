@@ -7,7 +7,7 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) multicastRoundChange(ctx ibft.Context) {
+func (s *Sequencer) multicastRoundChange(ctx Context) {
 	msg := &types.MsgRoundChange{
 		View:                        s.state.CurrentView(),
 		From:                        s.ID(),
@@ -21,7 +21,7 @@ func (s *Sequencer) multicastRoundChange(ctx ibft.Context) {
 }
 
 func (s *Sequencer) awaitRCC(
-	ctx ibft.Context,
+	ctx Context,
 	view *types.View,
 	higherRounds bool,
 ) (*types.RoundChangeCertificate, error) {
@@ -34,7 +34,7 @@ func (s *Sequencer) awaitRCC(
 }
 
 func (s *Sequencer) awaitQuorumRoundChanges(
-	ctx ibft.Context,
+	ctx Context,
 	view *types.View,
 	higherRounds bool,
 ) ([]*types.MsgRoundChange, error) {

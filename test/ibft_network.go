@@ -68,14 +68,14 @@ func HasRound(r uint64) MessageOption {
 
 type IBFTNetwork struct {
 	Validators map[string]ibft.Validator
-	Messages   *store.Store
+	Messages   *store.MsgStore
 	Transport  ibft.Transport
 }
 
 func NewIBFTNetwork(validators ...ibft.Validator) IBFTNetwork {
 	n := IBFTNetwork{
 		Validators: make(map[string]ibft.Validator),
-		Messages:   store.New(),
+		Messages:   store.NewMsgStore(),
 	}
 
 	for _, v := range validators {

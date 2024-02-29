@@ -7,7 +7,7 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) multicastPrepare(ctx ibft.Context) {
+func (s *Sequencer) multicastPrepare(ctx Context) {
 	msg := &types.MsgPrepare{
 		From:      s.ID(),
 		View:      s.state.CurrentView(),
@@ -19,7 +19,7 @@ func (s *Sequencer) multicastPrepare(ctx ibft.Context) {
 	ctx.Transport().Multicast(msg)
 }
 
-func (s *Sequencer) awaitPrepare(ctx ibft.Context) error {
+func (s *Sequencer) awaitPrepare(ctx Context) error {
 	messages, err := s.awaitQuorumPrepares(ctx)
 	if err != nil {
 		return err
@@ -30,7 +30,7 @@ func (s *Sequencer) awaitPrepare(ctx ibft.Context) error {
 	return nil
 }
 
-func (s *Sequencer) awaitQuorumPrepares(ctx ibft.Context) ([]*types.MsgPrepare, error) {
+func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error) {
 	sub, cancelSub := ctx.Feed().PrepareMessages(s.state.currentView, false)
 	defer cancelSub()
 

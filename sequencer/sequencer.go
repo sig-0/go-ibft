@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"context"
 	"math"
 	"sync"
 	"time"
@@ -40,7 +41,7 @@ func New(
 
 // FinalizeSequence runs the block finalization loop. This method returns a non-nil value only if
 // consensus is reached for the given sequence. Otherwise, it runs forever until cancelled by the caller
-func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.FinalizedProposal {
+func (s *Sequencer) FinalizeSequence(ctx Context, sequence uint64) *types.FinalizedProposal {
 	s.state = state{
 		currentView: &types.View{
 			Sequence: sequence,
@@ -72,9 +73,11 @@ func (s *Sequencer) FinalizeSequence(ctx ibft.Context, sequence uint64) *types.F
 
 // finalize starts the round runner loop. In each round (loop iteration), 4 processes run in parallel.
 // This method returns only if the block finalization algorithm is complete or if the caller cancelled the context
-func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedProposal {
+func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 	for {
-		ctxRound, cancelRound := ctx.WithCancel()
+		c, cancelRound := context.WithCancel(ctx)
+		ctxRound := Context{c}
+
 		teardown := func() {
 			cancelRound()
 			s.wg.Wait()
@@ -123,7 +126,7 @@ func (s *Sequencer) finalize(ctx ibft.Context) *types.FinalizedProposal {
 }
 
 // startRoundTimer starts the round timer of the current round
-func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
+func (s *Sequencer) startRoundTimer(ctx Context) <-chan struct{} {
 	c := make(chan struct{}, 1)
 
 	s.wg.Add(1)
@@ -148,7 +151,7 @@ func (s *Sequencer) startRoundTimer(ctx ibft.Context) <-chan struct{} {
 }
 
 // awaitHigherRoundProposal listens for proposal messages from rounds higher than the current
-func (s *Sequencer) awaitHigherRoundProposal(ctx ibft.Context) <-chan *types.MsgProposal {
+func (s *Sequencer) awaitHigherRoundProposal(ctx Context) <-chan *types.MsgProposal {
 	c := make(chan *types.MsgProposal, 1)
 
 	s.wg.Add(1)
@@ -171,7 +174,7 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx ibft.Context) <-chan *types.Msg
 }
 
 // awaitHigherRoundRCC listens for round change certificates from rounds higher than the current
-func (s *Sequencer) awaitHigherRoundRCC(ctx ibft.Context) <-chan *types.RoundChangeCertificate {
+func (s *Sequencer) awaitHigherRoundRCC(ctx Context) <-chan *types.RoundChangeCertificate {
 	c := make(chan *types.RoundChangeCertificate, 1)
 
 	s.wg.Add(1)
@@ -194,7 +197,7 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx ibft.Context) <-chan *types.RoundCha
 }
 
 // awaitFinalizedBlockInCurrentRound starts the block finalization algorithm for the current round
-func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx ibft.Context) <-chan *types.FinalizedProposal {
+func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx Context) <-chan *types.FinalizedProposal {
 	c := make(chan *types.FinalizedProposal, 1)
 
 	s.wg.Add(1)
@@ -243,7 +246,7 @@ func (s *Sequencer) shouldPropose() bool {
 	return s.IsProposer(s.ID(), s.state.CurrentSequence(), s.state.CurrentRound())
 }
 
-func (s *Sequencer) propose(ctx ibft.Context) error {
+func (s *Sequencer) propose(ctx Context) error {
 	block, err := s.buildBlock(ctx)
 	if err != nil {
 		return err
@@ -254,7 +257,7 @@ func (s *Sequencer) propose(ctx ibft.Context) error {
 	return nil
 }
 
-func (s *Sequencer) buildBlock(ctx ibft.Context) ([]byte, error) {
+func (s *Sequencer) buildBlock(ctx Context) ([]byte, error) {
 	if s.state.CurrentRound() == 0 {
 		return s.BuildProposal(s.state.CurrentSequence()), nil
 	}

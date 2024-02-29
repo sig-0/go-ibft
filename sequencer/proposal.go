@@ -7,7 +7,7 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) multicastProposal(ctx ibft.Context, block []byte) {
+func (s *Sequencer) multicastProposal(ctx Context, block []byte) {
 	pb := &types.ProposedBlock{
 		Block: block,
 		Round: s.state.CurrentRound(),
@@ -28,7 +28,7 @@ func (s *Sequencer) multicastProposal(ctx ibft.Context, block []byte) {
 	ctx.Transport().Multicast(msg)
 }
 
-func (s *Sequencer) awaitCurrentRoundProposal(ctx ibft.Context) error {
+func (s *Sequencer) awaitCurrentRoundProposal(ctx Context) error {
 	proposal, err := s.awaitProposal(ctx, s.state.currentView, false)
 	if err != nil {
 		return err
@@ -39,7 +39,7 @@ func (s *Sequencer) awaitCurrentRoundProposal(ctx ibft.Context) error {
 	return nil
 }
 
-func (s *Sequencer) awaitProposal(ctx ibft.Context, view *types.View, higherRounds bool) (*types.MsgProposal, error) {
+func (s *Sequencer) awaitProposal(ctx Context, view *types.View, higherRounds bool) (*types.MsgProposal, error) {
 	if higherRounds {
 		view.Round++
 	}

@@ -7,7 +7,7 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) multicastCommit(ctx ibft.Context) {
+func (s *Sequencer) multicastCommit(ctx Context) {
 	msg := &types.MsgCommit{
 		From:       s.ID(),
 		View:       s.state.CurrentView(),
@@ -20,7 +20,7 @@ func (s *Sequencer) multicastCommit(ctx ibft.Context) {
 	ctx.Transport().Multicast(msg)
 }
 
-func (s *Sequencer) awaitCommit(ctx ibft.Context) error {
+func (s *Sequencer) awaitCommit(ctx Context) error {
 	commits, err := s.awaitQuorumCommits(ctx)
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func (s *Sequencer) awaitCommit(ctx ibft.Context) error {
 	return nil
 }
 
-func (s *Sequencer) awaitQuorumCommits(ctx ibft.Context) ([]*types.MsgCommit, error) {
+func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) {
 	cache := newMsgCache(func(msg *types.MsgCommit) bool {
 		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
