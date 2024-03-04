@@ -2,12 +2,56 @@ package sequencer
 
 import (
 	"context"
+
 	"github.com/madz-lab/go-ibft"
+	"github.com/madz-lab/go-ibft/message/types"
 )
 
+type MessageTransport struct {
+	Proposal    ibft.Transport[*types.MsgProposal]
+	Prepare     ibft.Transport[*types.MsgPrepare]
+	Commit      ibft.Transport[*types.MsgCommit]
+	RoundChange ibft.Transport[*types.MsgRoundChange]
+}
+
+type ctxKey string
+
+const (
+	transport ctxKey = "transport"
+	feed      ctxKey = "feed"
+	quorum    ctxKey = "quorum"
+	keccak    ctxKey = "keccak"
+)
+
+type ContextOption func(Context) Context
+
+func WithQuorum(q ibft.Quorum) ContextOption {
+	return func(c Context) Context {
+		return Context{context.WithValue(c, quorum, q)}
+	}
+}
+
+func WithKeccak(k ibft.Keccak) ContextOption {
+	return func(c Context) Context {
+		return Context{context.WithValue(c, keccak, k)}
+	}
+}
+
+func WithMessageFeed(f MessageFeed) ContextOption {
+	return func(c Context) Context {
+		return Context{context.WithValue(c, feed, f)}
+	}
+}
+
+func WithMessageTransport(t MessageTransport) ContextOption {
+	return func(c Context) Context {
+		return Context{context.WithValue(c, transport, t)}
+	}
+}
+
 // Context is a convenience wrapper that provides external functionalities
-// to the finalization algorithm (sequencer.Sequencer). This context is only meant to be cancelled by
-// by the user and is never cancelled by the protocol itself
+// to the finalization algorithm (Sequencer). This Context is meant to be cancelled
+// only by the caller and is never cancelled by the protocol itself
 type Context struct {
 	context.Context
 }
@@ -26,49 +70,14 @@ func (c Context) Keccak() ibft.Keccak {
 	return c.Value(keccak).(ibft.Keccak)
 }
 
-func (c Context) Transport() ibft.Transport {
-	return c.Value(transport).(ibft.Transport)
-}
-
 func (c Context) Quorum() ibft.Quorum {
 	return c.Value(quorum).(ibft.Quorum)
 }
 
-func (c Context) Feed() ibft.MessageFeed {
-	return c.Value(feed).(ibft.MessageFeed)
+func (c Context) MessageFeed() MessageFeed {
+	return c.Value(feed).(MessageFeed)
 }
 
-type ctxKey string
-
-const (
-	transport ctxKey = "transport"
-	feed      ctxKey = "feed"
-	quorum    ctxKey = "quorum"
-	keccak    ctxKey = "keccak"
-)
-
-type ContextOption func(Context) Context
-
-func WithTransport(t ibft.Transport) ContextOption {
-	return func(c Context) Context {
-		return Context{context.WithValue(c, transport, t)}
-	}
-}
-
-func WithMessageFeed(f ibft.MessageFeed) ContextOption {
-	return func(c Context) Context {
-		return Context{context.WithValue(c, feed, f)}
-	}
-}
-
-func WithQuorum(q ibft.Quorum) ContextOption {
-	return func(c Context) Context {
-		return Context{context.WithValue(c, quorum, q)}
-	}
-}
-
-func WithKeccak(k ibft.Keccak) ContextOption {
-	return func(c Context) Context {
-		return Context{context.WithValue(c, keccak, k)}
-	}
+func (c Context) MessageTransport() MessageTransport {
+	return c.Value(transport).(MessageTransport)
 }

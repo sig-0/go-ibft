@@ -5,25 +5,56 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
+func newSingleRoundFeed(messages []ibft.Message) MessageFeed {
+	feed := singleRoundFeed{
+		proposal:    make(messagesByView[*types.MsgProposal]),
+		prepare:     make(messagesByView[*types.MsgPrepare]),
+		commit:      make(messagesByView[*types.MsgCommit]),
+		roundChange: make(messagesByView[*types.MsgRoundChange]),
+	}
+
+	for _, msg := range messages {
+		switch msg := msg.(type) {
+		case *types.MsgProposal:
+			feed.proposal.add(msg)
+		case *types.MsgPrepare:
+			feed.prepare.add(msg)
+		case *types.MsgCommit:
+			feed.commit.add(msg)
+		case *types.MsgRoundChange:
+			feed.roundChange.add(msg)
+		}
+	}
+
+	return feed
+}
+
+func newAllRoundsFeed(messages []ibft.Message) MessageFeed {
+	feed := allRoundsFeed{
+		proposal:    make(messagesByView[*types.MsgProposal]),
+		prepare:     make(messagesByView[*types.MsgPrepare]),
+		commit:      make(messagesByView[*types.MsgCommit]),
+		roundChange: make(messagesByView[*types.MsgRoundChange]),
+	}
+
+	for _, msg := range messages {
+		switch msg := msg.(type) {
+		case *types.MsgProposal:
+			feed.proposal.add(msg)
+		case *types.MsgPrepare:
+			feed.prepare.add(msg)
+		case *types.MsgCommit:
+			feed.commit.add(msg)
+		case *types.MsgRoundChange:
+			feed.roundChange.add(msg)
+		}
+	}
+
+	return feed
+}
+
 type (
-	QuorumFn    func([]ibft.Message) bool
-	TransportFn func(ibft.Message)
-	KeccakFn    func([]byte) []byte
-
-	MockValidator struct {
-		IDFn            func() []byte
-		SignFn          func([]byte) []byte
-		BuildProposalFn func() []byte
-	}
-
-	MockVerifier struct {
-		IsValidSignatureFn func([]byte, []byte, []byte) bool
-		IsValidBlockFn     func([]byte) bool
-		IsProposerFn       func([]byte, uint64, uint64) bool
-		IsValidatorFn      func([]byte, uint64) bool
-	}
-
-	messagesByView[M types.IBFTMessage] map[uint64]map[uint64][]M
+	messagesByView[M msg] map[uint64]map[uint64][]M
 
 	MockFeed struct {
 		proposal    messagesByView[*types.MsgProposal]
@@ -36,53 +67,38 @@ type (
 	allRoundsFeed   MockFeed // higher rounds enabled
 )
 
-func (q QuorumFn) HasQuorum(messages []ibft.Message) bool {
-	return q(messages)
+type msg interface {
+	types.IBFTMessage
+
+	GetView() *types.View
 }
 
-func (t TransportFn) Multicast(msg ibft.Message) {
-	t(msg)
+func (m messagesByView[M]) add(msg M) {
+	view := msg.GetView()
+
+	messagesInSequence, ok := m[view.Sequence]
+	if !ok {
+		m[view.Sequence] = make(map[uint64][]M)
+		messagesInSequence = m[view.Sequence]
+	}
+
+	messagesInRound, ok := messagesInSequence[view.Round]
+	if !ok {
+		messagesInSequence[view.Round] = make([]M, 0)
+		messagesInRound = messagesInSequence[view.Round]
+	}
+
+	messagesInRound = append(messagesInRound, msg)
+	messagesInSequence[view.Round] = messagesInRound
 }
 
-func (k KeccakFn) Hash(data []byte) []byte {
-	return k(data)
-}
-
-func (v MockValidator) ID() []byte {
-	return v.IDFn()
-}
-
-func (v MockValidator) Sign(bytes []byte) []byte {
-	return v.SignFn(bytes)
-}
-
-func (v MockValidator) BuildProposal(uint64) []byte {
-	return v.BuildProposalFn()
-}
-
-func (v MockVerifier) IsValidSignature(sender, digest, sig []byte) bool {
-	return v.IsValidSignatureFn(sender, digest, sig)
-}
-
-func (v MockVerifier) IsValidProposal(block []byte, _ uint64) bool {
-	return v.IsValidBlockFn(block)
-}
-
-func (v MockVerifier) IsProposer(id []byte, sequence, round uint64) bool {
-	return v.IsProposerFn(id, sequence, round)
-}
-
-func (v MockVerifier) IsValidator(id []byte, height uint64) bool {
-	return v.IsValidatorFn(id, height)
-}
-
-func newSingleRoundSubscription[M types.IBFTMessage](
+func newSingleRoundSubscription[M msg](
 	messages messagesByView[M],
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[M], func()) {
-	c := make(chan ibft.MsgNotification[M], 1)
-	c <- ibft.NotificationFn[M](func() []M {
+) (Subscription[M], func()) {
+	c := make(chan MsgNotification[M], 1)
+	c <- NotificationFn[M](func() []M {
 		if futureRounds {
 			return nil
 		}
@@ -93,13 +109,13 @@ func newSingleRoundSubscription[M types.IBFTMessage](
 	return c, func() { close(c) }
 }
 
-func newFutureRoundsSubscription[M types.IBFTMessage](
+func newFutureRoundsSubscription[M msg](
 	messages messagesByView[M],
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[M], func()) {
-	c := make(chan ibft.MsgNotification[M], 1)
-	c <- ibft.NotificationFn[M](func() []M {
+) (Subscription[M], func()) {
+	c := make(chan MsgNotification[M], 1)
+	c <- NotificationFn[M](func() []M {
 		if futureRounds == false {
 			return messages[view.Sequence][view.Round]
 		}
@@ -124,55 +140,55 @@ func newFutureRoundsSubscription[M types.IBFTMessage](
 func (f singleRoundFeed) ProposalMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgProposal], func()) {
+) (Subscription[*types.MsgProposal], func()) {
 	return newSingleRoundSubscription[*types.MsgProposal](f.proposal, view, futureRounds)
 }
 
 func (f singleRoundFeed) PrepareMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgPrepare], func()) {
+) (Subscription[*types.MsgPrepare], func()) {
 	return newSingleRoundSubscription[*types.MsgPrepare](f.prepare, view, futureRounds)
 }
 
 func (f singleRoundFeed) CommitMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgCommit], func()) {
+) (Subscription[*types.MsgCommit], func()) {
 	return newSingleRoundSubscription[*types.MsgCommit](f.commit, view, futureRounds)
 }
 
 func (f singleRoundFeed) RoundChangeMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgRoundChange], func()) {
+) (Subscription[*types.MsgRoundChange], func()) {
 	return newSingleRoundSubscription[*types.MsgRoundChange](f.roundChange, view, futureRounds)
 }
 
 func (f allRoundsFeed) ProposalMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgProposal], func()) {
+) (Subscription[*types.MsgProposal], func()) {
 	return newFutureRoundsSubscription[*types.MsgProposal](f.proposal, view, futureRounds)
 }
 
 func (f allRoundsFeed) PrepareMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgPrepare], func()) {
+) (Subscription[*types.MsgPrepare], func()) {
 	return newFutureRoundsSubscription[*types.MsgPrepare](f.prepare, view, futureRounds)
 }
 
 func (f allRoundsFeed) CommitMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgCommit], func()) {
+) (Subscription[*types.MsgCommit], func()) {
 	return newFutureRoundsSubscription[*types.MsgCommit](f.commit, view, futureRounds)
 }
 
 func (f allRoundsFeed) RoundChangeMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgRoundChange], func()) {
+) (Subscription[*types.MsgRoundChange], func()) {
 	return newFutureRoundsSubscription[*types.MsgRoundChange](f.roundChange, view, futureRounds)
 }

@@ -10,44 +10,31 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-// Sequencer is an IBFT-context based block finalizer of a consensus actor. Its only purpose
+// Sequencer is an IBFT-Context based block finalizer of a consensus actor. Its only purpose
 // is to determine if consensus is reached in a particular sequence (height)
 // and output the finalized block. Because of its simple API it's envisioned to
 // work alongside a block syncing process
 type Sequencer struct {
 	ibft.Validator
-	ibft.Verifier
 
-	state state
+	state viewState
 	wg    sync.WaitGroup
 
-	round0Duration time.Duration
+	Round0Duration time.Duration
 }
 
 // New instantiates a new Sequencer object
-func New(
-	val ibft.Validator,
-	vrf ibft.Verifier,
-	round0Duration time.Duration,
-) *Sequencer {
-	s := &Sequencer{
+func New(val ibft.Validator, round0Duration time.Duration) *Sequencer {
+	return &Sequencer{
 		Validator:      val,
-		Verifier:       vrf,
-		round0Duration: round0Duration,
+		Round0Duration: round0Duration,
 	}
-
-	return s
 }
 
-// FinalizeSequence runs the block finalization loop. This method returns a non-nil value only if
+// Finalize runs the block finalization loop. This method returns a non-nil value only if
 // consensus is reached for the given sequence. Otherwise, it runs forever until cancelled by the caller
-func (s *Sequencer) FinalizeSequence(ctx Context, sequence uint64) *types.FinalizedProposal {
-	s.state = state{
-		currentView: &types.View{
-			Sequence: sequence,
-			Round:    0,
-		},
-	}
+func (s *Sequencer) Finalize(ctx Context, sequence uint64) *types.FinalizedProposal {
+	s.state.Init(sequence)
 
 	c := make(chan *types.FinalizedProposal, 1)
 	go func() {
@@ -72,7 +59,7 @@ func (s *Sequencer) FinalizeSequence(ctx Context, sequence uint64) *types.Finali
 }
 
 // finalize starts the round runner loop. In each round (loop iteration), 4 processes run in parallel.
-// This method returns only if the block finalization algorithm is complete or if the caller cancelled the context
+// This method returns only if the block finalization algorithm is complete or if the caller cancelled the Context
 func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 	for {
 		c, cancelRound := context.WithCancel(ctx)
@@ -92,7 +79,7 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 			}
 
 			s.state.MoveToNextRound()
-			s.multicastRoundChange(ctx)
+			s.sendMsgRoundChange(ctx)
 
 		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound):
 			teardown()
@@ -111,7 +98,7 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 			}
 
 			s.state.AcceptProposal(proposal)
-			s.multicastPrepare(ctx)
+			s.sendMsgPrepare(ctx)
 
 		case fb, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound):
 			teardown()
@@ -145,7 +132,7 @@ func (s *Sequencer) startRoundTimer(ctx Context) <-chan struct{} {
 		case <-roundTimer.C:
 			c <- struct{}{}
 		}
-	}(s.state.CurrentView())
+	}(s.state.View())
 
 	return c
 }
@@ -168,7 +155,7 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx Context) <-chan *types.MsgPropo
 		}
 
 		c <- proposal
-	}(s.state.CurrentView())
+	}(s.state.View())
 
 	return c
 }
@@ -191,7 +178,7 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx Context) <-chan *types.RoundChangeCe
 		}
 
 		c <- rcc
-	}(s.state.CurrentView())
+	}(s.state.View())
 
 	return c
 }
@@ -209,9 +196,12 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx Context) <-chan *types
 		}()
 
 		if s.shouldPropose() {
-			if err := s.propose(ctx); err != nil {
+			p, err := s.buildProposal(ctx)
+			if err != nil {
 				return
 			}
+
+			s.sendMsgProposal(ctx, p)
 		}
 
 		if !s.state.ProposalAccepted() {
@@ -219,64 +209,51 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx Context) <-chan *types
 				return
 			}
 
-			s.multicastPrepare(ctx)
+			s.sendMsgPrepare(ctx)
 		}
 
 		if err := s.awaitPrepare(ctx); err != nil {
 			return
 		}
 
-		s.multicastCommit(ctx)
+		s.sendMsgCommit(ctx)
 
 		if err := s.awaitCommit(ctx); err != nil {
 			return
 		}
 
-		c <- s.state.FinalizedBlock()
+		c <- s.state.FinalizedProposal()
 	}()
 
 	return c
 }
 
 func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
-	return time.NewTimer(s.round0Duration * time.Duration(math.Pow(2, float64(round))))
+	return time.NewTimer(s.Round0Duration * time.Duration(math.Pow(2, float64(round))))
 }
 
 func (s *Sequencer) shouldPropose() bool {
-	return s.IsProposer(s.ID(), s.state.CurrentSequence(), s.state.CurrentRound())
+	return s.IsProposer(s.ID(), s.state.Sequence(), s.state.Round())
 }
 
-func (s *Sequencer) propose(ctx Context) error {
-	block, err := s.buildBlock(ctx)
-	if err != nil {
-		return err
+func (s *Sequencer) buildProposal(ctx Context) ([]byte, error) {
+	if s.state.Round() == 0 {
+		return s.BuildProposal(s.state.Sequence()), nil
 	}
 
-	s.multicastProposal(ctx, block)
-
-	return nil
-}
-
-func (s *Sequencer) buildBlock(ctx Context) ([]byte, error) {
-	if s.state.CurrentRound() == 0 {
-		return s.BuildProposal(s.state.CurrentSequence()), nil
-	}
-
-	if s.state.roundChangeCertificate == nil {
+	if s.state.rcc == nil {
 		// round jump triggered by round timer -> justify proposal with rcc
-		RCC, err := s.awaitRCC(ctx, s.state.currentView, false)
+		RCC, err := s.awaitRCC(ctx, s.state.View(), false)
 		if err != nil {
 			return nil, err
 		}
 
-		s.state.roundChangeCertificate = RCC
+		s.state.rcc = RCC
 	}
 
-	rcc := s.state.roundChangeCertificate
-
-	block, _ := rcc.HighestRoundBlock()
+	block, _ := s.state.rcc.HighestRoundBlock()
 	if block == nil {
-		return s.BuildProposal(s.state.CurrentSequence()), nil
+		return s.BuildProposal(s.state.Sequence()), nil
 	}
 
 	return block, nil

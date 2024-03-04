@@ -13,7 +13,6 @@ import (
 
 type EngineConfig struct {
 	Validator      ibft.Validator
-	Verifier       ibft.Verifier
 	Transport      ibft.Transport
 	Quorum         ibft.Quorum
 	Keccak         ibft.Keccak
@@ -25,12 +24,8 @@ func (cfg EngineConfig) IsValid() error {
 		return errors.New("nil Validator")
 	}
 
-	if cfg.Verifier == nil {
-		return errors.New("nil Verifier")
-	}
-
 	if cfg.Transport == nil {
-		return errors.New("nil Transport")
+		return errors.New("nil MessageTransport")
 	}
 
 	if cfg.Quorum == nil {
@@ -47,21 +42,31 @@ func (cfg EngineConfig) IsValid() error {
 type SequenceResult = types.FinalizedProposal
 
 type Engine struct {
-	cfg EngineConfig
+	*sequencer.Sequencer
 
-	messages  *store.MsgStore
-	sequencer *sequencer.Sequencer
+	messages   *store.MsgStore
+	ctxOptions []sequencer.ContextOption
 }
 
 func NewEngine(cfg EngineConfig) Engine {
+	msgStore := store.NewMsgStore()
+	msgFeed := msgStore.Feed()
+
 	return Engine{
-		cfg:       cfg,
-		messages:  store.NewMsgStore(),
-		sequencer: sequencer.New(cfg.Validator, cfg.Verifier, cfg.Round0Duration),
+		Sequencer: sequencer.New(cfg.Validator, cfg.Round0Duration),
+		messages:  msgStore,
+		ctxOptions: []sequencer.ContextOption{
+			sequencer.WithQuorum(cfg.Quorum),
+			sequencer.WithMessageTransport(cfg.Transport),
+			sequencer.WithKeccak(cfg.Keccak),
+			sequencer.WithMessageFeed(msgFeed),
+		},
 	}
 }
 
 func (e Engine) AddMessage(msg ibft.Message) error {
+	// todo: verify msg
+
 	switch msg := msg.(type) {
 	case *types.MsgProposal:
 		e.messages.ProposalMessages.AddMessage(msg)
@@ -76,18 +81,11 @@ func (e Engine) AddMessage(msg ibft.Message) error {
 	return nil
 }
 
-func (e Engine) Finalize(ctx context.Context, sequence uint64) *SequenceResult {
+func (e Engine) FinalizeSequence(ctx context.Context, sequence uint64) *SequenceResult {
 	defer func() {
-		// clean old messages
+		// todo: clean old messages
 
 	}()
 
-	seqCtx := sequencer.NewContext(ctx,
-		sequencer.WithQuorum(e.cfg.Quorum),
-		sequencer.WithTransport(e.cfg.Transport),
-		sequencer.WithKeccak(e.cfg.Keccak),
-		sequencer.WithMessageFeed(e.messages.Feed()),
-	)
-
-	return e.sequencer.FinalizeSequence(seqCtx, sequence)
+	return e.Finalize(sequencer.NewContext(ctx, e.ctxOptions...), sequence)
 }

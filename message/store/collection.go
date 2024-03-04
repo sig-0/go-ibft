@@ -1,9 +1,9 @@
 package store
 
 import (
+	"github.com/madz-lab/go-ibft/sequencer"
 	"sync"
 
-	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
@@ -12,7 +12,7 @@ type Collection[M message] interface {
 	GetMessages(view *types.View) []M
 	RemoveMessages(view *types.View)
 
-	Subscribe(view *types.View, higherRounds bool) (ibft.Subscription[M], func())
+	Subscribe(view *types.View, higherRounds bool) (sequencer.Subscription[M], func())
 }
 
 type syncCollection[M message] struct {
@@ -29,7 +29,7 @@ func NewCollection[M message]() Collection[M] {
 	}
 }
 
-func (c *syncCollection[M]) Subscribe(view *types.View, higherRounds bool) (ibft.Subscription[M], func()) {
+func (c *syncCollection[M]) Subscribe(view *types.View, higherRounds bool) (sequencer.Subscription[M], func()) {
 	sub := newSubscription[M](view, higherRounds)
 	unregister := c.registerSubscription(sub)
 
@@ -92,7 +92,7 @@ func (c *syncCollection[M]) GetMessages(view *types.View) []M {
 	return c.msgCollection.loadSet(view).Messages()
 }
 
-func (c *syncCollection[M]) unwrapMessagesFn(view *types.View, higherRounds bool) ibft.NotificationFn[M] {
+func (c *syncCollection[M]) unwrapMessagesFn(view *types.View, higherRounds bool) sequencer.NotificationFn[M] {
 	return func() []M {
 		c.collectionMux.RLock()
 		defer c.collectionMux.RUnlock()

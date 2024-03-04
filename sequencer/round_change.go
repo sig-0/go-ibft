@@ -7,17 +7,17 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) multicastRoundChange(ctx Context) {
+func (s *Sequencer) sendMsgRoundChange(ctx Context) {
 	msg := &types.MsgRoundChange{
-		View:                        s.state.CurrentView(),
+		View:                        s.state.View(),
 		From:                        s.ID(),
-		LatestPreparedProposedBlock: s.state.latestPreparedProposedBlock,
-		LatestPreparedCertificate:   s.state.latestPreparedCertificate,
+		LatestPreparedProposedBlock: s.state.latestPB,
+		LatestPreparedCertificate:   s.state.latestPC,
 	}
 
 	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
-	ctx.Transport().Multicast(msg)
+	ctx.MessageTransport().RoundChange.Multicast(msg)
 }
 
 func (s *Sequencer) awaitRCC(
@@ -42,10 +42,10 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 		view.Round++
 	}
 
-	sub, cancelSub := ctx.Feed().RoundChangeMessages(view, higherRounds)
+	sub, cancelSub := ctx.MessageFeed().RoundChangeMessages(view, higherRounds)
 	defer cancelSub()
 
-	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
+	isValidMsg := func(msg *types.MsgRoundChange) bool {
 		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
@@ -55,7 +55,8 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 		}
 
 		return true
-	})
+	}
+	cache := newMsgCache(isValidMsg)
 
 	for {
 		select {
@@ -174,7 +175,7 @@ func (s *Sequencer) isValidRCC(
 	proposal *types.MsgProposal,
 	quorum ibft.Quorum,
 ) bool {
-	if rcc == nil {
+	if rcc == nil || len(rcc.Messages) == 0 {
 		return false
 	}
 
@@ -183,11 +184,7 @@ func (s *Sequencer) isValidRCC(
 		round    = proposal.View.Round
 	)
 
-	if len(rcc.Messages) == 0 {
-		return false
-	}
-
-	senders := make(map[string]struct{})
+	uniqueSenders := make(map[string]struct{})
 
 	for _, msg := range rcc.Messages {
 		if msg.View.Sequence != sequence {
@@ -202,10 +199,10 @@ func (s *Sequencer) isValidRCC(
 			return false
 		}
 
-		senders[string(msg.From)] = struct{}{}
+		uniqueSenders[string(msg.From)] = struct{}{}
 	}
 
-	if len(senders) != len(rcc.Messages) {
+	if len(uniqueSenders) != len(rcc.Messages) {
 		return false
 	}
 

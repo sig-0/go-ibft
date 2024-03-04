@@ -7,16 +7,16 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) multicastPrepare(ctx Context) {
+func (s *Sequencer) sendMsgPrepare(ctx Context) {
 	msg := &types.MsgPrepare{
 		From:      s.ID(),
-		View:      s.state.CurrentView(),
+		View:      s.state.View(),
 		BlockHash: s.state.AcceptedBlockHash(),
 	}
 
 	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
-	ctx.Transport().Multicast(msg)
+	ctx.MessageTransport().Prepare.Multicast(msg)
 }
 
 func (s *Sequencer) awaitPrepare(ctx Context) error {
@@ -31,16 +31,17 @@ func (s *Sequencer) awaitPrepare(ctx Context) error {
 }
 
 func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error) {
-	sub, cancelSub := ctx.Feed().PrepareMessages(s.state.currentView, false)
+	sub, cancelSub := ctx.MessageFeed().PrepareMessages(s.state.view, false)
 	defer cancelSub()
 
-	cache := newMsgCache(func(msg *types.MsgPrepare) bool {
+	isValidMsg := func(msg *types.MsgPrepare) bool {
 		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
 
 		return s.isValidMsgPrepare(msg)
-	})
+	}
+	cache := newMsgCache(isValidMsg)
 
 	for {
 		select {

@@ -7,29 +7,29 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) multicastProposal(ctx Context, block []byte) {
+func (s *Sequencer) sendMsgProposal(ctx Context, block []byte) {
 	pb := &types.ProposedBlock{
 		Block: block,
-		Round: s.state.CurrentRound(),
+		Round: s.state.Round(),
 	}
 
 	msg := &types.MsgProposal{
 		From:                   s.ID(),
-		View:                   s.state.CurrentView(),
+		View:                   s.state.View(),
 		ProposedBlock:          pb,
 		BlockHash:              ctx.Keccak().Hash(pb.Bytes()),
-		RoundChangeCertificate: s.state.roundChangeCertificate,
+		RoundChangeCertificate: s.state.rcc,
 	}
 
 	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
-	s.state.acceptedProposal = msg
+	s.state.proposal = msg
 
-	ctx.Transport().Multicast(msg)
+	ctx.MessageTransport().Proposal.Multicast(msg)
 }
 
 func (s *Sequencer) awaitCurrentRoundProposal(ctx Context) error {
-	proposal, err := s.awaitProposal(ctx, s.state.currentView, false)
+	proposal, err := s.awaitProposal(ctx, s.state.view, false)
 	if err != nil {
 		return err
 	}
@@ -44,16 +44,17 @@ func (s *Sequencer) awaitProposal(ctx Context, view *types.View, higherRounds bo
 		view.Round++
 	}
 
-	sub, cancelSub := ctx.Feed().ProposalMessages(view, higherRounds)
+	sub, cancelSub := ctx.MessageFeed().ProposalMessages(view, higherRounds)
 	defer cancelSub()
 
-	cache := newMsgCache(func(msg *types.MsgProposal) bool {
+	isValidMsg := func(msg *types.MsgProposal) bool {
 		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
 
 		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
-	})
+	}
+	cache := newMsgCache(isValidMsg)
 
 	for {
 		select {

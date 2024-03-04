@@ -1,4 +1,4 @@
-package ibft
+package sequencer
 
 import "github.com/madz-lab/go-ibft/message/types"
 

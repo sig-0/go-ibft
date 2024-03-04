@@ -7,17 +7,17 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-func (s *Sequencer) multicastCommit(ctx Context) {
+func (s *Sequencer) sendMsgCommit(ctx Context) {
 	msg := &types.MsgCommit{
 		From:       s.ID(),
-		View:       s.state.CurrentView(),
+		View:       s.state.View(),
 		BlockHash:  s.state.AcceptedBlockHash(),
 		CommitSeal: s.Sign(s.state.AcceptedBlockHash()),
 	}
 
 	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
-	ctx.Transport().Multicast(msg)
+	ctx.MessageTransport().Commit.Multicast(msg)
 }
 
 func (s *Sequencer) awaitCommit(ctx Context) error {
@@ -34,26 +34,26 @@ func (s *Sequencer) awaitCommit(ctx Context) error {
 }
 
 func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) {
-	cache := newMsgCache(func(msg *types.MsgCommit) bool {
+	sub, cancelSub := ctx.MessageFeed().CommitMessages(s.state.view, false)
+	defer cancelSub()
+
+	isValidMsg := func(msg *types.MsgCommit) bool {
 		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
 			return false
 		}
 
 		return s.isValidMsgCommit(msg)
-	})
-
-	sub, cancelSub := ctx.Feed().CommitMessages(s.state.currentView, false)
-	defer cancelSub()
+	}
+	cache := newMsgCache(isValidMsg)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			messages := notification.Unwrap()
-			cache = cache.Add(messages)
+			cache = cache.Add(notification.Unwrap())
 
-			commits := notification.Unwrap()
+			commits := cache.Get()
 			if len(commits) == 0 {
 				continue
 			}

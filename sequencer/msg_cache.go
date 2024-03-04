@@ -39,5 +39,5 @@ func (c msgCache[M]) Add(messages []M) msgCache[M] {
 }
 
 func (c msgCache[M]) Get() []M {
-	return append(make([]M, 0, len(c.filtered)), c.filtered...)
+	return c.filtered
 }

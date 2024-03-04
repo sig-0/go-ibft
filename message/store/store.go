@@ -1,8 +1,8 @@
 package store
 
 import (
-	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
+	"github.com/madz-lab/go-ibft/sequencer"
 )
 
 type message interface {
@@ -33,7 +33,7 @@ func NewMsgStore() *MsgStore {
 	return s
 }
 
-func (s *MsgStore) Feed() ibft.MessageFeed {
+func (s *MsgStore) Feed() sequencer.MessageFeed {
 	return Feed{s}
 }
 
@@ -44,27 +44,27 @@ type Feed struct {
 func (f Feed) ProposalMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgProposal], func()) {
+) (sequencer.Subscription[*types.MsgProposal], func()) {
 	return f.MsgStore.ProposalMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) PrepareMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgPrepare], func()) {
+) (sequencer.Subscription[*types.MsgPrepare], func()) {
 	return f.MsgStore.PrepareMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) CommitMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgCommit], func()) {
+) (sequencer.Subscription[*types.MsgCommit], func()) {
 	return f.MsgStore.CommitMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) RoundChangeMessages(
 	view *types.View,
 	futureRounds bool,
-) (ibft.Subscription[*types.MsgRoundChange], func()) {
+) (sequencer.Subscription[*types.MsgRoundChange], func()) {
 	return f.MsgStore.RoundChangeMessages.Subscribe(view, futureRounds)
 }
