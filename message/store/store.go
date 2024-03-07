@@ -44,27 +44,27 @@ type Feed struct {
 func (f Feed) ProposalMessages(
 	view *types.View,
 	futureRounds bool,
-) (sequencer.Subscription[*types.MsgProposal], func()) {
+) (types.Subscription[*types.MsgProposal], func()) {
 	return f.MsgStore.ProposalMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) PrepareMessages(
 	view *types.View,
 	futureRounds bool,
-) (sequencer.Subscription[*types.MsgPrepare], func()) {
+) (types.Subscription[*types.MsgPrepare], func()) {
 	return f.MsgStore.PrepareMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) CommitMessages(
 	view *types.View,
 	futureRounds bool,
-) (sequencer.Subscription[*types.MsgCommit], func()) {
+) (types.Subscription[*types.MsgCommit], func()) {
 	return f.MsgStore.CommitMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) RoundChangeMessages(
 	view *types.View,
 	futureRounds bool,
-) (sequencer.Subscription[*types.MsgRoundChange], func()) {
+) (types.Subscription[*types.MsgRoundChange], func()) {
 	return f.MsgStore.RoundChangeMessages.Subscribe(view, futureRounds)
 }

@@ -17,6 +17,20 @@ type FinalizedProposal struct {
 	Round uint64
 }
 
+type Subscription[M IBFTMessage] chan MsgNotification[M]
+
+// MsgNotification is received from the subscription to indicate a new message
+type MsgNotification[M IBFTMessage] interface {
+	// Unwrap returns all messages that fit the subscription
+	Unwrap() []M
+}
+
+type NotificationFn[M IBFTMessage] func() []M
+
+func (r NotificationFn[M]) Unwrap() []M {
+	return r()
+}
+
 func (rcc *RoundChangeCertificate) HighestRoundBlock() ([]byte, uint64) {
 	roundsAndPreparedBlocks := make(map[uint64][]byte)
 

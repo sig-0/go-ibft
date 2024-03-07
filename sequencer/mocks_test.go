@@ -96,9 +96,9 @@ func newSingleRoundSubscription[M msg](
 	messages messagesByView[M],
 	view *types.View,
 	futureRounds bool,
-) (Subscription[M], func()) {
-	c := make(chan MsgNotification[M], 1)
-	c <- NotificationFn[M](func() []M {
+) (types.Subscription[M], func()) {
+	c := make(chan types.MsgNotification[M], 1)
+	c <- types.NotificationFn[M](func() []M {
 		if futureRounds {
 			return nil
 		}
@@ -113,9 +113,9 @@ func newFutureRoundsSubscription[M msg](
 	messages messagesByView[M],
 	view *types.View,
 	futureRounds bool,
-) (Subscription[M], func()) {
-	c := make(chan MsgNotification[M], 1)
-	c <- NotificationFn[M](func() []M {
+) (types.Subscription[M], func()) {
+	c := make(chan types.MsgNotification[M], 1)
+	c <- types.NotificationFn[M](func() []M {
 		if futureRounds == false {
 			return messages[view.Sequence][view.Round]
 		}
@@ -140,55 +140,55 @@ func newFutureRoundsSubscription[M msg](
 func (f singleRoundFeed) ProposalMessages(
 	view *types.View,
 	futureRounds bool,
-) (Subscription[*types.MsgProposal], func()) {
+) (types.Subscription[*types.MsgProposal], func()) {
 	return newSingleRoundSubscription[*types.MsgProposal](f.proposal, view, futureRounds)
 }
 
 func (f singleRoundFeed) PrepareMessages(
 	view *types.View,
 	futureRounds bool,
-) (Subscription[*types.MsgPrepare], func()) {
+) (types.Subscription[*types.MsgPrepare], func()) {
 	return newSingleRoundSubscription[*types.MsgPrepare](f.prepare, view, futureRounds)
 }
 
 func (f singleRoundFeed) CommitMessages(
 	view *types.View,
 	futureRounds bool,
-) (Subscription[*types.MsgCommit], func()) {
+) (types.Subscription[*types.MsgCommit], func()) {
 	return newSingleRoundSubscription[*types.MsgCommit](f.commit, view, futureRounds)
 }
 
 func (f singleRoundFeed) RoundChangeMessages(
 	view *types.View,
 	futureRounds bool,
-) (Subscription[*types.MsgRoundChange], func()) {
+) (types.Subscription[*types.MsgRoundChange], func()) {
 	return newSingleRoundSubscription[*types.MsgRoundChange](f.roundChange, view, futureRounds)
 }
 
 func (f allRoundsFeed) ProposalMessages(
 	view *types.View,
 	futureRounds bool,
-) (Subscription[*types.MsgProposal], func()) {
+) (types.Subscription[*types.MsgProposal], func()) {
 	return newFutureRoundsSubscription[*types.MsgProposal](f.proposal, view, futureRounds)
 }
 
 func (f allRoundsFeed) PrepareMessages(
 	view *types.View,
 	futureRounds bool,
-) (Subscription[*types.MsgPrepare], func()) {
+) (types.Subscription[*types.MsgPrepare], func()) {
 	return newFutureRoundsSubscription[*types.MsgPrepare](f.prepare, view, futureRounds)
 }
 
 func (f allRoundsFeed) CommitMessages(
 	view *types.View,
 	futureRounds bool,
-) (Subscription[*types.MsgCommit], func()) {
+) (types.Subscription[*types.MsgCommit], func()) {
 	return newFutureRoundsSubscription[*types.MsgCommit](f.commit, view, futureRounds)
 }
 
 func (f allRoundsFeed) RoundChangeMessages(
 	view *types.View,
 	futureRounds bool,
-) (Subscription[*types.MsgRoundChange], func()) {
+) (types.Subscription[*types.MsgRoundChange], func()) {
 	return newFutureRoundsSubscription[*types.MsgRoundChange](f.roundChange, view, futureRounds)
 }
