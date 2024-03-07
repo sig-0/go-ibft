@@ -25,9 +25,9 @@ type MsgNotification[M IBFTMessage] interface {
 	Unwrap() []M
 }
 
-type NotificationFn[M IBFTMessage] func() []M
+type MsgNotificationFn[M IBFTMessage] func() []M
 
-func (r NotificationFn[M]) Unwrap() []M {
+func (r MsgNotificationFn[M]) Unwrap() []M {
 	return r()
 }
 

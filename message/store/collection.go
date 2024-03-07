@@ -91,7 +91,7 @@ func (c *syncCollection[M]) GetMessages(view *types.View) []M {
 	return c.msgCollection.loadSet(view).Messages()
 }
 
-func (c *syncCollection[M]) unwrapMessagesFn(view *types.View, higherRounds bool) types.NotificationFn[M] {
+func (c *syncCollection[M]) unwrapMessagesFn(view *types.View, higherRounds bool) types.MsgNotificationFn[M] {
 	return func() []M {
 		c.collectionMux.RLock()
 		defer c.collectionMux.RUnlock()

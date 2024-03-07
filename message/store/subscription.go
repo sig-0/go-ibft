@@ -20,7 +20,7 @@ func newSubscription[M types.IBFTMessage](view *types.View, higherRounds bool) s
 	}
 }
 
-func (s *subscription[M]) Notify(receiver types.NotificationFn[M]) {
+func (s *subscription[M]) Notify(receiver types.MsgNotificationFn[M]) {
 	select {
 	case s.Channel <- receiver:
 	default:

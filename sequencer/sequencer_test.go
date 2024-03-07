@@ -29,14 +29,8 @@ func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	go func(ctx context.Context) {
 		defer close(c)
 
-		msgFeed := singleRoundFeed(MockFeed{
-			proposal: messagesByView[*types.MsgProposal]{
-				101: {},
-			},
-		})
-
 		seq := New(validator, 10*time.Millisecond)
-		c <- seq.Finalize(NewContext(ctx, WithMessageFeed(msgFeed)), 101)
+		c <- seq.Finalize(NewContext(ctx, WithMessageFeed(mock.NewSingleRoundFeed(nil))), 101)
 	}(ctx)
 
 	cancelCtx()
@@ -82,7 +76,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newAllRoundsFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]ibft.Message{
 				&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
 					From:      []byte("proposer"),
@@ -135,7 +129,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newAllRoundsFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]ibft.Message{
 				&types.MsgPrepare{
 					View:      &types.View{Sequence: 101, Round: 0},
 					From:      []byte("some validator"),
@@ -178,7 +172,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newAllRoundsFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]ibft.Message{
 				&types.MsgProposal{
 					View:          &types.View{Sequence: 101, Round: 1},
 					From:          []byte("proposer"),
@@ -234,7 +228,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newAllRoundsFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]ibft.Message{
 				&types.MsgProposal{
 					View:          &types.View{Sequence: 101, Round: 1},
 					From:          []byte("proposer"),
@@ -312,7 +306,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newAllRoundsFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]ibft.Message{
 				&types.MsgRoundChange{
 					View: &types.View{Sequence: 101, Round: 1},
 					From: []byte("some validator"),
@@ -363,7 +357,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newAllRoundsFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]ibft.Message{
 				&types.MsgRoundChange{
 					View: &types.View{Sequence: 101, Round: 1},
 					From: []byte("some validator"),
@@ -435,7 +429,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newAllRoundsFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]ibft.Message{
 				&types.MsgRoundChange{
 					View: &types.View{Sequence: 101, Round: 3},
 					From: []byte("some validator"),
@@ -499,7 +493,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newAllRoundsFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]ibft.Message{
 				&types.MsgProposal{
 					View: &types.View{Sequence: 101, Round: 5},
 					From: []byte("proposer"),
@@ -565,7 +559,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]ibft.Message{
 				&types.MsgRoundChange{
 					View: &types.View{Sequence: 101, Round: 1},
 					From: []byte("some validator"),
@@ -616,7 +610,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]ibft.Message{
 				&types.MsgRoundChange{
 					View: &types.View{Sequence: 101, Round: 1},
 					From: []byte("some validator"),
@@ -685,7 +679,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.NonZeroQuorum,
 
-			feed: newSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]ibft.Message{
 				&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
 					From:      []byte("proposer"),
@@ -761,7 +755,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.QuorumOf(2),
 
-			feed: newSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]ibft.Message{
 				&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
 					From:      []byte("proposer"),
@@ -859,7 +853,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.QuorumOf(2),
 
-			feed: newSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]ibft.Message{
 				&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
 					From:      []byte("proposer"),
@@ -962,7 +956,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.QuorumOf(2),
 
-			feed: newSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]ibft.Message{
 				&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
 					From:      []byte("proposer"),
@@ -1074,7 +1068,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 
 			quorum: mock.QuorumOf(2),
 
-			feed: newSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]ibft.Message{
 				&types.MsgRoundChange{
 					View: &types.View{Sequence: 101, Round: 1},
 					From: []byte("validator"),

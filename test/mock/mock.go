@@ -2,6 +2,7 @@ package mock
 
 import (
 	"bytes"
+
 	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
@@ -117,4 +118,160 @@ func (v Verifier) IsValidProposal(proposal []byte, sequence uint64) bool {
 
 func (v Verifier) IsProposer(id []byte, sequence, round uint64) bool {
 	return v.IsProposerFn(id, sequence, round)
+}
+
+type MessageFeed struct {
+	Proposal    messagesByView[*types.MsgProposal]
+	Prepare     messagesByView[*types.MsgPrepare]
+	Commit      messagesByView[*types.MsgCommit]
+	RoundChange messagesByView[*types.MsgRoundChange]
+}
+
+func NewMessageFeed(messages []ibft.Message) MessageFeed {
+	f := MessageFeed{
+		Proposal:    make(messagesByView[*types.MsgProposal]),
+		Prepare:     make(messagesByView[*types.MsgPrepare]),
+		Commit:      make(messagesByView[*types.MsgCommit]),
+		RoundChange: make(messagesByView[*types.MsgRoundChange]),
+	}
+
+	for _, msg := range messages {
+		switch msg := msg.(type) {
+		case *types.MsgProposal:
+			f.Proposal.add(msg)
+		case *types.MsgPrepare:
+			f.Prepare.add(msg)
+		case *types.MsgCommit:
+			f.Commit.add(msg)
+		case *types.MsgRoundChange:
+			f.RoundChange.add(msg)
+		}
+	}
+
+	return f
+}
+
+func newSubscription[M msg](notification types.MsgNotification[M]) (types.Subscription[M], func()) {
+	c := make(types.Subscription[M], 1)
+	c <- notification
+
+	return c, func() { close(c) }
+}
+
+func (f MessageFeed) ProposalMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgProposal], func()) {
+	return newSubscription(f.Proposal.notification(view, higherRounds))
+}
+
+func (f MessageFeed) PrepareMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgPrepare], func()) {
+	return newSubscription(f.Prepare.notification(view, higherRounds))
+}
+
+func (f MessageFeed) CommitMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgCommit], func()) {
+	return newSubscription(f.Commit.notification(view, higherRounds))
+}
+
+func (f MessageFeed) RoundChangeMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgRoundChange], func()) {
+	return newSubscription(f.RoundChange.notification(view, higherRounds))
+}
+
+type SingleRoundFeed MessageFeed
+
+func NewSingleRoundFeed(messages []ibft.Message) SingleRoundFeed {
+	return SingleRoundFeed(NewMessageFeed(messages))
+}
+
+func (f SingleRoundFeed) ProposalMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgProposal], func()) {
+	if higherRounds {
+		return nil, func() {}
+	}
+
+	return newSubscription(f.Proposal.notification(view, false))
+}
+
+func (f SingleRoundFeed) PrepareMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgPrepare], func()) {
+	if higherRounds {
+		return nil, func() {}
+	}
+
+	return newSubscription(f.Prepare.notification(view, false))
+}
+
+func (f SingleRoundFeed) CommitMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgCommit], func()) {
+	if higherRounds {
+		return nil, func() {}
+	}
+
+	return newSubscription(f.Commit.notification(view, false))
+}
+
+func (f SingleRoundFeed) RoundChangeMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgRoundChange], func()) {
+	if higherRounds {
+		return nil, func() {}
+	}
+
+	return newSubscription(f.RoundChange.notification(view, false))
+}
+
+type msg interface {
+	types.IBFTMessage
+
+	GetView() *types.View
+}
+
+func (m messagesByView[M]) get(view *types.View) []M {
+	return m[view.Sequence][view.Round]
+}
+
+func (m messagesByView[M]) rounds(sequence uint64) []uint64 {
+	var rounds []uint64
+
+	for round := range m[sequence] {
+		rounds = append(rounds, round)
+	}
+
+	return rounds
+}
+
+type messagesByView[M msg] map[uint64]map[uint64][]M
+
+func (m messagesByView[M]) add(msg M) {
+	view := msg.GetView()
+
+	messagesInSequence, ok := m[view.Sequence]
+	if !ok {
+		m[view.Sequence] = make(map[uint64][]M)
+		messagesInSequence = m[view.Sequence]
+	}
+
+	messagesInRound, ok := messagesInSequence[view.Round]
+	if !ok {
+		messagesInSequence[view.Round] = make([]M, 0)
+		messagesInRound = messagesInSequence[view.Round]
+	}
+
+	messagesInRound = append(messagesInRound, msg)
+	messagesInSequence[view.Round] = messagesInRound
+}
+
+func (m messagesByView[M]) notification(view *types.View, higherRounds bool) types.MsgNotification[M] {
+	return types.MsgNotificationFn[M](func() []M {
+		if !higherRounds {
+			return m.get(view)
+		}
+
+		var max uint64
+		for _, round := range m.rounds(view.Sequence) {
+			if round >= max {
+				max = round
+			}
+		}
+
+		if max < view.Round {
+			return nil
+		}
+
+		view.Round = max
+
+		return m.get(view)
+	})
 }

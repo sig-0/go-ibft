@@ -20,7 +20,7 @@ type MsgStore struct {
 	RoundChangeMessages Collection[*types.MsgRoundChange]
 }
 
-// NewMsgStore returns a new MsgStore instance. NotificationFn added to this store
+// NewMsgStore returns a new MsgStore instance. MsgNotificationFn added to this store
 // have their signatures verified before being included
 func NewMsgStore() *MsgStore {
 	s := &MsgStore{
