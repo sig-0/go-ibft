@@ -49,9 +49,24 @@ func WrapMessages[M IBFTMessage](messages ...M) []Message {
 }
 
 func (x *MsgProposal) Validate() error {
+	if x.View == nil {
+		return errors.New("missing view")
+	}
+
+	if x.From == nil {
+		return errors.New("missing sender")
+	}
+
+	if x.Signature == nil {
+		return errors.New("missing signature")
+	}
 
 	if x.BlockHash == nil {
 		return errors.New("missing block hash")
+	}
+
+	if x.ProposedBlock == nil {
+		return errors.New("missing proposed block")
 	}
 
 	return nil

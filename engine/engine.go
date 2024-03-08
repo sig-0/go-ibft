@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	ErrInvalidConfig = errors.New("invalid engine config")
+	ErrInvalidConfig  = errors.New("invalid engine config")
+	ErrInvalidMessage = errors.New("invalid ibft message")
 )
 
 type EngineConfig struct {
@@ -48,8 +49,6 @@ func (cfg EngineConfig) IsValid() error {
 	return nil
 }
 
-type SequenceResult = types.FinalizedProposal
-
 type Engine struct {
 	*sequencer.Sequencer
 
@@ -67,12 +66,12 @@ func NewEngine(cfg EngineConfig) Engine {
 
 func (e Engine) AddMessage(msg types.Message) error {
 	if err := msg.Validate(); err != nil {
-		return fmt.Errorf("invalid msg: %w", err)
+		return fmt.Errorf("%w: %v", ErrInvalidMessage, err)
 	}
 
 	msgDigest := e.cfg.Keccak.Hash(msg.Payload())
 	if !e.Validator.IsValidSignature(msg.GetSender(), msgDigest, msg.GetSignature()) {
-		return errors.New("invalid signature")
+		return fmt.Errorf("%w: invalid signature", ErrInvalidMessage)
 	}
 
 	switch msg := msg.(type) {
@@ -88,6 +87,8 @@ func (e Engine) AddMessage(msg types.Message) error {
 
 	return nil
 }
+
+type SequenceResult = types.FinalizedProposal
 
 func (e Engine) FinalizeSequence(ctx context.Context, sequence uint64) *SequenceResult {
 	defer func() {
