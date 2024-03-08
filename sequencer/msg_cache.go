@@ -1,7 +1,6 @@
 package sequencer
 
 import (
-	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
@@ -21,7 +20,8 @@ func newMsgCache[M types.IBFTMessage](filterFn func(M) bool) msgCache[M] {
 
 func (c msgCache[M]) Add(messages []M) msgCache[M] {
 	for _, msg := range messages {
-		from := any(msg).(ibft.Message).GetSender() //nolint:forcetypeassert // msg constraint
+		//nolint:forcetypeassert // msg constraint
+		from := any(msg).(types.Message).GetSender()
 		if _, ok := c.seen[string(from)]; ok {
 			continue
 		}

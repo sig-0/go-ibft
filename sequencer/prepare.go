@@ -3,7 +3,6 @@ package sequencer
 import (
 	"bytes"
 
-	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
@@ -35,10 +34,6 @@ func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error
 	defer cancelSub()
 
 	isValidMsg := func(msg *types.MsgPrepare) bool {
-		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
-			return false
-		}
-
 		return s.isValidMsgPrepare(msg)
 	}
 	cache := newMsgCache(isValidMsg)
@@ -51,7 +46,7 @@ func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error
 			cache = cache.Add(notification.Unwrap())
 
 			prepares := cache.Get()
-			if !ctx.Quorum().HasQuorum(ibft.WrapMessages(prepares...)) {
+			if !ctx.Quorum().HasQuorum(types.WrapMessages(prepares...)) {
 				continue
 			}
 

@@ -17,14 +17,13 @@ func TestIsValidMsgProposal(t *testing.T) {
 	table := []struct {
 		validator ibft.Validator
 		quorum    ibft.Quorum
-		keccak    ibft.Keccak
 		msg       *types.MsgProposal
 		name      string
 		isValid   bool
 	}{
 		{
 			name:      "proposed block round and view round do not match",
-			validator: mock.Validator{IDFn: mock.NewValidatorID("alice").ID},
+			validator: mock.Validator{IDFn: Alice.ID},
 
 			msg: &types.MsgProposal{
 				View:          &types.View{Round: 0},
@@ -34,22 +33,22 @@ func TestIsValidMsgProposal(t *testing.T) {
 
 		{
 			name:      "cannot verify own proposal",
-			validator: mock.Validator{IDFn: mock.NewValidatorID("alice").ID},
+			validator: mock.Validator{IDFn: Alice.ID},
 
 			msg: &types.MsgProposal{
+				From:          Alice,
 				View:          &types.View{Sequence: 101, Round: 0},
 				ProposedBlock: &types.ProposedBlock{Round: 0},
-				From:          mock.NewValidatorID("alice"),
 			},
 		},
 
 		{
 			name: "invalid proposer",
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 0},
+						mock.Proposer{ID: Bob, Round: 0},
 					),
 				},
 			},
@@ -65,33 +64,31 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
-			name:   "invalid block hash",
-			keccak: mock.NewDummyKeccak("keccak"),
+			name: "invalid block hash",
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 0},
+						mock.Proposer{ID: Bob, Round: 0},
 					),
 				},
 			},
 
 			msg: &types.MsgProposal{
 				View:          &types.View{Sequence: 101, Round: 0},
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 0},
 				BlockHash:     []byte("definitely not keccak"),
 			},
 		},
 
 		{
-			name:   "invalid round 0 block",
-			keccak: mock.NewDummyKeccak("keccak"),
+			name: "invalid round 0 block",
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 0},
+						mock.Proposer{ID: Bob, Round: 0},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
@@ -101,20 +98,19 @@ func TestIsValidMsgProposal(t *testing.T) {
 
 			msg: &types.MsgProposal{
 				View:          &types.View{Sequence: 101, Round: 0},
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				ProposedBlock: &types.ProposedBlock{Block: []byte("invalid block"), Round: 0},
 				BlockHash:     []byte("keccak"),
 			},
 		},
 
 		{
-			name:   "valid round 0 proposal",
-			keccak: mock.NewDummyKeccak("keccak"),
+			name: "valid round 0 proposal",
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 0},
+						mock.Proposer{ID: Bob, Round: 0},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
@@ -124,7 +120,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 
 			isValid: true,
 			msg: &types.MsgProposal{
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				View:          &types.View{Sequence: 101, Round: 0},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 0},
 				BlockHash:     []byte("keccak"),
@@ -132,13 +128,12 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
-			name:   "(non zero round): empty rcc",
-			keccak: mock.NewDummyKeccak("keccak"),
+			name: "(non zero round): empty rcc",
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 1},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
@@ -147,7 +142,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:                   mock.NewValidatorID("bob"),
+				From:                   Bob,
 				View:                   &types.View{Sequence: 101, Round: 1},
 				ProposedBlock:          &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:              []byte("keccak"),
@@ -156,13 +151,12 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
-			name:   "(non zero round): invalid msg sequence in rcc",
-			keccak: mock.NewDummyKeccak("keccak"),
+			name: "(non zero round): invalid msg sequence in rcc",
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 1},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
@@ -171,7 +165,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				View:          &types.View{Sequence: 101, Round: 1},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
@@ -186,13 +180,12 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
-			name:   "(non zero round): invalid msg round in rcc",
-			keccak: mock.NewDummyKeccak("keccak"),
+			name: "(non zero round): invalid msg round in rcc",
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 1},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
@@ -201,7 +194,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				View:          &types.View{Sequence: 101, Round: 1},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
@@ -216,30 +209,29 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
-			name:   "(non zero round): invalid sender in rcc",
-			keccak: mock.NewDummyKeccak("keccak"),
+			name: "(non zero round): invalid sender in rcc",
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 1},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
 					},
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgProposal{
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				View:          &types.View{Sequence: 101, Round: 1},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: mock.NewValidatorID("chris"),
+							From: []byte("definitely not a validator"),
 							View: &types.View{Sequence: 101, Round: 1},
 						},
 					},
@@ -248,35 +240,34 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
-			name:   "(non zero round): duplicate sender in rcc",
-			keccak: mock.NewDummyKeccak("keccak"),
+			name: "(non zero round): duplicate sender in rcc",
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 1},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
 					},
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgProposal{
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				View:          &types.View{Sequence: 101, Round: 1},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: mock.NewValidatorID("chris"),
+							From: Chris,
 							View: &types.View{Sequence: 101, Round: 1},
 						},
 
 						{
-							From: mock.NewValidatorID("chris"),
+							From: Chris,
 							View: &types.View{Sequence: 101, Round: 1},
 						},
 					},
@@ -286,30 +277,29 @@ func TestIsValidMsgProposal(t *testing.T) {
 
 		{
 			name:   "(non zero round): no quorum in rcc",
-			keccak: mock.NewDummyKeccak("keccak"),
 			quorum: mock.NoQuorum,
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 1},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
 					},
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgProposal{
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				View:          &types.View{Sequence: 101, Round: 1},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: mock.NewValidatorID("chris"),
+							From: Chris,
 							View: &types.View{Sequence: 101, Round: 1},
 						},
 					},
@@ -319,30 +309,29 @@ func TestIsValidMsgProposal(t *testing.T) {
 
 		{
 			name:   "(non zero round): invalid block in rcc",
-			keccak: mock.NewDummyKeccak("keccak"),
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 1},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
 					},
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgProposal{
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				View:          &types.View{Sequence: 101, Round: 1},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("invalid block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: mock.NewValidatorID("chris"),
+							From: Chris,
 							View: &types.View{Sequence: 101, Round: 1},
 						},
 					},
@@ -352,42 +341,41 @@ func TestIsValidMsgProposal(t *testing.T) {
 
 		{
 			name:   "(non zero round): highest round block hash does not match derived hash",
-			keccak: mock.NewDummyKeccak("keccak"),
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("alice"), Round: 0},
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1},
+						mock.Proposer{ID: Alice, Round: 0},
+						mock.Proposer{ID: Bob, Round: 1},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
 					},
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgProposal{
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				View:          &types.View{Sequence: 101, Round: 1},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: mock.NewValidatorID("chris"),
+							From: Chris,
 							View: &types.View{Sequence: 101, Round: 1},
 							LatestPreparedCertificate: &types.PreparedCertificate{
 								ProposalMessage: &types.MsgProposal{
-									From:      mock.NewValidatorID("alice"),
+									From:      Alice,
 									View:      &types.View{Sequence: 101, Round: 0},
 									BlockHash: []byte("invalid keccak"),
 								},
 								PrepareMessages: []*types.MsgPrepare{
 									{
 										View:      &types.View{Sequence: 101, Round: 0},
-										From:      mock.NewValidatorID("chris"),
+										From:      Chris,
 										BlockHash: []byte("invalid keccak"),
 									},
 								},
@@ -400,44 +388,43 @@ func TestIsValidMsgProposal(t *testing.T) {
 
 		{
 			name:   "(non zero round): valid proposal msg",
-			keccak: mock.NewDummyKeccak("keccak"),
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				IDFn: mock.NewValidatorID("alice").ID,
+				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("alice"), Round: 0},
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1},
+						mock.Proposer{ID: Alice, Round: 0},
+						mock.Proposer{ID: Bob, Round: 1},
 					),
 					IsValidProposalFn: func(block []byte, _ uint64) bool {
 						return bytes.Equal(block, []byte("block"))
 					},
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			isValid: true,
 			msg: &types.MsgProposal{
-				From:          mock.NewValidatorID("bob"),
+				From:          Bob,
 				View:          &types.View{Sequence: 101, Round: 1},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From:                        mock.NewValidatorID("chris"),
+							From:                        Chris,
 							View:                        &types.View{Sequence: 101, Round: 1},
 							LatestPreparedProposedBlock: &types.ProposedBlock{},
 							LatestPreparedCertificate: &types.PreparedCertificate{
 								ProposalMessage: &types.MsgProposal{
-									From:      mock.NewValidatorID("alice"),
+									From:      Alice,
 									View:      &types.View{Sequence: 101, Round: 0},
 									BlockHash: []byte("keccak"),
 								},
 								PrepareMessages: []*types.MsgPrepare{
 									{
 										View:      &types.View{Sequence: 101, Round: 0},
-										From:      mock.NewValidatorID("chris"),
+										From:      Chris,
 										BlockHash: []byte("keccak"),
 									},
 								},
@@ -455,7 +442,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			t.Parallel()
 
 			seq := New(tt.validator, 0)
-			assert.Equal(t, tt.isValid, seq.isValidMsgProposal(tt.msg, tt.quorum, tt.keccak))
+			assert.Equal(t, tt.isValid, seq.isValidMsgProposal(tt.msg, tt.quorum, mock.NewDummyKeccak("keccak")))
 		})
 	}
 }
@@ -474,13 +461,13 @@ func TestIsValidMsgPrepare(t *testing.T) {
 			name: "invalid sender",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgPrepare{
+				From: []byte("definitely not a validator"),
 				View: &types.View{Sequence: 101},
-				From: mock.NewValidatorID("chris"),
 			},
 		},
 
@@ -488,14 +475,14 @@ func TestIsValidMsgPrepare(t *testing.T) {
 			name: "invalid block hash",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			msg: &types.MsgPrepare{
 				View:      &types.View{Sequence: 101},
-				From:      mock.NewValidatorID("chris"),
+				From:      Chris,
 				BlockHash: []byte("definitely not keccak"),
 			},
 		},
@@ -504,7 +491,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 			name: "invalid block hash",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
@@ -512,7 +499,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			msg: &types.MsgPrepare{
 				View:      &types.View{Sequence: 101},
-				From:      mock.NewValidatorID("chris"),
+				From:      Chris,
 				BlockHash: []byte("keccak"),
 			},
 		},
@@ -546,13 +533,13 @@ func TestIsValidMsgCommit(t *testing.T) {
 			name: "invalid sender",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgCommit{
 				View: &types.View{Sequence: 101},
-				From: mock.NewValidatorID("chris"),
+				From: []byte("definitely not a validator"),
 			},
 		},
 
@@ -561,13 +548,13 @@ func TestIsValidMsgCommit(t *testing.T) {
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgCommit{
 				View:      &types.View{Sequence: 101},
-				From:      mock.NewValidatorID("chris"),
+				From:      Chris,
 				BlockHash: []byte("definitely not keccak"),
 			},
 		},
@@ -577,7 +564,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsValidSignatureFn: func(_, _, seal []byte) bool {
 						return bytes.Equal(seal, []byte("commit seal"))
 					},
@@ -586,7 +573,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 
 			msg: &types.MsgCommit{
 				View:       &types.View{Sequence: 101},
-				From:       mock.NewValidatorID("chris"),
+				From:       Chris,
 				BlockHash:  []byte("keccak"),
 				CommitSeal: []byte("invalid commit seal"),
 			},
@@ -597,7 +584,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsValidSignatureFn: func(_, _, seal []byte) bool {
 						return bytes.Equal(seal, []byte("commit seal"))
 					},
@@ -607,7 +594,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 			isValid: true,
 			msg: &types.MsgCommit{
 				View:       &types.View{Sequence: 101},
-				From:       mock.NewValidatorID("chris"),
+				From:       Chris,
 				BlockHash:  []byte("keccak"),
 				CommitSeal: []byte("commit seal"),
 			},
@@ -642,13 +629,13 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "invalid sender",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgRoundChange{
+				From: []byte("definitely not a validator"),
 				View: &types.View{Sequence: 101},
-				From: mock.NewValidatorID("chris"),
 			},
 		},
 
@@ -656,14 +643,14 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "valid msg (pb and pc are nil)",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			isValid: true,
 			msg: &types.MsgRoundChange{
 				View: &types.View{Sequence: 101},
-				From: mock.NewValidatorID("chris"),
+				From: Chris,
 			},
 		},
 
@@ -671,13 +658,13 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "pb and pc are not both present",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                      &types.View{Sequence: 101},
-				From:                      mock.NewValidatorID("chris"),
+				From:                      Chris,
 				LatestPreparedCertificate: &types.PreparedCertificate{},
 			},
 		},
@@ -686,13 +673,13 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) proposal msg and prepare messages are not both present",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: nil,
@@ -704,13 +691,13 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) invalid sequence in proposal msg",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
@@ -725,13 +712,13 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) invalid round in proposal msg",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
@@ -746,15 +733,15 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) invalid proposer in proposal msg",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 0}),
+						mock.Proposer{ID: Bob, Round: 0}),
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 1},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
@@ -770,19 +757,19 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) proposal and prepare sequence mismatch",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1}),
+						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From: mock.NewValidatorID("bob"),
+						From: Bob,
 						View: &types.View{Sequence: 101, Round: 1},
 					},
 					PrepareMessages: []*types.MsgPrepare{
@@ -798,19 +785,19 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) proposal and prepare round mismatch",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1}),
+						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From: mock.NewValidatorID("bob"),
+						From: Bob,
 						View: &types.View{Sequence: 101, Round: 1},
 					},
 					PrepareMessages: []*types.MsgPrepare{
@@ -826,19 +813,19 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) invalid block hash in proposal and prepare",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1}),
+						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      mock.NewValidatorID("bob"),
+						From:      Bob,
 						View:      &types.View{Sequence: 101, Round: 1},
 						BlockHash: []byte("keccak"),
 					},
@@ -856,25 +843,25 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) invalid sender in prepare msg",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1}),
+						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      mock.NewValidatorID("bob"),
+						From:      Bob,
 						View:      &types.View{Sequence: 101, Round: 1},
 						BlockHash: []byte("keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      mock.NewValidatorID("dani"),
+							From:      []byte("definitely not a validator"),
 							View:      &types.View{Sequence: 101, Round: 1},
 							BlockHash: []byte("keccak"),
 						},
@@ -887,31 +874,31 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) duplicate sender in prepare msgs",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1}),
+						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      mock.NewValidatorID("bob"),
+						From:      Bob,
 						View:      &types.View{Sequence: 101, Round: 1},
 						BlockHash: []byte("keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      mock.NewValidatorID("chris"),
+							From:      Chris,
 							View:      &types.View{Sequence: 101, Round: 1},
 							BlockHash: []byte("keccak"),
 						},
 
 						{
-							From:      mock.NewValidatorID("chris"),
+							From:      Chris,
 							View:      &types.View{Sequence: 101, Round: 1},
 							BlockHash: []byte("keccak"),
 						},
@@ -925,25 +912,25 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			quorum: mock.NoQuorum,
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1}),
+						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      mock.NewValidatorID("bob"),
+						From:      Bob,
 						View:      &types.View{Sequence: 101, Round: 1},
 						BlockHash: []byte("keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      mock.NewValidatorID("chris"),
+							From:      Chris,
 							View:      &types.View{Sequence: 101, Round: 1},
 							BlockHash: []byte("keccak"),
 						},
@@ -955,28 +942,28 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		{
 			name:   "latest ppb hash does not match proposal block hash",
 			quorum: mock.NonZeroQuorum,
-			keccak: mock.NewDummyKeccak("keccak"),
+
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1}),
+						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
 
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      mock.NewValidatorID("bob"),
+						From:      Bob,
 						View:      &types.View{Sequence: 101, Round: 1},
 						BlockHash: []byte("some other keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      mock.NewValidatorID("chris"),
+							From:      Chris,
 							View:      &types.View{Sequence: 101, Round: 1},
 							BlockHash: []byte("some other keccak"),
 						},
@@ -988,29 +975,29 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		{
 			name:   "valid round change msg",
 			quorum: mock.NonZeroQuorum,
-			keccak: mock.NewDummyKeccak("keccak"),
+
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
-					IsValidatorFn: mock.NewValidatorSet("alice", "bob", "chris").IsValidator,
+					IsValidatorFn: ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: mock.NewValidatorID("bob"), Round: 1}),
+						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
 
 			isValid: true,
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        mock.NewValidatorID("chris"),
+				From:                        Chris,
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      mock.NewValidatorID("bob"),
+						From:      Bob,
 						View:      &types.View{Sequence: 101, Round: 1},
 						BlockHash: []byte("keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      mock.NewValidatorID("chris"),
+							From:      Chris,
 							View:      &types.View{Sequence: 101, Round: 1},
 							BlockHash: []byte("keccak"),
 						},
@@ -1026,7 +1013,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			t.Parallel()
 
 			s := New(tt.validator, 0)
-			assert.Equal(t, tt.isValid, s.isValidMsgRoundChange(tt.msg, tt.quorum, tt.keccak))
+			assert.Equal(t, tt.isValid, s.isValidMsgRoundChange(tt.msg, tt.quorum, mock.NewDummyKeccak("keccak")))
 		})
 	}
 }

@@ -15,24 +15,20 @@ var (
 
 	DummyKeccak = ibft.KeccakFn(func(_ []byte) []byte { return []byte("block hash") })
 
-	DummyValidatorIDFn = func() []byte { return []byte("my validator") }
-	DummySigner        = ibft.SignerFn(func(_ []byte) []byte { return []byte("signature") })
-
-	NoQuorum      = ibft.QuorumFn(func(_ []ibft.Message) bool { return false })
-	NonZeroQuorum = ibft.QuorumFn(func(messages []ibft.Message) bool { return len(messages) > 0 })
+	NoQuorum      = ibft.QuorumFn(func(_ []types.Message) bool { return false })
+	NonZeroQuorum = ibft.QuorumFn(func(messages []types.Message) bool { return len(messages) > 0 })
 
 	AlwaysValidBlock     = func(_ []byte, _ uint64) bool { return true }
 	AlwaysValidSignature = func(_, _, _ []byte) bool { return true }
-	AlwaysValidator      = func(_ []byte, _ uint64) bool { return true }
 )
 
 type ValidatorSet map[string]struct{}
 
-func NewValidatorSet(ids ...string) ValidatorSet {
+func NewValidatorSet(ids ...ValidatorID) ValidatorSet {
 	vs := make(ValidatorSet)
 
 	for _, id := range ids {
-		vs[id] = struct{}{}
+		vs[string(id)] = struct{}{}
 	}
 
 	return vs
@@ -59,8 +55,14 @@ func (id ValidatorID) ID() []byte {
 	return id
 }
 
+func (id ValidatorID) Signer() ibft.SignerFn {
+	return func(_ []byte) []byte {
+		return []byte("signature")
+	}
+}
+
 func QuorumOf(n int) ibft.QuorumFn {
-	return func(messages []ibft.Message) bool {
+	return func(messages []types.Message) bool {
 		return len(messages) == n
 	}
 }
@@ -127,7 +129,7 @@ type MessageFeed struct {
 	RoundChange messagesByView[*types.MsgRoundChange]
 }
 
-func NewMessageFeed(messages []ibft.Message) MessageFeed {
+func NewMessageFeed(messages []types.Message) MessageFeed {
 	f := MessageFeed{
 		Proposal:    make(messagesByView[*types.MsgProposal]),
 		Prepare:     make(messagesByView[*types.MsgPrepare]),
@@ -176,7 +178,7 @@ func (f MessageFeed) RoundChangeMessages(view *types.View, higherRounds bool) (t
 
 type SingleRoundFeed MessageFeed
 
-func NewSingleRoundFeed(messages []ibft.Message) SingleRoundFeed {
+func NewSingleRoundFeed(messages []types.Message) SingleRoundFeed {
 	return SingleRoundFeed(NewMessageFeed(messages))
 }
 

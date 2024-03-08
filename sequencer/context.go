@@ -13,9 +13,11 @@ import (
 //
 // CONTRACT: messages received by consuming the channel's callback are assumed to be valid:
 //
-// - any message has a valid view (matches the one provided)
+// * any message is valid:
+//  1. no required fields missing (Sender, Signature, View)
+//  2. signature is valid
 //
-// - all messages are considered unique (there cannot be 2 or more messages with identical From fields)
+// * all messages are considered unique (there cannot be 2 or more messages with identical From fields)
 type MessageFeed interface {
 	// ProposalMessages returns the MsgProposal subscription for given view(s)
 	ProposalMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgProposal], func())
@@ -35,6 +37,10 @@ type MessageTransport struct {
 	Prepare     ibft.Transport[*types.MsgPrepare]
 	Commit      ibft.Transport[*types.MsgCommit]
 	RoundChange ibft.Transport[*types.MsgRoundChange]
+}
+
+func (t MessageTransport) IsValid() bool {
+	return t.Proposal != nil && t.Prepare != nil && t.Commit != nil && t.RoundChange != nil
 }
 
 type ctxKey string

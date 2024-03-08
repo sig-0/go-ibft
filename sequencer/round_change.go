@@ -46,15 +46,7 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 	defer cancelSub()
 
 	isValidMsg := func(msg *types.MsgRoundChange) bool {
-		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
-			return false
-		}
-
-		if !s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak()) {
-			return false
-		}
-
-		return true
+		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
 	}
 	cache := newMsgCache(isValidMsg)
 
@@ -70,7 +62,7 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 				continue
 			}
 
-			if !ctx.Quorum().HasQuorum(ibft.WrapMessages(roundChanges...)) {
+			if !ctx.Quorum().HasQuorum(types.WrapMessages(roundChanges...)) {
 				continue
 			}
 
@@ -165,8 +157,8 @@ func (s *Sequencer) isValidPC(
 	}
 
 	return quorum.HasQuorum(append(
-		ibft.WrapMessages(pc.ProposalMessage),
-		ibft.WrapMessages(pc.PrepareMessages...)...,
+		types.WrapMessages(pc.ProposalMessage),
+		types.WrapMessages(pc.PrepareMessages...)...,
 	))
 }
 
@@ -206,7 +198,7 @@ func (s *Sequencer) isValidRCC(
 		return false
 	}
 
-	if !quorum.HasQuorum(ibft.WrapMessages(rcc.Messages...)) {
+	if !quorum.HasQuorum(types.WrapMessages(rcc.Messages...)) {
 		return false
 	}
 

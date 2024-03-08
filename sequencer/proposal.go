@@ -48,10 +48,6 @@ func (s *Sequencer) awaitProposal(ctx Context, view *types.View, higherRounds bo
 	defer cancelSub()
 
 	isValidMsg := func(msg *types.MsgProposal) bool {
-		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
-			return false
-		}
-
 		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
 	}
 	cache := newMsgCache(isValidMsg)

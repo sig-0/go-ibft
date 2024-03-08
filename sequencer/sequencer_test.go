@@ -13,15 +13,17 @@ import (
 	"github.com/madz-lab/go-ibft/test/mock"
 )
 
+var (
+	Alice = mock.NewValidatorID("alice")
+	Bob   = mock.NewValidatorID("bob")
+	Chris = mock.NewValidatorID("chris")
+	Dani  = mock.NewValidatorID("dani")
+
+	ValidatorSet = mock.NewValidatorSet(Alice, Bob, Chris, Dani)
+)
+
 func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	t.Parallel()
-
-	validator := mock.Validator{
-		IDFn: mock.DummyValidatorIDFn,
-		Verifier: mock.Verifier{
-			IsProposerFn: func(_ []byte, _, _ uint64) bool { return false },
-		},
-	}
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	c := make(chan *types.FinalizedProposal)
@@ -29,7 +31,16 @@ func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	go func(ctx context.Context) {
 		defer close(c)
 
-		seq := New(validator, 10*time.Millisecond)
+		seq := New(
+			mock.Validator{
+				IDFn: Alice.ID,
+				Verifier: mock.Verifier{
+					IsProposerFn: func(_ []byte, _, _ uint64) bool { return false },
+				},
+			},
+			10*time.Millisecond,
+		)
+
 		c <- seq.Finalize(NewContext(ctx, WithMessageFeed(mock.NewSingleRoundFeed(nil))), 101)
 	}(ctx)
 
@@ -50,198 +61,179 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		name      string
 	}{
 		{
-			name: "validator is not the proposer",
-			expected: &types.FinalizedProposal{
-				Proposal: []byte("block"),
-				Round:    0,
-				Seals: []types.FinalizedSeal{
-					{
-						From:       []byte("some validator"),
-						CommitSeal: []byte("commit seal"),
-					},
-				},
-			},
-
+			name:   "validator is not the proposer",
+			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				Signer: mock.DummySigner,
-				IDFn:   mock.DummyValidatorIDFn,
-
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
 					IsValidSignatureFn: mock.AlwaysValidSignature,
 					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: []byte("proposer"), Round: 0}),
-					IsValidatorFn:      mock.AlwaysValidator,
+					IsValidatorFn:      ValidatorSet.IsValidator,
+					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Bob, Round: 0}),
 				},
 			},
 
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewMessageFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("proposer"),
-					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("block"),
-						Round: 0,
-					},
+					From:          Bob,
+					View:          &types.View{Sequence: 101, Round: 0},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 0},
 				},
 
 				&types.MsgPrepare{
+					From:      Alice,
 					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("some validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Alice,
 					View:       &types.View{Sequence: 101, Round: 0},
-					From:       []byte("some validator"),
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
 			}),
-		},
 
-		{
-			name: "validator is the proposer",
 			expected: &types.FinalizedProposal{
 				Proposal: []byte("block"),
 				Round:    0,
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("some validator"),
-						CommitSeal: []byte("some validator"),
-					},
-				},
-			},
-
-			validator: mock.Validator{
-				Signer:          mock.DummySigner,
-				IDFn:            mock.DummyValidatorIDFn,
-				BuildProposalFn: func(_ uint64) []byte { return []byte("block") },
-
-				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsProposerFn:       func(_ []byte, _, _ uint64) bool { return true },
-					IsValidatorFn:      mock.AlwaysValidator,
-				},
-			},
-
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewMessageFeed([]ibft.Message{
-				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("some validator"),
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgCommit{
-					View:       &types.View{Sequence: 101, Round: 0},
-					From:       []byte("some validator"),
-					BlockHash:  []byte("block hash"),
-					CommitSeal: []byte("some validator"),
-				},
-			}),
-		},
-
-		{
-			name: "round 1 proposal is valid with empty PB and PC",
-			expected: &types.FinalizedProposal{
-				Proposal: []byte("block"),
-				Round:    1,
-				Seals: []types.FinalizedSeal{
-					{
-						From:       []byte("my validator"),
+						From:       Alice,
 						CommitSeal: []byte("commit seal"),
 					},
 				},
 			},
+		},
 
+		{
+			name:   "validator is the proposer",
+			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				Signer: mock.DummySigner,
-				IDFn:   mock.DummyValidatorIDFn,
-
+				IDFn:            Alice.ID,
+				Signer:          Alice.Signer(),
+				BuildProposalFn: func(_ uint64) []byte { return []byte("block") },
 				Verifier: mock.Verifier{
 					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsValidatorFn:      mock.AlwaysValidator,
-					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: []byte("proposer"), Round: 1}),
+					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Alice, Round: 0}),
+					IsValidatorFn:      ValidatorSet.IsValidator,
 				},
 			},
 
-			quorum: mock.NonZeroQuorum,
+			feed: mock.NewMessageFeed([]types.Message{
+				&types.MsgPrepare{
+					From:      Bob,
+					View:      &types.View{Sequence: 101, Round: 0},
+					BlockHash: []byte("block hash"),
+				},
 
-			feed: mock.NewMessageFeed([]ibft.Message{
+				&types.MsgCommit{
+					From:       Bob,
+					View:       &types.View{Sequence: 101, Round: 0},
+					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("commit seal"),
+				},
+			}),
+
+			expected: &types.FinalizedProposal{
+				Proposal: []byte("block"),
+				Round:    0,
+				Seals: []types.FinalizedSeal{
+					{
+						From:       Bob,
+						CommitSeal: []byte("commit seal"),
+					},
+				},
+			},
+		},
+
+		{
+			name:   "round 1 proposal is valid with empty PB and PC",
+			quorum: mock.NonZeroQuorum,
+			validator: mock.Validator{
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
+				Verifier: mock.Verifier{
+					IsValidSignatureFn: mock.AlwaysValidSignature,
+					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidatorFn:      ValidatorSet.IsValidator,
+					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Bob, Round: 1}),
+				},
+			},
+
+			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgProposal{
+					From:          Bob,
 					View:          &types.View{Sequence: 101, Round: 1},
-					From:          []byte("proposer"),
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
 							View: &types.View{Sequence: 101, Round: 1},
-							From: []byte("my validator"),
+							From: Alice,
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
+					From:      Alice,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("my validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Alice,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("my validator"),
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
 			}),
-		},
 
-		{
-			name: "round 1 proposal is valid with non-nil PB and PC",
 			expected: &types.FinalizedProposal{
-				Proposal: []byte("round 0 block"),
+				Proposal: []byte("block"),
 				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("some validator"),
+						From:       Alice,
 						CommitSeal: []byte("commit seal"),
 					},
 				},
 			},
+		},
 
+		{
+			name:   "round 1 proposal is valid with non-nil PB and PC",
+			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				Signer: mock.DummySigner,
-				IDFn:   mock.DummyValidatorIDFn,
-
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
 					IsValidSignatureFn: mock.AlwaysValidSignature,
 					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsValidatorFn:      mock.AlwaysValidator,
-					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: []byte("proposer"), Round: 1}),
+					IsValidatorFn:      ValidatorSet.IsValidator,
+					IsProposerFn: mock.ProposersInRounds(
+						mock.Proposer{ID: Chris, Round: 0},
+						mock.Proposer{ID: Bob, Round: 1},
+					),
 				},
 			},
 
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewMessageFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgProposal{
+					From:          Bob,
 					View:          &types.View{Sequence: 101, Round: 1},
-					From:          []byte("proposer"),
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
+							From: Chris,
 							View: &types.View{Sequence: 101, Round: 1},
-							From: []byte("some validator"),
 							LatestPreparedCertificate: &types.PreparedCertificate{
 								ProposalMessage: &types.MsgProposal{
+									From:      Chris,
 									View:      &types.View{Sequence: 101, Round: 0},
-									From:      []byte("proposer"),
 									BlockHash: []byte("block hash"),
 									ProposedBlock: &types.ProposedBlock{
 										Block: []byte("round 0 block"),
@@ -250,8 +242,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 								},
 								PrepareMessages: []*types.MsgPrepare{
 									{
+										From:      Alice,
 										View:      &types.View{Sequence: 101, Round: 0},
-										From:      []byte("some validator"),
 										BlockHash: []byte("block hash"),
 									},
 								},
@@ -261,124 +253,116 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 
 				&types.MsgPrepare{
+					From:      Alice,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("some validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Alice,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("some validator"),
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
 			}),
-		},
 
-		{
-			name: "propose new block in round 1",
-			expected: &types.FinalizedProposal{
-				Proposal: []byte("round 1 block"),
-				Round:    1,
-				Seals: []types.FinalizedSeal{
-					{
-						From:       []byte("some validator"),
-						CommitSeal: []byte("commit seal"),
-					},
-				},
-			},
-
-			validator: mock.Validator{
-				IDFn:            mock.DummyValidatorIDFn,
-				Signer:          mock.DummySigner,
-				BuildProposalFn: func(_ uint64) []byte { return []byte("round 1 block") },
-
-				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsValidatorFn:      mock.AlwaysValidator,
-					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: []byte("proposer"), Round: 0},
-						mock.Proposer{ID: mock.DummyValidatorIDFn(), Round: 1},
-					),
-				},
-			},
-
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewMessageFeed([]ibft.Message{
-				&types.MsgRoundChange{
-					View: &types.View{Sequence: 101, Round: 1},
-					From: []byte("some validator"),
-				},
-
-				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("some validator"),
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgCommit{
-					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("some validator"),
-					BlockHash:  []byte("block hash"),
-					CommitSeal: []byte("commit seal"),
-				},
-			}),
-		},
-
-		{
-			name: "propose old block in round 1",
 			expected: &types.FinalizedProposal{
 				Proposal: []byte("round 0 block"),
 				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("some validator"),
+						From:       Alice,
 						CommitSeal: []byte("commit seal"),
 					},
 				},
 			},
+		},
 
+		{
+			name:   "propose new block in round 1",
+			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				IDFn:   mock.DummyValidatorIDFn,
-				Signer: mock.DummySigner,
-
+				IDFn:            Alice.ID,
+				Signer:          Alice.Signer(),
+				BuildProposalFn: func(_ uint64) []byte { return []byte("round 1 block") },
 				Verifier: mock.Verifier{
 					IsValidSignatureFn: mock.AlwaysValidSignature,
 					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsValidatorFn:      mock.AlwaysValidator,
+					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: []byte("proposer"), Round: 0},
-						mock.Proposer{ID: mock.DummyValidatorIDFn(), Round: 1},
+						mock.Proposer{ID: Bob, Round: 0},
+						mock.Proposer{ID: Alice, Round: 1},
 					),
 				},
 			},
 
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewMessageFeed([]ibft.Message{
+			feed: mock.NewMessageFeed([]types.Message{
+				// need to justify Alice's proposal for round 1
 				&types.MsgRoundChange{
 					View: &types.View{Sequence: 101, Round: 1},
-					From: []byte("some validator"),
-					LatestPreparedProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 0 block"),
-						Round: 0,
+					From: Alice,
+				},
+
+				&types.MsgPrepare{
+					View:      &types.View{Sequence: 101, Round: 1},
+					From:      Bob,
+					BlockHash: []byte("block hash"),
+				},
+
+				&types.MsgCommit{
+					View:       &types.View{Sequence: 101, Round: 1},
+					From:       Bob,
+					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("commit seal"),
+				},
+			}),
+
+			expected: &types.FinalizedProposal{
+				Proposal: []byte("round 1 block"),
+				Round:    1,
+				Seals: []types.FinalizedSeal{
+					{
+						From:       Bob,
+						CommitSeal: []byte("commit seal"),
 					},
+				},
+			},
+		},
+
+		{
+			name:   "propose old block in round 1",
+			quorum: mock.NonZeroQuorum,
+			validator: mock.Validator{
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
+				Verifier: mock.Verifier{
+					IsValidSignatureFn: mock.AlwaysValidSignature,
+					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidatorFn:      ValidatorSet.IsValidator,
+					IsProposerFn: mock.ProposersInRounds(
+						mock.Proposer{ID: Bob, Round: 0},
+						mock.Proposer{ID: Alice, Round: 1},
+					),
+				},
+			},
+
+			feed: mock.NewMessageFeed([]types.Message{
+				&types.MsgRoundChange{
+					From:                        Chris,
+					View:                        &types.View{Sequence: 101, Round: 1},
+					LatestPreparedProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 					LatestPreparedCertificate: &types.PreparedCertificate{
 						ProposalMessage: &types.MsgProposal{
-							View:      &types.View{Sequence: 101, Round: 0},
-							From:      []byte("proposer"),
-							BlockHash: []byte("block hash"),
-							ProposedBlock: &types.ProposedBlock{
-								Block: []byte("round 0 block"),
-								Round: 0,
-							},
+							From:          Bob,
+							View:          &types.View{Sequence: 101, Round: 0},
+							BlockHash:     []byte("block hash"),
+							ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 						},
+
 						PrepareMessages: []*types.MsgPrepare{
 							{
+								From:      Chris,
 								View:      &types.View{Sequence: 101, Round: 0},
-								From:      []byte("some validator"),
 								BlockHash: []byte("block hash"),
 							},
 						},
@@ -386,741 +370,633 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				},
 
 				&types.MsgPrepare{
+					From:      Alice,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("some validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Alice,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("some validator"),
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
 			}),
+
+			expected: &types.FinalizedProposal{
+				Proposal: []byte("round 0 block"),
+				Round:    1,
+				Seals: []types.FinalizedSeal{
+					{
+						From:       Alice,
+						CommitSeal: []byte("commit seal"),
+					},
+				},
+			},
 		},
 
 		{
-			name: "future rcc triggers round jump and new block is finalized",
+			name:   "future rcc triggers round jump and new block is finalized",
+			quorum: mock.NonZeroQuorum,
+			validator: mock.Validator{
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
+				Verifier: mock.Verifier{
+					IsValidSignatureFn: mock.AlwaysValidSignature,
+					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidatorFn:      ValidatorSet.IsValidator,
+					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Chris, Round: 3}),
+				},
+			},
+
+			feed: mock.NewMessageFeed([]types.Message{
+				&types.MsgProposal{
+					From:          Chris,
+					View:          &types.View{Sequence: 101, Round: 3},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 3},
+					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
+						{
+							From: Bob,
+							View: &types.View{Sequence: 101, Round: 3},
+						},
+					}},
+				},
+
+				&types.MsgPrepare{
+					From:      Alice,
+					View:      &types.View{Sequence: 101, Round: 3},
+					BlockHash: []byte("block hash"),
+				},
+
+				&types.MsgCommit{
+					From:       Alice,
+					View:       &types.View{Sequence: 101, Round: 3},
+					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("commit seal"),
+				},
+			}),
+
 			expected: &types.FinalizedProposal{
 				Proposal: []byte("block"),
 				Round:    3,
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("some validator"),
+						From:       Alice,
 						CommitSeal: []byte("commit seal"),
 					},
 				},
 			},
+		},
 
+		{
+			name:   "future proposal triggers round jump and new block is finalized",
+			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				IDFn:   mock.DummyValidatorIDFn,
-				Signer: mock.DummySigner,
-
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
 					IsValidSignatureFn: mock.AlwaysValidSignature,
 					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsValidatorFn:      mock.AlwaysValidator,
-					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: []byte("proposer"), Round: 3},
-					),
+					IsValidatorFn:      ValidatorSet.IsValidator,
+					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Dani, Round: 5}),
 				},
 			},
 
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewMessageFeed([]ibft.Message{
-				&types.MsgRoundChange{
-					View: &types.View{Sequence: 101, Round: 3},
-					From: []byte("some validator"),
-				},
-
+			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 3},
-					From:      []byte("proposer"),
-					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("block"),
-						Round: 3,
-					},
+					From:          Dani,
+					View:          &types.View{Sequence: 101, Round: 5},
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 5 block"), Round: 5},
+					BlockHash:     []byte("block hash"),
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
-							View: &types.View{Sequence: 101, Round: 3},
-							From: []byte("some validator"),
+							View: &types.View{Sequence: 101, Round: 5},
+							From: Chris,
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 3},
-					From:      []byte("some validator"),
+					From:      Alice,
+					View:      &types.View{Sequence: 101, Round: 5},
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					View:       &types.View{Sequence: 101, Round: 3},
-					From:       []byte("some validator"),
+					From:       Alice,
+					View:       &types.View{Sequence: 101, Round: 5},
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
 			}),
-		},
 
-		{
-			name: "future proposal triggers round jump and new block is finalized",
 			expected: &types.FinalizedProposal{
 				Proposal: []byte("round 5 block"),
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("some validator"),
+						From:       Alice,
 						CommitSeal: []byte("commit seal"),
 					},
 				},
 				Round: 5,
 			},
-
-			validator: mock.Validator{
-				IDFn:   mock.DummyValidatorIDFn,
-				Signer: mock.DummySigner,
-
-				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: []byte("proposer"), Round: 5}),
-					IsValidatorFn:      mock.AlwaysValidator,
-				},
-			},
-
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewMessageFeed([]ibft.Message{
-				&types.MsgProposal{
-					View: &types.View{Sequence: 101, Round: 5},
-					From: []byte("proposer"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 5 block"),
-						Round: 5,
-					},
-					BlockHash: []byte("block hash"),
-					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-						{
-							View: &types.View{Sequence: 101, Round: 5},
-							From: []byte("some validator"),
-						},
-					}},
-				},
-
-				&types.MsgPrepare{
-					View: &types.View{
-						Sequence: 101,
-						Round:    5,
-					},
-					From:      []byte("some validator"),
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgCommit{
-					View: &types.View{
-						Sequence: 101,
-						Round:    5,
-					},
-					From:       []byte("some validator"),
-					BlockHash:  []byte("block hash"),
-					CommitSeal: []byte("commit seal"),
-				},
-			}),
 		},
 
 		{
-			name: "round timer triggers round jump and proposer finalizes new block",
-			expected: &types.FinalizedProposal{
-				Proposal: []byte("round 1 block"),
-				Round:    1,
-				Seals: []types.FinalizedSeal{
-					{
-						From:       []byte("some validator"),
-						CommitSeal: []byte("commit seal"),
-					},
-				},
-			},
-
+			name:   "round timer triggers round jump and proposer finalizes new block",
+			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				IDFn:            mock.DummyValidatorIDFn,
-				Signer:          mock.DummySigner,
+				IDFn:            Alice.ID,
+				Signer:          Alice.Signer(),
 				BuildProposalFn: func(_ uint64) []byte { return []byte("round 1 block") },
-
 				Verifier: mock.Verifier{
 					IsValidSignatureFn: mock.AlwaysValidSignature,
 					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: mock.DummyValidatorIDFn(), Round: 1}),
-					IsValidatorFn:      mock.AlwaysValidator,
+					IsValidatorFn:      ValidatorSet.IsValidator,
+					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Alice, Round: 1}),
 				},
 			},
 
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]types.Message{
 				&types.MsgRoundChange{
+					From: Bob,
 					View: &types.View{Sequence: 101, Round: 1},
-					From: []byte("some validator"),
 				},
 
 				&types.MsgPrepare{
+					From:      Bob,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("some validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Bob,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("some validator"),
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
 			}),
-		},
 
-		{
-			name: "round timer triggers round jump and proposer finalizes new block",
-			expected: &types.FinalizedProposal{
-				Proposal: []byte("round 0 block"),
-				Round:    1,
-				Seals: []types.FinalizedSeal{
-					{
-						From:       []byte("some validator"),
-						CommitSeal: []byte("commit seal"),
-					},
-				},
-			},
-
-			validator: mock.Validator{
-				IDFn:   mock.DummyValidatorIDFn,
-				Signer: mock.DummySigner,
-
-				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsValidatorFn:      mock.AlwaysValidator,
-					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: []byte("proposer"), Round: 0},
-						mock.Proposer{ID: mock.DummyValidatorIDFn(), Round: 1},
-					),
-				},
-			},
-
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewSingleRoundFeed([]ibft.Message{
-				&types.MsgRoundChange{
-					View: &types.View{Sequence: 101, Round: 1},
-					From: []byte("some validator"),
-					LatestPreparedProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 0 block"),
-						Round: 0,
-					},
-					LatestPreparedCertificate: &types.PreparedCertificate{
-						ProposalMessage: &types.MsgProposal{
-							View:      &types.View{Sequence: 101, Round: 0},
-							From:      []byte("proposer"),
-							BlockHash: []byte("block hash"),
-						},
-						PrepareMessages: []*types.MsgPrepare{
-							{
-								View:      &types.View{Sequence: 101, Round: 0},
-								From:      []byte("some validator"),
-								BlockHash: []byte("block hash"),
-							},
-						},
-					},
-				},
-
-				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("some validator"),
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgCommit{
-					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("some validator"),
-					BlockHash:  []byte("block hash"),
-					CommitSeal: []byte("commit seal"),
-				},
-			}),
-		},
-
-		{
-			name: "no prepare msgs in round 0 so new block is finalized in round 1",
 			expected: &types.FinalizedProposal{
 				Proposal: []byte("round 1 block"),
 				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("some validator"),
+						From:       Bob,
 						CommitSeal: []byte("commit seal"),
 					},
 				},
 			},
+		},
 
+		{
+			name:   "no prepare msgs in round 0 so new block is finalized in round 1",
+			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
-				IDFn:   mock.DummyValidatorIDFn,
-				Signer: mock.DummySigner,
-
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
 					IsValidSignatureFn: mock.AlwaysValidSignature,
 					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: []byte("proposer"), Round: 0},
-						mock.Proposer{ID: []byte("proposer"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 0},
+						mock.Proposer{ID: Chris, Round: 1},
 					),
-					IsValidatorFn: mock.AlwaysValidator,
 				},
 			},
 
-			quorum: mock.NonZeroQuorum,
-
-			feed: mock.NewSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]types.Message{
 				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("proposer"),
-					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 0 block"),
-						Round: 0,
-					},
+					From:          Bob,
+					View:          &types.View{Sequence: 101, Round: 0},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 				},
 
 				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("proposer"),
-					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 1 block"),
-						Round: 1,
-					},
+					From:          Chris,
+					View:          &types.View{Sequence: 101, Round: 1},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
 							View: &types.View{Sequence: 101, Round: 1},
-							From: []byte("some validator"),
+							From: Alice,
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
+					From:      Alice,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("some validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Alice,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("some validator"),
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
 			}),
-		},
 
-		{
-			name: "no quorum prepare msgs in round 0 so new block is finalized in round 1",
 			expected: &types.FinalizedProposal{
 				Proposal: []byte("round 1 block"),
 				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("validator"),
+						From:       Alice,
 						CommitSeal: []byte("commit seal"),
 					},
-					{
-						From:       []byte("other validator"),
-						CommitSeal: []byte("other commit seal"),
-					},
 				},
 			},
+		},
 
-			validator: mock.Validator{
-				IDFn:   mock.DummyValidatorIDFn,
-				Signer: mock.DummySigner,
-
-				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: []byte("proposer"), Round: 0},
-						mock.Proposer{ID: []byte("proposer"), Round: 1},
-					),
-					IsValidatorFn: mock.AlwaysValidator,
-				},
-			},
-
+		{
+			name:   "no quorum prepare msgs in round 0 so new block is finalized in round 1",
 			quorum: mock.QuorumOf(2),
+			validator: mock.Validator{
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
+				Verifier: mock.Verifier{
+					IsValidSignatureFn: mock.AlwaysValidSignature,
+					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidatorFn:      ValidatorSet.IsValidator,
+					IsProposerFn: mock.ProposersInRounds(
+						mock.Proposer{ID: Bob, Round: 0},
+						mock.Proposer{ID: Chris, Round: 1},
+					),
+				},
+			},
 
-			feed: mock.NewSingleRoundFeed([]ibft.Message{
+			feed: mock.NewSingleRoundFeed([]types.Message{
+				/* round 0 */
+
 				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("proposer"),
-					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 0 block"),
-						Round: 0,
-					},
+					From:          Bob,
+					View:          &types.View{Sequence: 101, Round: 0},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 				},
 
-				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("proposer"),
+				&types.MsgPrepare{
+					From:      Alice,
+					View:      &types.View{Sequence: 101, Round: 0},
 					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 1 block"),
-						Round: 1,
-					},
+				},
+
+				/* round 1 */
+
+				&types.MsgProposal{
+					From:          Chris,
+					View:          &types.View{Sequence: 101, Round: 1},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
+							From: Alice,
 							View: &types.View{Sequence: 101, Round: 1},
-							From: []byte("validator"),
 						},
 						{
+							From: Chris,
 							View: &types.View{Sequence: 101, Round: 1},
-							From: []byte("other validator"),
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("validator"),
+					From:      Alice,
+					View:      &types.View{Sequence: 101, Round: 1},
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgPrepare{
+					From:      Bob,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("validator"),
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("other validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Alice,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("validator"),
 					CommitSeal: []byte("commit seal"),
 					BlockHash:  []byte("block hash"),
 				},
+
 				&types.MsgCommit{
+					From:       Bob,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("other validator"),
 					CommitSeal: []byte("other commit seal"),
 					BlockHash:  []byte("block hash"),
 				},
 			}),
-		},
 
-		{
-			name: "no commit msgs in round 0 so new block is finalized in round 1",
 			expected: &types.FinalizedProposal{
 				Proposal: []byte("round 1 block"),
 				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("validator"),
+						From:       Alice,
 						CommitSeal: []byte("commit seal"),
 					},
 					{
-						From:       []byte("other validator"),
+						From:       Bob,
 						CommitSeal: []byte("other commit seal"),
 					},
 				},
 			},
+		},
 
+		{
+			name:   "no commit msgs in round 0 so new block is finalized in round 1",
+			quorum: mock.QuorumOf(2),
 			validator: mock.Validator{
-				IDFn:   mock.DummyValidatorIDFn,
-				Signer: mock.DummySigner,
-
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
 					IsValidSignatureFn: mock.AlwaysValidSignature,
 					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: []byte("proposer"), Round: 0},
-						mock.Proposer{ID: []byte("proposer"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 0},
+						mock.Proposer{ID: Chris, Round: 1},
 					),
-					IsValidatorFn: mock.AlwaysValidator,
 				},
 			},
 
-			quorum: mock.QuorumOf(2),
+			feed: mock.NewSingleRoundFeed([]types.Message{
+				/* round 0 */
 
-			feed: mock.NewSingleRoundFeed([]ibft.Message{
 				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("proposer"),
-					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 0 block"),
-						Round: 0,
-					},
+					From:          Bob,
+					View:          &types.View{Sequence: 101, Round: 0},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 				},
 
 				&types.MsgPrepare{
+					From:      Alice,
 					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("validator"),
-					BlockHash: []byte("block hash"),
-				},
-				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("validator"),
 					BlockHash: []byte("block hash"),
 				},
 
-				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("proposer"),
+				&types.MsgPrepare{
+					From:      Bob,
+					View:      &types.View{Sequence: 101, Round: 0},
 					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 1 block"),
-						Round: 1,
-					},
+				},
+
+				/* round 1 */
+
+				&types.MsgProposal{
+					From:          Chris,
+					View:          &types.View{Sequence: 101, Round: 1},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
+							From: Alice,
 							View: &types.View{Sequence: 101, Round: 1},
-							From: []byte("validator"),
 						},
 						{
+							From: Bob,
 							View: &types.View{Sequence: 101, Round: 1},
-							From: []byte("other validator"),
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
+					From:      Alice,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("validator"),
 					BlockHash: []byte("block hash"),
 				},
+
 				&types.MsgPrepare{
+					From:      Bob,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("other validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Alice,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("validator"),
-					CommitSeal: []byte("commit seal"),
 					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("commit seal"),
 				},
 
 				&types.MsgCommit{
+					From:       Bob,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("other validator"),
-					CommitSeal: []byte("other commit seal"),
 					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("other commit seal"),
 				},
 			}),
-		},
 
-		{
-			name: "no quorum commit msgs in round 0 so new block is finalized in round 1",
 			expected: &types.FinalizedProposal{
 				Proposal: []byte("round 1 block"),
 				Round:    1,
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("validator"),
+						From:       Alice,
 						CommitSeal: []byte("commit seal"),
 					},
 					{
-						From:       []byte("other validator"),
+						From:       Bob,
 						CommitSeal: []byte("other commit seal"),
 					},
 				},
 			},
+		},
 
+		{
+			name:   "no quorum commit msgs in round 0 so new block is finalized in round 1",
+			quorum: mock.QuorumOf(2),
 			validator: mock.Validator{
-				IDFn:   mock.DummyValidatorIDFn,
-				Signer: mock.DummySigner,
-
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
 					IsValidSignatureFn: mock.AlwaysValidSignature,
 					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: []byte("proposer"), Round: 0},
-						mock.Proposer{ID: []byte("proposer"), Round: 1},
+						mock.Proposer{ID: Bob, Round: 0},
+						mock.Proposer{ID: Chris, Round: 1},
 					),
-					IsValidatorFn: mock.AlwaysValidator,
 				},
 			},
 
-			quorum: mock.QuorumOf(2),
+			feed: mock.NewSingleRoundFeed([]types.Message{
+				/* round 0 */
 
-			feed: mock.NewSingleRoundFeed([]ibft.Message{
 				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("proposer"),
-					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 0 block"),
-						Round: 0,
-					},
+					From:          Bob,
+					View:          &types.View{Sequence: 101, Round: 0},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 				},
 
 				&types.MsgPrepare{
+					From:      Alice,
 					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgPrepare{
+					From:      Chris,
 					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("other validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Alice,
 					View:       &types.View{Sequence: 101, Round: 0},
-					From:       []byte("validator"),
-					CommitSeal: []byte("commit seal"),
 					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("commit seal"),
 				},
 
+				/* round 1 */
+
 				&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("proposer"),
-					BlockHash: []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 1 block"),
-						Round: 1,
-					},
+					From:          Chris,
+					View:          &types.View{Sequence: 101, Round: 1},
+					BlockHash:     []byte("block hash"),
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
+							From: Alice,
 							View: &types.View{Sequence: 101, Round: 1},
-							From: []byte("validator"),
 						},
 						{
+							From: Chris,
 							View: &types.View{Sequence: 101, Round: 1},
-							From: []byte("other validator"),
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
+					From:      Alice,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("validator"),
 					BlockHash: []byte("block hash"),
 				},
 				&types.MsgPrepare{
+					From:      Chris,
 					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("other validator"),
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
+					From:       Alice,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("validator"),
-					CommitSeal: []byte("commit seal"),
 					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("commit seal"),
 				},
 
 				&types.MsgCommit{
+					From:       Chris,
 					View:       &types.View{Sequence: 101, Round: 1},
-					From:       []byte("other validator"),
-					CommitSeal: []byte("other commit seal"),
 					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("other commit seal"),
 				},
 			}),
+
+			expected: &types.FinalizedProposal{
+				Proposal: []byte("round 1 block"),
+				Round:    1,
+				Seals: []types.FinalizedSeal{
+					{
+						From:       Alice,
+						CommitSeal: []byte("commit seal"),
+					},
+					{
+						From:       Chris,
+						CommitSeal: []byte("other commit seal"),
+					},
+				},
+			},
 		},
 
 		{
-			name: "round 1 proposer fails to build block so new block is finalized in round 2",
+			name:   "round 1 proposer fails to build block so new block is finalized in round 2",
+			quorum: mock.QuorumOf(2),
+			validator: mock.Validator{
+				IDFn:   Alice.ID,
+				Signer: Alice.Signer(),
+				Verifier: mock.Verifier{
+					IsValidSignatureFn: mock.AlwaysValidSignature,
+					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidatorFn:      ValidatorSet.IsValidator,
+					IsProposerFn: mock.ProposersInRounds(
+						mock.Proposer{ID: Bob, Round: 0},
+						mock.Proposer{ID: Alice, Round: 1},
+						mock.Proposer{ID: Chris, Round: 2},
+					),
+				},
+			},
+
+			feed: mock.NewSingleRoundFeed([]types.Message{
+				&types.MsgRoundChange{
+					From: Chris,
+					View: &types.View{Sequence: 101, Round: 1},
+				},
+
+				&types.MsgProposal{
+					From:          Chris,
+					View:          &types.View{Sequence: 101, Round: 2},
+					ProposedBlock: &types.ProposedBlock{Block: []byte("round 2 block"), Round: 2},
+					BlockHash:     []byte("block hash"),
+					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
+						{
+							From: Bob,
+							View: &types.View{Sequence: 101, Round: 2},
+						},
+						{
+							From: Chris,
+							View: &types.View{Sequence: 101, Round: 2},
+						},
+					}},
+				},
+
+				&types.MsgPrepare{
+					From:      Bob,
+					View:      &types.View{Sequence: 101, Round: 2},
+					BlockHash: []byte("block hash"),
+				},
+				&types.MsgPrepare{
+					From:      Alice,
+					View:      &types.View{Sequence: 101, Round: 2},
+					BlockHash: []byte("block hash"),
+				},
+
+				&types.MsgCommit{
+					From:       Bob,
+					View:       &types.View{Sequence: 101, Round: 2},
+					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("commit seal"),
+				},
+				&types.MsgCommit{
+					From:       Alice,
+					View:       &types.View{Sequence: 101, Round: 2},
+					BlockHash:  []byte("block hash"),
+					CommitSeal: []byte("other commit seal"),
+				},
+			}),
+
 			expected: &types.FinalizedProposal{
 				Proposal: []byte("round 2 block"),
+				Round:    2,
 				Seals: []types.FinalizedSeal{
 					{
-						From:       []byte("validator"),
+						From:       Bob,
 						CommitSeal: []byte("commit seal"),
 					},
 					{
-						From:       []byte("other validator"),
+						From:       Alice,
 						CommitSeal: []byte("other commit seal"),
 					},
 				},
-				Round: 2,
 			},
-
-			validator: mock.Validator{
-				IDFn:   mock.DummyValidatorIDFn,
-				Signer: mock.DummySigner,
-
-				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsValidatorFn:      mock.AlwaysValidator,
-					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: []byte("proposer"), Round: 0},
-						mock.Proposer{ID: mock.DummyValidatorIDFn(), Round: 1},
-						mock.Proposer{ID: []byte("proposer"), Round: 2},
-					),
-				},
-			},
-
-			quorum: mock.QuorumOf(2),
-
-			feed: mock.NewSingleRoundFeed([]ibft.Message{
-				&types.MsgRoundChange{
-					View: &types.View{Sequence: 101, Round: 1},
-					From: []byte("validator"),
-				},
-
-				&types.MsgProposal{
-					View: &types.View{
-						Sequence: 101,
-						Round:    2,
-					},
-					From: []byte("proposer"),
-					ProposedBlock: &types.ProposedBlock{
-						Block: []byte("round 2 block"),
-						Round: 2,
-					},
-					BlockHash: []byte("block hash"),
-					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-						{
-							View: &types.View{Sequence: 101, Round: 2},
-							From: []byte("validator"),
-						},
-						{
-							View: &types.View{Sequence: 101, Round: 2},
-							From: []byte("other validator"),
-						},
-					}},
-				},
-
-				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 2},
-					From:      []byte("validator"),
-					BlockHash: []byte("block hash"),
-				},
-				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 2},
-					From:      []byte("other validator"),
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgCommit{
-					View:       &types.View{Sequence: 101, Round: 2},
-					From:       []byte("validator"),
-					BlockHash:  []byte("block hash"),
-					CommitSeal: []byte("commit seal"),
-				},
-				&types.MsgCommit{
-					View:       &types.View{Sequence: 101, Round: 2},
-					From:       []byte("other validator"),
-					BlockHash:  []byte("block hash"),
-					CommitSeal: []byte("other commit seal"),
-				},
-			}),
 		},
 	}
 

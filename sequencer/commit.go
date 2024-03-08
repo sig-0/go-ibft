@@ -3,7 +3,6 @@ package sequencer
 import (
 	"bytes"
 
-	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
@@ -38,10 +37,6 @@ func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) 
 	defer cancelSub()
 
 	isValidMsg := func(msg *types.MsgCommit) bool {
-		if !s.IsValidSignature(msg.GetSender(), ctx.Keccak().Hash(msg.Payload()), msg.GetSignature()) {
-			return false
-		}
-
 		return s.isValidMsgCommit(msg)
 	}
 	cache := newMsgCache(isValidMsg)
@@ -58,7 +53,7 @@ func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) 
 				continue
 			}
 
-			if !ctx.Quorum().HasQuorum(ibft.WrapMessages(commits...)) {
+			if !ctx.Quorum().HasQuorum(types.WrapMessages(commits...)) {
 				continue
 			}
 
@@ -72,12 +67,11 @@ func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit) bool {
 		return false
 	}
 
-	acceptedBlockHash := s.state.AcceptedBlockHash()
-	if !bytes.Equal(msg.BlockHash, acceptedBlockHash) {
+	if !bytes.Equal(msg.BlockHash, s.state.AcceptedBlockHash()) {
 		return false
 	}
 
-	if !s.IsValidSignature(msg.GetSender(), acceptedBlockHash, msg.CommitSeal) {
+	if !s.IsValidSignature(msg.GetSender(), msg.BlockHash, msg.CommitSeal) {
 		return false
 	}
 
