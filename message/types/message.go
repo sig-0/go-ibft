@@ -14,6 +14,8 @@ type IBFTMessage interface {
 
 // Message is an opaque wrapper for the IBFT consensus messages. See types.IBFTMessage for concrete type definitions
 type Message interface {
+	String() string
+
 	// Validate returns an errors if the Message is malformed
 	Validate() error
 

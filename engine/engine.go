@@ -1,4 +1,4 @@
-package consensus
+package engine
 
 import (
 	"context"
@@ -17,21 +17,22 @@ var (
 	ErrInvalidMessage = errors.New("invalid ibft message")
 )
 
-type EngineConfig struct {
-	Validator      ibft.Validator
-	Transport      sequencer.MessageTransport
-	Quorum         ibft.Quorum
-	Keccak         ibft.Keccak
-	Round0Duration time.Duration
+type Config struct {
+	TransportMsgProposal    ibft.Transport[*types.MsgProposal]
+	TransportMsgPrepare     ibft.Transport[*types.MsgPrepare]
+	TransportMsgCommit      ibft.Transport[*types.MsgCommit]
+	TransportMsgRoundChange ibft.Transport[*types.MsgRoundChange]
+	Quorum                  ibft.Quorum
+	Keccak                  ibft.Keccak
+	Round0Duration          time.Duration
 }
 
-func (cfg EngineConfig) IsValid() error {
-	if cfg.Validator == nil {
-		return fmt.Errorf("%w: missing validator", ErrInvalidConfig)
-	}
-
-	if !cfg.Transport.IsValid() {
-		return fmt.Errorf("%w: invalid transport", ErrInvalidConfig)
+func (cfg Config) IsValid() error {
+	if cfg.TransportMsgProposal == nil ||
+		cfg.TransportMsgPrepare == nil ||
+		cfg.TransportMsgRoundChange == nil ||
+		cfg.TransportMsgCommit == nil {
+		return fmt.Errorf("%w: missing message transport", ErrInvalidConfig)
 	}
 
 	if cfg.Quorum == nil {
@@ -53,12 +54,12 @@ type Engine struct {
 	*sequencer.Sequencer
 
 	messages *store.MsgStore
-	cfg      EngineConfig
+	cfg      Config
 }
 
-func NewEngine(cfg EngineConfig) Engine {
+func NewEngine(validator ibft.Validator, cfg Config) Engine {
 	return Engine{
-		Sequencer: sequencer.New(cfg.Validator, cfg.Round0Duration),
+		Sequencer: sequencer.New(validator, cfg.Round0Duration),
 		messages:  store.NewMsgStore(),
 		cfg:       cfg,
 	}
@@ -69,8 +70,11 @@ func (e Engine) AddMessage(msg types.Message) error {
 		return fmt.Errorf("%w: %v", ErrInvalidMessage, err)
 	}
 
-	msgDigest := e.cfg.Keccak.Hash(msg.Payload())
-	if !e.Validator.IsValidSignature(msg.GetSender(), msgDigest, msg.GetSignature()) {
+	if !e.Validator.IsValidSignature(
+		msg.GetSender(),
+		e.cfg.Keccak.Hash(msg.Payload()),
+		msg.GetSignature(),
+	) {
 		return fmt.Errorf("%w: invalid signature", ErrInvalidMessage)
 	}
 
@@ -88,20 +92,30 @@ func (e Engine) AddMessage(msg types.Message) error {
 	return nil
 }
 
-type SequenceResult = types.FinalizedProposal
+type SequenceResult struct {
+	Sequence         uint64
+	SequenceProposal *types.FinalizedProposal
+}
 
-func (e Engine) FinalizeSequence(ctx context.Context, sequence uint64) *SequenceResult {
+func (e Engine) FinalizeSequence(ctx context.Context, sequence uint64) SequenceResult {
 	defer func() {
 		// todo: clean old messages
-
 	}()
 
-	opts := []sequencer.ContextOption{
+	c := sequencer.NewContext(ctx,
 		sequencer.WithQuorum(e.cfg.Quorum),
 		sequencer.WithKeccak(e.cfg.Keccak),
-		sequencer.WithMessageTransport(e.cfg.Transport),
 		sequencer.WithMessageFeed(e.messages.Feed()),
-	}
+		sequencer.WithMessageTransport(sequencer.MessageTransport{
+			Proposal:    e.cfg.TransportMsgProposal,
+			Prepare:     e.cfg.TransportMsgPrepare,
+			Commit:      e.cfg.TransportMsgCommit,
+			RoundChange: e.cfg.TransportMsgRoundChange,
+		}),
+	)
 
-	return e.Finalize(sequencer.NewContext(ctx, opts...), sequence)
+	return SequenceResult{
+		Sequence:         sequence,
+		SequenceProposal: e.Finalize(c, sequence),
+	}
 }
