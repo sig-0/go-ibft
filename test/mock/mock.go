@@ -259,18 +259,18 @@ func (m messagesByView[M]) notification(view *types.View, higherRounds bool) typ
 			return m.get(view)
 		}
 
-		var max uint64
+		var highestRound uint64
 		for _, round := range m.rounds(view.Sequence) {
-			if round >= max {
-				max = round
+			if round >= highestRound {
+				highestRound = round
 			}
 		}
 
-		if max < view.Round {
+		if highestRound < view.Round {
 			return nil
 		}
 
-		view.Round = max
+		view.Round = highestRound
 
 		return m.get(view)
 	})
