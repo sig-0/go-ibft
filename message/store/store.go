@@ -2,7 +2,6 @@ package store
 
 import (
 	"github.com/madz-lab/go-ibft/message/types"
-	"github.com/madz-lab/go-ibft/sequencer"
 )
 
 type message interface {
@@ -33,7 +32,7 @@ func NewMsgStore() *MsgStore {
 	return s
 }
 
-func (s *MsgStore) Feed() sequencer.MessageFeed {
+func (s *MsgStore) Feed() Feed {
 	return Feed{s}
 }
 
