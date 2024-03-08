@@ -12,6 +12,10 @@ import (
 	"github.com/madz-lab/go-ibft/sequencer"
 )
 
+var (
+	ErrInvalidConfig = errors.New("invalid engine config")
+)
+
 type EngineConfig struct {
 	Validator      ibft.Validator
 	Transport      sequencer.MessageTransport
@@ -22,19 +26,23 @@ type EngineConfig struct {
 
 func (cfg EngineConfig) IsValid() error {
 	if cfg.Validator == nil {
-		return errors.New("nil Validator")
+		return fmt.Errorf("%w: missing validator", ErrInvalidConfig)
 	}
 
 	if !cfg.Transport.IsValid() {
-		return errors.New("invalid transport")
+		return fmt.Errorf("%w: invalid transport", ErrInvalidConfig)
 	}
 
 	if cfg.Quorum == nil {
-		return errors.New("nil Quorum")
+		return fmt.Errorf("%w: missing quorum", ErrInvalidConfig)
 	}
 
 	if cfg.Keccak == nil {
-		return errors.New("nil Keccak")
+		return fmt.Errorf("%w: missing keccak", ErrInvalidConfig)
+	}
+
+	if cfg.Round0Duration == 0 {
+		return fmt.Errorf("%w: round zero duration cannot be 0", ErrInvalidConfig)
 	}
 
 	return nil
