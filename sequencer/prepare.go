@@ -30,7 +30,7 @@ func (s *Sequencer) awaitPrepare(ctx Context) error {
 }
 
 func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error) {
-	sub, cancelSub := ctx.MessageFeed().PrepareMessages(s.state.view, false)
+	sub, cancelSub := ctx.MessageFeed().PrepareMessages(s.state.View(), false)
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgPrepare) bool {

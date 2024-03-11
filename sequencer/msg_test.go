@@ -11,6 +11,7 @@ import (
 	"github.com/madz-lab/go-ibft/test/mock"
 )
 
+//nolint:dupl // messages are not entirely different among cases
 func TestIsValidMsgProposal(t *testing.T) {
 	t.Parallel()
 
@@ -528,7 +529,6 @@ func TestIsValidMsgCommit(t *testing.T) {
 		name             string
 		isValid          bool
 	}{
-
 		{
 			name: "invalid sender",
 			validator: mock.Validator{

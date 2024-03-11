@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	ErrInvalidConfig  = errors.New("invalid engine config")
-	ErrInvalidMessage = errors.New("invalid ibft message")
+	ErrInvalidConfig    = errors.New("invalid engine config")
+	ErrInvalidSignature = errors.New("recovered address does not match sender")
 )
 
 type Config struct {
@@ -27,12 +27,21 @@ type Config struct {
 	Round0Duration          time.Duration
 }
 
-func (cfg Config) IsValid() error {
-	if cfg.TransportMsgProposal == nil ||
-		cfg.TransportMsgPrepare == nil ||
-		cfg.TransportMsgRoundChange == nil ||
-		cfg.TransportMsgCommit == nil {
-		return fmt.Errorf("%w: missing message transport", ErrInvalidConfig)
+func (cfg Config) Validate() error {
+	if cfg.TransportMsgProposal == nil {
+		return fmt.Errorf("%w: missing *MsgProposal transport", ErrInvalidConfig)
+	}
+
+	if cfg.TransportMsgPrepare == nil {
+		return fmt.Errorf("%w: missing *MsgPrepare transport", ErrInvalidConfig)
+	}
+
+	if cfg.TransportMsgCommit == nil {
+		return fmt.Errorf("%w: missing *MsgCommit transport", ErrInvalidConfig)
+	}
+
+	if cfg.TransportMsgRoundChange == nil {
+		return fmt.Errorf("%w: missing *MsgRoundChange transport", ErrInvalidConfig)
 	}
 
 	if cfg.Quorum == nil {
@@ -51,7 +60,7 @@ func (cfg Config) IsValid() error {
 }
 
 type Engine struct {
-	*sequencer.Sequencer
+	sequencer *sequencer.Sequencer
 
 	messages *store.MessageStore
 	cfg      Config
@@ -59,7 +68,7 @@ type Engine struct {
 
 func NewEngine(validator ibft.Validator, cfg Config) Engine {
 	return Engine{
-		Sequencer: sequencer.New(validator, cfg.Round0Duration),
+		sequencer: sequencer.New(validator, cfg.Round0Duration),
 		messages:  store.NewMessageStore(),
 		cfg:       cfg,
 	}
@@ -67,15 +76,17 @@ func NewEngine(validator ibft.Validator, cfg Config) Engine {
 
 func (e Engine) AddMessage(msg types.Message) error {
 	if err := msg.Validate(); err != nil {
-		return fmt.Errorf("%w: %v", ErrInvalidMessage, err)
+		return fmt.Errorf("malformed message: %w", err)
 	}
 
-	if !e.Validator.IsValidSignature(
-		msg.GetSender(),
-		e.cfg.Keccak.Hash(msg.Payload()),
-		msg.GetSignature(),
-	) {
-		return fmt.Errorf("%w: invalid signature", ErrInvalidMessage)
+	var (
+		sender    = msg.GetSender()
+		signature = msg.GetSignature()
+		digest    = e.cfg.Keccak.Hash(msg.Payload())
+	)
+
+	if !e.sequencer.Validator.IsValidSignature(sender, digest, signature) {
+		return fmt.Errorf("signature verification failed: %w", ErrInvalidSignature)
 	}
 
 	switch msg := msg.(type) {
@@ -93,8 +104,8 @@ func (e Engine) AddMessage(msg types.Message) error {
 }
 
 type SequenceResult struct {
-	Sequence         uint64
 	SequenceProposal *types.FinalizedProposal
+	Sequence         uint64
 }
 
 func (e Engine) FinalizeSequence(ctx context.Context, sequence uint64) SequenceResult {
@@ -119,6 +130,6 @@ func (e Engine) FinalizeSequence(ctx context.Context, sequence uint64) SequenceR
 
 	return SequenceResult{
 		Sequence:         sequence,
-		SequenceProposal: e.Finalize(c, sequence),
+		SequenceProposal: e.sequencer.Finalize(c, sequence),
 	}
 }

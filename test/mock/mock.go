@@ -63,6 +63,7 @@ func NewValidatorSet(ids ...ValidatorID) ValidatorSet {
 
 func (vs ValidatorSet) IsValidator(id []byte, _ uint64) bool {
 	_, ok := vs[string(id)]
+
 	return ok
 }
 
@@ -159,19 +160,31 @@ func newSubscription[M msg](notification types.MsgNotification[M]) (types.Subscr
 	return c, func() { close(c) }
 }
 
-func (f MessageFeed) ProposalMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgProposal], func()) {
+func (f MessageFeed) ProposalMessages(
+	view *types.View,
+	higherRounds bool,
+) (types.Subscription[*types.MsgProposal], func()) {
 	return newSubscription(f.Proposal.notification(view, higherRounds))
 }
 
-func (f MessageFeed) PrepareMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgPrepare], func()) {
+func (f MessageFeed) PrepareMessages(
+	view *types.View,
+	higherRounds bool,
+) (types.Subscription[*types.MsgPrepare], func()) {
 	return newSubscription(f.Prepare.notification(view, higherRounds))
 }
 
-func (f MessageFeed) CommitMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgCommit], func()) {
+func (f MessageFeed) CommitMessages(
+	view *types.View,
+	higherRounds bool,
+) (types.Subscription[*types.MsgCommit], func()) {
 	return newSubscription(f.Commit.notification(view, higherRounds))
 }
 
-func (f MessageFeed) RoundChangeMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgRoundChange], func()) {
+func (f MessageFeed) RoundChangeMessages(
+	view *types.View,
+	higherRounds bool,
+) (types.Subscription[*types.MsgRoundChange], func()) {
 	return newSubscription(f.RoundChange.notification(view, higherRounds))
 }
 
@@ -181,7 +194,10 @@ func NewSingleRoundFeed(messages []types.Message) SingleRoundFeed {
 	return SingleRoundFeed(NewMessageFeed(messages))
 }
 
-func (f SingleRoundFeed) ProposalMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgProposal], func()) {
+func (f SingleRoundFeed) ProposalMessages(
+	view *types.View,
+	higherRounds bool,
+) (types.Subscription[*types.MsgProposal], func()) {
 	if higherRounds {
 		return nil, func() {}
 	}
@@ -189,7 +205,10 @@ func (f SingleRoundFeed) ProposalMessages(view *types.View, higherRounds bool) (
 	return newSubscription(f.Proposal.notification(view, false))
 }
 
-func (f SingleRoundFeed) PrepareMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgPrepare], func()) {
+func (f SingleRoundFeed) PrepareMessages(
+	view *types.View,
+	higherRounds bool,
+) (types.Subscription[*types.MsgPrepare], func()) {
 	if higherRounds {
 		return nil, func() {}
 	}
@@ -197,7 +216,10 @@ func (f SingleRoundFeed) PrepareMessages(view *types.View, higherRounds bool) (t
 	return newSubscription(f.Prepare.notification(view, false))
 }
 
-func (f SingleRoundFeed) CommitMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgCommit], func()) {
+func (f SingleRoundFeed) CommitMessages(
+	view *types.View,
+	higherRounds bool,
+) (types.Subscription[*types.MsgCommit], func()) {
 	if higherRounds {
 		return nil, func() {}
 	}
@@ -205,7 +227,10 @@ func (f SingleRoundFeed) CommitMessages(view *types.View, higherRounds bool) (ty
 	return newSubscription(f.Commit.notification(view, false))
 }
 
-func (f SingleRoundFeed) RoundChangeMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgRoundChange], func()) {
+func (f SingleRoundFeed) RoundChangeMessages(
+	view *types.View,
+	higherRounds bool,
+) (types.Subscription[*types.MsgRoundChange], func()) {
 	if higherRounds {
 		return nil, func() {}
 	}
@@ -219,12 +244,14 @@ type msg interface {
 	GetView() *types.View
 }
 
+type messagesByView[M msg] map[uint64]map[uint64][]M
+
 func (m messagesByView[M]) get(view *types.View) []M {
 	return m[view.Sequence][view.Round]
 }
 
 func (m messagesByView[M]) rounds(sequence uint64) []uint64 {
-	var rounds []uint64
+	rounds := make([]uint64, 0)
 
 	for round := range m[sequence] {
 		rounds = append(rounds, round)
@@ -232,8 +259,6 @@ func (m messagesByView[M]) rounds(sequence uint64) []uint64 {
 
 	return rounds
 }
-
-type messagesByView[M msg] map[uint64]map[uint64][]M
 
 func (m messagesByView[M]) add(msg M) {
 	view := msg.GetView()

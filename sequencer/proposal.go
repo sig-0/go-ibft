@@ -29,7 +29,7 @@ func (s *Sequencer) sendMsgProposal(ctx Context, block []byte) {
 }
 
 func (s *Sequencer) awaitCurrentRoundProposal(ctx Context) error {
-	proposal, err := s.awaitProposal(ctx, s.state.view, false)
+	proposal, err := s.awaitProposal(ctx, s.state.View(), false)
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,14 @@ package types
 import (
 	"errors"
 	"fmt"
+
 	"google.golang.org/protobuf/proto"
+)
+
+var (
+	ErrMissingView      = errors.New("missing view field")
+	ErrMissingSender    = errors.New("missing sender field")
+	ErrMissingSignature = errors.New("missing signature")
 )
 
 // Message is an opaque wrapper for the IBFT consensus messages. See IBFTMessage for concrete type definitions
@@ -52,7 +59,7 @@ func WrapMessages[M IBFTMessage](messages ...M) []Message {
 
 func (x *MsgProposal) Validate() error {
 	if x.View == nil {
-		return errors.New("missing view")
+		return ErrMissingView
 	}
 
 	if x.From == nil {
@@ -108,7 +115,7 @@ func (x *MsgProposal) Bytes() []byte {
 
 func (x *MsgPrepare) Validate() error {
 	if x.View == nil {
-		return errors.New("missing view")
+		return ErrMissingView
 	}
 
 	if x.From == nil {
@@ -158,7 +165,7 @@ func (x *MsgPrepare) Payload() []byte {
 
 func (x *MsgCommit) Validate() error {
 	if x.View == nil {
-		return errors.New("missing view")
+		return ErrMissingView
 	}
 
 	if x.From == nil {
@@ -213,7 +220,7 @@ func (x *MsgCommit) Payload() []byte {
 
 func (x *MsgRoundChange) Validate() error {
 	if x.View == nil {
-		return errors.New("missing view")
+		return ErrMissingView
 	}
 
 	if x.From == nil {

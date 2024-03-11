@@ -59,17 +59,17 @@ func NewContext(ctx context.Context, opts ...ContextOption) Context {
 }
 
 func (c Context) Keccak() ibft.Keccak {
-	return c.Value(keccak).(ibft.Keccak)
+	return c.Value(keccak).(ibft.Keccak) //nolint:forcetypeassert // already wrapped
 }
 
 func (c Context) Quorum() ibft.Quorum {
-	return c.Value(quorum).(ibft.Quorum)
+	return c.Value(quorum).(ibft.Quorum) //nolint:forcetypeassert // already wrapped
 }
 
 func (c Context) MessageFeed() MessageFeed {
-	return c.Value(feed).(MessageFeed)
+	return c.Value(feed).(MessageFeed) //nolint:forcetypeassert // already wrapped
 }
 
 func (c Context) MessageTransport() MessageTransport {
-	return c.Value(transport).(MessageTransport)
+	return c.Value(transport).(MessageTransport) //nolint:forcetypeassert // already wrapped
 }

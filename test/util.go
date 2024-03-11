@@ -39,7 +39,7 @@ func NewNetwork() Network {
 }
 
 func GetTransport[M types.IBFTMessage](n Network) ibft.TransportFn[M] {
-	return func(msg M) { n <- any(msg).(types.Message) }
+	return func(msg M) { n <- any(msg).(types.Message) } //nolint:forcetypeassert // guarded by types.IBFTMessage
 }
 
 func (n Network) Gossip(fn func(msg types.Message)) {
@@ -71,7 +71,7 @@ func RoundRobinProposer(vs ValidatorSet) func([]byte, uint64, uint64) bool {
 		validators = append(validators, v)
 	}
 
-	return func(id []byte, s, r uint64) bool {
+	return func(id []byte, _, r uint64) bool {
 		num := len(validators)
 		elected := int(r) % num
 
@@ -80,8 +80,8 @@ func RoundRobinProposer(vs ValidatorSet) func([]byte, uint64, uint64) bool {
 }
 
 type IBFTValidator struct {
-	Name         string
 	IsProposerFn func([]byte, uint64, uint64) bool
+	Name         string
 }
 
 func (v IBFTValidator) Sign(digest []byte) []byte {
@@ -104,7 +104,7 @@ func (v IBFTValidator) IsValidator(_ []byte, _ uint64) bool {
 	return true
 }
 
-func (v IBFTValidator) IsValidProposal(proposal []byte, sequence uint64) bool {
+func (v IBFTValidator) IsValidProposal(_ []byte, _ uint64) bool {
 	return true
 }
 

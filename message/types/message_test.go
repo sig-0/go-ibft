@@ -1,10 +1,12 @@
 package types
 
 import (
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"reflect"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Msg_Bytes_And_Payload(t *testing.T) {

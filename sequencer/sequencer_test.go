@@ -49,7 +49,6 @@ func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
 	assert.Nil(t, <-c)
 }
 
-//nolint:dupl // consensus messages are not entirely different among cases
 func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 	t.Parallel()
 

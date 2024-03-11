@@ -33,7 +33,7 @@ func (s *Sequencer) awaitCommit(ctx Context) error {
 }
 
 func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) {
-	sub, cancelSub := ctx.MessageFeed().CommitMessages(s.state.view, false)
+	sub, cancelSub := ctx.MessageFeed().CommitMessages(s.state.View(), false)
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgCommit) bool {

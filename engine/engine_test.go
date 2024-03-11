@@ -14,17 +14,17 @@ import (
 	"github.com/madz-lab/go-ibft/test"
 	"github.com/madz-lab/go-ibft/test/mock"
 
-	. "github.com/madz-lab/go-ibft/engine"
+	. "github.com/madz-lab/go-ibft/engine" //nolint:revive // convenience
 )
 
 func Test_EngineConfig(t *testing.T) {
 	t.Parallel()
 
 	table := []struct {
-		name      string
 		validator ibft.Validator
-		cfg       Config
 		expected  error
+		cfg       Config
+		name      string
 	}{
 		{
 			name:     "missing proposal transport",
@@ -115,7 +115,7 @@ func Test_EngineConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.ErrorIs(t, tt.cfg.IsValid(), tt.expected)
+			assert.ErrorIs(t, tt.cfg.Validate(), tt.expected)
 		})
 	}
 }
@@ -130,16 +130,16 @@ func Test_Engine_Add_Message(t *testing.T) {
 	)
 
 	table := []struct {
-		name      string
 		validator ibft.Validator
-		cfg       Config
 		msg       types.Message
 		expected  error
+		cfg       Config
+		name      string
 	}{
 		{
-			name: "invalid message",
+			name: "malformed message",
 
-			expected: ErrInvalidMessage,
+			expected: types.ErrMissingView,
 			msg:      &types.MsgPrepare{View: nil},
 		},
 
@@ -148,7 +148,7 @@ func Test_Engine_Add_Message(t *testing.T) {
 			validator: mock.Validator{Verifier: badSignature},
 			cfg:       Config{Keccak: keccak},
 
-			expected: ErrInvalidMessage,
+			expected: ErrInvalidSignature,
 			msg: &types.MsgPrepare{
 				View:      &types.View{Sequence: 101, Round: 1},
 				From:      []byte("someone"),
