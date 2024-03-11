@@ -15,16 +15,8 @@ var (
 
 // Message is an opaque wrapper for the IBFT consensus messages. See IBFTMessage for concrete type definitions
 type Message interface {
-	String() string
-
 	// Validate returns an errors if the Message is malformed
 	Validate() error
-
-	// GetSequence returns the sequence for which this Message was created
-	GetSequence() uint64
-
-	// GetRound returns the round in which this Message was created
-	GetRound() uint64
 
 	// GetSender returns the sender ID associated with this Message
 	GetSender() []byte
@@ -81,14 +73,6 @@ func (x *MsgProposal) Validate() error {
 	return nil
 }
 
-func (x *MsgProposal) GetSequence() uint64 {
-	return x.View.Sequence
-}
-
-func (x *MsgProposal) GetRound() uint64 {
-	return x.View.Round
-}
-
 func (x *MsgProposal) Payload() []byte {
 	bz, err := proto.Marshal(&MsgProposal{
 		View:                   x.View,
@@ -131,14 +115,6 @@ func (x *MsgPrepare) Validate() error {
 	}
 
 	return nil
-}
-
-func (x *MsgPrepare) GetSequence() uint64 {
-	return x.View.Sequence
-}
-
-func (x *MsgPrepare) GetRound() uint64 {
-	return x.View.Round
 }
 
 func (x *MsgPrepare) Bytes() []byte {
@@ -187,14 +163,6 @@ func (x *MsgCommit) Validate() error {
 	return nil
 }
 
-func (x *MsgCommit) GetSequence() uint64 {
-	return x.View.Sequence
-}
-
-func (x *MsgCommit) GetRound() uint64 {
-	return x.View.Round
-}
-
 func (x *MsgCommit) Bytes() []byte {
 	bz, err := proto.Marshal(x)
 	if err != nil {
@@ -232,14 +200,6 @@ func (x *MsgRoundChange) Validate() error {
 	}
 
 	return nil
-}
-
-func (x *MsgRoundChange) GetSequence() uint64 {
-	return x.View.Sequence
-}
-
-func (x *MsgRoundChange) GetRound() uint64 {
-	return x.View.Round
 }
 
 func (x *MsgRoundChange) Bytes() []byte {

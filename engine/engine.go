@@ -61,9 +61,8 @@ func (cfg Config) Validate() error {
 
 type Engine struct {
 	sequencer *sequencer.Sequencer
-
-	messages *store.MessageStore
-	cfg      Config
+	messages  *store.MessageStore
+	cfg       Config
 }
 
 func NewEngine(validator ibft.Validator, cfg Config) Engine {
