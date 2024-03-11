@@ -10,8 +10,8 @@ type Collection[M message] interface {
 	AddMessage(msg M)
 	GetMessages(view *types.View) []M
 	RemoveMessages(view *types.View)
-
 	Subscribe(view *types.View, higherRounds bool) (types.Subscription[M], func())
+	Clear()
 }
 
 type syncCollection[M message] struct {
@@ -28,11 +28,18 @@ func NewCollection[M message]() Collection[M] {
 	}
 }
 
+func (c *syncCollection[M]) Clear() {
+	c.collectionMux.Lock()
+	defer c.collectionMux.Unlock()
+
+	clear(c.msgCollection)
+}
+
 func (c *syncCollection[M]) Subscribe(view *types.View, higherRounds bool) (types.Subscription[M], func()) {
 	sub := newSubscription[M](view, higherRounds)
 	unregister := c.registerSubscription(sub)
 
-	sub.Notify(c.unwrapMessagesFn(view, higherRounds))
+	sub.Notify(c.getNotificationFn(view, higherRounds))
 
 	return sub.Channel, unregister
 }
@@ -76,7 +83,7 @@ func (c *syncCollection[M]) AddMessage(msg M) {
 				return
 			}
 
-			sub.Notify(c.unwrapMessagesFn(sub.View, sub.HigherRounds))
+			sub.Notify(c.getNotificationFn(sub.View, sub.HigherRounds))
 		})
 	}
 
@@ -91,7 +98,7 @@ func (c *syncCollection[M]) GetMessages(view *types.View) []M {
 	return c.msgCollection.loadSet(view).Messages()
 }
 
-func (c *syncCollection[M]) unwrapMessagesFn(view *types.View, higherRounds bool) types.MsgNotificationFn[M] {
+func (c *syncCollection[M]) getNotificationFn(view *types.View, higherRounds bool) types.MsgNotificationFn[M] {
 	return func() []M {
 		c.collectionMux.RLock()
 		defer c.collectionMux.RUnlock()

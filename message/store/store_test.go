@@ -11,8 +11,24 @@ import (
 
 type testTable[M types.IBFTMessage] struct {
 	msg       M
-	runTestFn func(*MsgStore, M)
+	runTestFn func(*MessageStore, M)
 	name      string
+}
+
+func Test_Collection_Clear(t *testing.T) {
+	c := NewCollection[*types.MsgProposal]()
+	view := &types.View{Sequence: 101, Round: 5}
+	msg := &types.MsgProposal{
+		View:      view,
+		From:      []byte("someone"),
+		Signature: []byte("signature"),
+	}
+
+	c.AddMessage(msg)
+	require.Equal(t, msg, c.GetMessages(view)[0])
+
+	c.Clear()
+	assert.Len(t, c.GetMessages(view), 0)
 }
 
 func TestStore_MsgProposal(t *testing.T) {
@@ -26,7 +42,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
 				store.ProposalMessages.AddMessage(msg)
 				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
 			},
@@ -39,7 +55,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
 				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 0)
 				store.ProposalMessages.AddMessage(msg)
 
@@ -63,7 +79,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
 				store.ProposalMessages.AddMessage(msg)
 				store.ProposalMessages.AddMessage(msg)
 
@@ -79,7 +95,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
 				msg2 := &types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 1},
 					From:      []byte("other from"),
@@ -102,7 +118,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
 				msg2 := &types.MsgProposal{
 					View:      &types.View{Sequence: 102, Round: 0},
 					From:      []byte("other from"),
@@ -124,7 +140,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
 				store.ProposalMessages.AddMessage(msg)
 				store.ProposalMessages.AddMessage(&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
@@ -145,7 +161,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
 				store.ProposalMessages.AddMessage(msg)
 
 				view := &types.View{Sequence: msg.View.Sequence, Round: msg.View.Round + 1}

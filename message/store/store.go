@@ -11,59 +11,57 @@ type message interface {
 	GetSender() []byte
 }
 
-// MsgStore is a thread-safe storage for consensus messages with a built-in Feed mechanism
-type MsgStore struct {
+// MessageStore is a thread-safe storage for consensus messages with a built-in Feed mechanism
+type MessageStore struct {
 	ProposalMessages    Collection[*types.MsgProposal]
 	PrepareMessages     Collection[*types.MsgPrepare]
 	CommitMessages      Collection[*types.MsgCommit]
 	RoundChangeMessages Collection[*types.MsgRoundChange]
 }
 
-// NewMsgStore returns a new MsgStore instance. MsgNotificationFn added to this store
+// NewMsgStore returns a new MessageStore instance. MsgNotificationFn added to this store
 // have their signatures verified before being included
-func NewMsgStore() *MsgStore {
-	s := &MsgStore{
+func NewMsgStore() *MessageStore {
+	return &MessageStore{
 		ProposalMessages:    NewCollection[*types.MsgProposal](),
 		PrepareMessages:     NewCollection[*types.MsgPrepare](),
 		CommitMessages:      NewCollection[*types.MsgCommit](),
 		RoundChangeMessages: NewCollection[*types.MsgRoundChange](),
 	}
-
-	return s
 }
 
-func (s *MsgStore) Feed() Feed {
+func (s *MessageStore) Feed() Feed {
 	return Feed{s}
 }
 
 type Feed struct {
-	*MsgStore
+	*MessageStore
 }
 
 func (f Feed) ProposalMessages(
 	view *types.View,
 	futureRounds bool,
 ) (types.Subscription[*types.MsgProposal], func()) {
-	return f.MsgStore.ProposalMessages.Subscribe(view, futureRounds)
+	return f.MessageStore.ProposalMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) PrepareMessages(
 	view *types.View,
 	futureRounds bool,
 ) (types.Subscription[*types.MsgPrepare], func()) {
-	return f.MsgStore.PrepareMessages.Subscribe(view, futureRounds)
+	return f.MessageStore.PrepareMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) CommitMessages(
 	view *types.View,
 	futureRounds bool,
 ) (types.Subscription[*types.MsgCommit], func()) {
-	return f.MsgStore.CommitMessages.Subscribe(view, futureRounds)
+	return f.MessageStore.CommitMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) RoundChangeMessages(
 	view *types.View,
 	futureRounds bool,
 ) (types.Subscription[*types.MsgRoundChange], func()) {
-	return f.MsgStore.RoundChangeMessages.Subscribe(view, futureRounds)
+	return f.MessageStore.RoundChangeMessages.Subscribe(view, futureRounds)
 }

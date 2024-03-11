@@ -53,7 +53,7 @@ func (cfg Config) IsValid() error {
 type Engine struct {
 	*sequencer.Sequencer
 
-	messages *store.MsgStore
+	messages *store.MessageStore
 	cfg      Config
 }
 
@@ -99,7 +99,10 @@ type SequenceResult struct {
 
 func (e Engine) FinalizeSequence(ctx context.Context, sequence uint64) SequenceResult {
 	defer func() {
-		// todo: clean old messages
+		e.messages.ProposalMessages.Clear()
+		e.messages.PrepareMessages.Clear()
+		e.messages.CommitMessages.Clear()
+		e.messages.RoundChangeMessages.Clear()
 	}()
 
 	c := sequencer.NewContext(ctx,
