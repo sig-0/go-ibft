@@ -1,72 +1,70 @@
 ## Overview
 
-`go-ibft` is a simple, straightforward, IBFT state machine implementation.
+`go-ibft` provides a light-weight engine implementation of the IBFT 2.0 block finalization algorithm. 
 
-It doesn't contain fancy synchronization logic, or any kind of transaction execution layer.
-Instead, `go-ibft` is designed from the ground up to respect and adhere to the `IBFT 2.0` specification document.
-
-Inside this package, you’ll find that it solves the underlying liveness and persistence issues of the original IBFT
-specification, as well as that it contains a plethora of optimizations that make it faster and more lightweight. For a
-complete specification overview on the package, you can check out the official documentation.
-
-As mentioned before, `go-ibft` implements basic IBFT 2.0 state machine logic, meaning it doesn’t have any kind of
-transaction execution or block building mechanics. That responsibility is left to the `Backend` implementation.
+Due to its simple API and minimal client dependencies (see `ibft.go`) the engine is designed to work in parallel with a block syncing mechanism (as described in the original document). 
+For the full protocol specification, see the official doc.
 
 ## Installation
 
-To get up and running with the `go-ibft` package, you can pull it into your project using:
+Required Go version `1.22`
 
-`go get github.com/madz-lab/go-ibft`
+From your project root directory run:
 
-Currently, the minimum required go version is `go 1.19`.
+`$ go get github.com/madz-lab/go-ibft`
 
 ## Usage Examples
 
 ```go
 package main
 
-import "github.com/madz-lab/go-ibft"
+import (
+	"context"
+	"time"
 
-// IBFTBackend is the structure that implements all required
-// go-ibft Backend interfaces
-type IBFTBackend struct {
-	// ...
-}
-
-// IBFTLogger is the structure that implements all required
-// go-ibft Logger interface
-type IBFTLogger struct {
-	// ...
-}
-
-// IBFTTransport is the structure that implements all required
-// go-ibft Transport interface
-type IBFTTransport struct {
-	// ...
-}
-
-// ...
+	"github.com/madz-lab/go-ibft"
+	"github.com/madz-lab/go-ibft/engine"
+	"github.com/madz-lab/go-ibft/message/types"
+)
 
 func main() {
-	backend := NewIBFTBackned(...)
-	logger := NewIBFTLogger(...)
-	transport := NewIBFTTransport(...)
 
-	ibft := NewIBFT(logger, backend, transport)
+	var (
+		// Provide external dependencies
+		validator      ibft.Validator
+		keccak         ibft.Keccak
+		quorum         ibft.Quorum
+		round0Duration time.Duration
 
-	blockHeight := uint64(1)
-	ctx, cancelFn := context.WithCancel(context.Background())
-
-	go func() {
-		// Run the consensus sequence for the block height.
-		// When the method returns, that means that
-		// consensus was reached
-		i := RunSequence(ctx, blockHeight)
-	}
-
+		proposalTransport    ibft.Transport[*types.MsgProposal]
+		prepareTransport     ibft.Transport[*types.MsgPrepare]
+		commitTransport      ibft.Transport[*types.MsgCommit]
+		roundChangeTransport ibft.Transport[*types.MsgRoundChange]
+	)
+	
 	// ...
 
-	// Stop the sequence by cancelling the context
-	cancelFn()
+	cfg := engine.Config{
+		TransportMsgProposal:    proposalTransport,
+		TransportMsgPrepare:     prepareTransport,
+		TransportMsgCommit:      commitTransport,
+		TransportMsgRoundChange: roundChangeTransport,
+		Quorum:                  quorum,
+		Keccak:                  keccak,
+		Round0Duration:          round0Duration,
+	}
+
+	e := engine.NewEngine(validator, cfg)
+
+	go func() {
+		var msg types.Message
+
+		// Receive consensus messages gossiped in the network
+		_ = e.AddMessage(msg)
+	}()
+
+	// await proposal to be finalized for current sequence
+	_ = e.FinalizeSequence(context.Background(), 101)
 }
+
 ```
