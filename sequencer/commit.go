@@ -36,10 +36,9 @@ func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) 
 	sub, cancelSub := ctx.MessageFeed().CommitMessages(s.state.view, false)
 	defer cancelSub()
 
-	isValidMsg := func(msg *types.MsgCommit) bool {
+	cache := newMsgCache(func(msg *types.MsgCommit) bool {
 		return s.isValidMsgCommit(msg)
-	}
-	cache := newMsgCache(isValidMsg)
+	})
 
 	for {
 		select {

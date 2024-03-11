@@ -55,29 +55,28 @@ func (s *viewState) AcceptedBlockHash() []byte {
 }
 
 func (s *viewState) MoveToNextRound() {
-	s.view.Round++
-	s.proposal = nil
-	s.seals = s.seals[:0]
+	s.proposal, s.view.Round = nil, s.view.Round+1
+	clear(s.seals)
 }
 
 func (s *viewState) AcceptProposal(proposal *types.MsgProposal) {
-	s.view.Round = proposal.View.Round
-	s.proposal = proposal
-	s.seals = s.seals[:0]
+	s.proposal, s.view.Round = proposal, proposal.View.Round
+	clear(s.seals)
 }
 
 func (s *viewState) AcceptRCC(rcc *types.RoundChangeCertificate) {
-	s.view.Round = rcc.Messages[0].View.Round
-	s.rcc = rcc
-	s.proposal = nil
-	s.seals = s.seals[:0]
+	s.proposal, s.rcc, s.view.Round = nil, rcc, rcc.Messages[0].View.Round
+	clear(s.seals)
 }
 
 func (s *viewState) PrepareCertificate(prepares []*types.MsgPrepare) {
-	s.latestPB, s.latestPC = s.AcceptedProposedBlock(), &types.PreparedCertificate{
+	pb := s.AcceptedProposedBlock()
+	pc := &types.PreparedCertificate{
 		ProposalMessage: s.proposal,
 		PrepareMessages: prepares,
 	}
+
+	s.latestPB, s.latestPC = pb, pc
 }
 
 func (s *viewState) AcceptSeal(from, seal []byte) {

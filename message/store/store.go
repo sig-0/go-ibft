@@ -4,29 +4,21 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type message interface {
-	types.IBFTMessage
-
-	GetView() *types.View
-	GetSender() []byte
-}
-
 // MessageStore is a thread-safe storage for consensus messages with a built-in Feed mechanism
 type MessageStore struct {
-	ProposalMessages    Collection[*types.MsgProposal]
-	PrepareMessages     Collection[*types.MsgPrepare]
-	CommitMessages      Collection[*types.MsgCommit]
-	RoundChangeMessages Collection[*types.MsgRoundChange]
+	ProposalMessages    MessageCollection[*types.MsgProposal]
+	PrepareMessages     MessageCollection[*types.MsgPrepare]
+	CommitMessages      MessageCollection[*types.MsgCommit]
+	RoundChangeMessages MessageCollection[*types.MsgRoundChange]
 }
 
-// NewMsgStore returns a new MessageStore instance. MsgNotificationFn added to this store
-// have their signatures verified before being included
-func NewMsgStore() *MessageStore {
+// NewMessageStore returns a new MessageStore instance
+func NewMessageStore() *MessageStore {
 	return &MessageStore{
-		ProposalMessages:    NewCollection[*types.MsgProposal](),
-		PrepareMessages:     NewCollection[*types.MsgPrepare](),
-		CommitMessages:      NewCollection[*types.MsgCommit](),
-		RoundChangeMessages: NewCollection[*types.MsgRoundChange](),
+		ProposalMessages:    NewMessageCollection[*types.MsgProposal](),
+		PrepareMessages:     NewMessageCollection[*types.MsgPrepare](),
+		CommitMessages:      NewMessageCollection[*types.MsgCommit](),
+		RoundChangeMessages: NewMessageCollection[*types.MsgRoundChange](),
 	}
 }
 

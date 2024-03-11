@@ -45,10 +45,9 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 	sub, cancelSub := ctx.MessageFeed().RoundChangeMessages(view, higherRounds)
 	defer cancelSub()
 
-	isValidMsg := func(msg *types.MsgRoundChange) bool {
+	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
 		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
-	}
-	cache := newMsgCache(isValidMsg)
+	})
 
 	for {
 		select {

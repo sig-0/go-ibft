@@ -6,13 +6,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// IBFTMessage defines the 4 message types used by the IBFT 2.0 protocol
-// to reach network-wide consensus on some proposal for a particular sequence
-type IBFTMessage interface {
-	*MsgProposal | *MsgPrepare | *MsgCommit | *MsgRoundChange
-}
-
-// Message is an opaque wrapper for the IBFT consensus messages. See types.IBFTMessage for concrete type definitions
+// Message is an opaque wrapper for the IBFT consensus messages. See IBFTMessage for concrete type definitions
 type Message interface {
 	String() string
 
@@ -36,6 +30,12 @@ type Message interface {
 
 	// Bytes returns the byte content of this Message (signature included)
 	Bytes() []byte
+}
+
+// IBFTMessage defines the 4 message types used by the IBFT 2.0 protocol
+// to reach network-wide consensus on some proposal for a particular sequence
+type IBFTMessage interface {
+	*MsgProposal | *MsgPrepare | *MsgCommit | *MsgRoundChange
 }
 
 // WrapMessages wraps concrete message types into Message type

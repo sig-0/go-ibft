@@ -60,7 +60,7 @@ type Engine struct {
 func NewEngine(validator ibft.Validator, cfg Config) Engine {
 	return Engine{
 		Sequencer: sequencer.New(validator, cfg.Round0Duration),
-		messages:  store.NewMsgStore(),
+		messages:  store.NewMessageStore(),
 		cfg:       cfg,
 	}
 }

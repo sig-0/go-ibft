@@ -4,44 +4,7 @@ import (
 	"context"
 
 	"github.com/madz-lab/go-ibft"
-	"github.com/madz-lab/go-ibft/message/types"
 )
-
-// MessageFeed provides an asynchronous way to receive consensus messages. In addition
-// to listen for any type of message for any particular view, the higherRounds flag provides an option
-// to receive messages from rounds higher than the round in provided view.
-//
-// CONTRACT: messages received by consuming the channel's callback are assumed to be valid:
-//
-// * any message is valid:
-//  1. no required fields missing (Sender, Signature, View)
-//  2. signature is valid
-//
-// * all messages are considered unique (there cannot be 2 or more messages with identical From fields)
-type MessageFeed interface {
-	// ProposalMessages returns the MsgProposal subscription for given view(s)
-	ProposalMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgProposal], func())
-
-	// PrepareMessages returns the MsgPrepare subscription for given view(s)
-	PrepareMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgPrepare], func())
-
-	// CommitMessages returns the MsgCommit subscription for given view(s)
-	CommitMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgCommit], func())
-
-	// RoundChangeMessages returns the MsgRoundChange subscription for given view(s)
-	RoundChangeMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgRoundChange], func())
-}
-
-type MessageTransport struct {
-	Proposal    ibft.Transport[*types.MsgProposal]
-	Prepare     ibft.Transport[*types.MsgPrepare]
-	Commit      ibft.Transport[*types.MsgCommit]
-	RoundChange ibft.Transport[*types.MsgRoundChange]
-}
-
-func (t MessageTransport) IsValid() bool {
-	return t.Proposal != nil && t.Prepare != nil && t.Commit != nil && t.RoundChange != nil
-}
 
 type ctxKey string
 

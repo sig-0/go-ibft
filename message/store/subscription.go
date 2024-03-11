@@ -24,6 +24,7 @@ func (s *subscription[M]) Notify(receiver types.MsgNotificationFn[M]) {
 	select {
 	case s.Channel <- receiver:
 	default:
+		// consumer hasn't used the callback
 	}
 }
 

@@ -2,10 +2,12 @@ package test
 
 import (
 	"bytes"
+	"math"
+
+	"golang.org/x/crypto/sha3"
+
 	"github.com/madz-lab/go-ibft"
 	"github.com/madz-lab/go-ibft/message/types"
-	"golang.org/x/crypto/sha3"
-	"math"
 )
 
 func QuorumOf(n int) ibft.QuorumFn {
@@ -37,9 +39,7 @@ func NewNetwork() Network {
 }
 
 func GetTransport[M types.IBFTMessage](n Network) ibft.TransportFn[M] {
-	return func(msg M) {
-		n <- any(msg).(types.Message)
-	}
+	return func(msg M) { n <- any(msg).(types.Message) }
 }
 
 func (n Network) Gossip(fn func(msg types.Message)) {
@@ -62,6 +62,21 @@ func NewValidatorSet(names ...string) ValidatorSet {
 	}
 
 	return vs
+}
+
+func RoundRobinProposer(vs ValidatorSet) func([]byte, uint64, uint64) bool {
+	validators := make([]*IBFTValidator, 0, len(vs))
+
+	for _, v := range vs {
+		validators = append(validators, v)
+	}
+
+	return func(id []byte, s, r uint64) bool {
+		num := len(validators)
+		elected := int(r) % num
+
+		return bytes.Equal(id, validators[elected].ID())
+	}
 }
 
 type IBFTValidator struct {
@@ -103,19 +118,4 @@ func (v IBFTValidator) ID() []byte {
 
 func (v IBFTValidator) BuildProposal(_ uint64) []byte {
 	return []byte("valid block")
-}
-
-func RoundRobinProposer(vs ValidatorSet) func([]byte, uint64, uint64) bool {
-	validators := make([]*IBFTValidator, 0, len(vs))
-
-	for _, v := range vs {
-		validators = append(validators, v)
-	}
-
-	return func(id []byte, s, r uint64) bool {
-		num := len(validators)
-		elected := int(r) % num
-
-		return bytes.Equal(id, validators[elected].ID())
-	}
 }

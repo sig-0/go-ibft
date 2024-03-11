@@ -6,7 +6,14 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type Collection[M message] interface {
+type message interface {
+	types.IBFTMessage
+
+	GetView() *types.View
+	GetSender() []byte
+}
+
+type MessageCollection[M message] interface {
 	AddMessage(msg M)
 	GetMessages(view *types.View) []M
 	RemoveMessages(view *types.View)
@@ -21,7 +28,7 @@ type syncCollection[M message] struct {
 	collectionMux, subscriptionMux sync.RWMutex
 }
 
-func NewCollection[M message]() Collection[M] {
+func NewMessageCollection[M message]() MessageCollection[M] {
 	return &syncCollection[M]{
 		msgCollection: msgCollection[M]{},
 		subscriptions: subscriptions[M]{},
@@ -59,36 +66,29 @@ func (c *syncCollection[M]) registerSubscription(sub subscription[M]) func() {
 }
 
 func (c *syncCollection[M]) AddMessage(msg M) {
-	add := func() {
-		c.collectionMux.Lock()
-		defer c.collectionMux.Unlock()
+	c.collectionMux.Lock()
+	defer c.collectionMux.Unlock()
 
-		c.msgCollection.add(msg)
-	}
+	c.msgCollection.add(msg)
 
-	notify := func() {
-		c.subscriptionMux.RLock()
-		defer c.subscriptionMux.RUnlock()
+	c.subscriptionMux.RLock()
+	defer c.subscriptionMux.RUnlock()
 
-		view := msg.GetView()
+	view := msg.GetView()
 
-		c.subscriptions.Notify(func(sub subscription[M]) {
-			// match the sequence
-			if view.Sequence != sub.View.Sequence {
-				return
-			}
+	c.subscriptions.Notify(func(sub subscription[M]) {
+		// match the sequence
+		if view.Sequence != sub.View.Sequence {
+			return
+		}
 
-			// exclude lower rounds
-			if view.Round < sub.View.Round {
-				return
-			}
+		// exclude lower rounds
+		if view.Round < sub.View.Round {
+			return
+		}
 
-			sub.Notify(c.getNotificationFn(sub.View, sub.HigherRounds))
-		})
-	}
-
-	add()
-	notify()
+		sub.Notify(c.getNotificationFn(sub.View, sub.HigherRounds))
+	})
 }
 
 func (c *syncCollection[M]) GetMessages(view *types.View) []M {

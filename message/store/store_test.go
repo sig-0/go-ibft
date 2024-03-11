@@ -16,7 +16,7 @@ type testTable[M types.IBFTMessage] struct {
 }
 
 func Test_Collection_Clear(t *testing.T) {
-	c := NewCollection[*types.MsgProposal]()
+	c := NewMessageCollection[*types.MsgProposal]()
 	view := &types.View{Sequence: 101, Round: 5}
 	msg := &types.MsgProposal{
 		View:      view,
@@ -175,7 +175,7 @@ func TestStore_MsgProposal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			tt.runTestFn(NewMsgStore(), tt.msg)
+			tt.runTestFn(NewMessageStore(), tt.msg)
 		})
 	}
 }
@@ -194,7 +194,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := NewMsgStore()
+		store := NewMessageStore()
 		feed := store.Feed()
 
 		store.ProposalMessages.AddMessage(msg)
@@ -225,7 +225,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := NewMsgStore()
+		store := NewMessageStore()
 		feed := store.Feed()
 
 		store.ProposalMessages.AddMessage(msg1)
@@ -251,7 +251,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := NewMsgStore()
+		store := NewMessageStore()
 		feed := store.Feed()
 
 		store.ProposalMessages.AddMessage(msg)
@@ -271,7 +271,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("highest round message received", func(t *testing.T) {
 		t.Parallel()
 
-		store := NewMsgStore()
+		store := NewMessageStore()
 		feed := store.Feed()
 
 		sub, cancelSub := feed.ProposalMessages(&types.View{
@@ -312,7 +312,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("subscription not notified", func(t *testing.T) {
 		t.Parallel()
 
-		store := NewMsgStore()
+		store := NewMessageStore()
 		feed := store.Feed()
 
 		view1 := &types.View{Sequence: 101, Round: 1}
@@ -340,7 +340,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("subscription gets latest notification", func(t *testing.T) {
 		t.Parallel()
 
-		store := NewMsgStore()
+		store := NewMessageStore()
 		feed := store.Feed()
 
 		view1 := &types.View{Sequence: 101, Round: 1}

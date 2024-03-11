@@ -47,10 +47,9 @@ func (s *Sequencer) awaitProposal(ctx Context, view *types.View, higherRounds bo
 	sub, cancelSub := ctx.MessageFeed().ProposalMessages(view, higherRounds)
 	defer cancelSub()
 
-	isValidMsg := func(msg *types.MsgProposal) bool {
+	cache := newMsgCache(func(msg *types.MsgProposal) bool {
 		return s.isValidMsgProposal(msg, ctx.Quorum(), ctx.Keccak())
-	}
-	cache := newMsgCache(isValidMsg)
+	})
 
 	for {
 		select {

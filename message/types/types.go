@@ -1,29 +1,31 @@
 package types
 
-// FinalizedSeal is proof that a validator committed to a specific proposal
-type FinalizedSeal struct {
-	From, CommitSeal []byte
-}
+type (
+	// FinalizedSeal is proof that a validator committed to a specific proposal
+	FinalizedSeal struct {
+		From, CommitSeal []byte
+	}
 
-// FinalizedProposal is a consensus verified proposal of some sequence
-type FinalizedProposal struct {
-	// proposal that was finalized
-	Proposal []byte
+	// FinalizedProposal is a consensus verified proposal of some sequence
+	FinalizedProposal struct {
+		// proposal that was finalized
+		Proposal []byte
 
-	// seals of validators who committed to this proposal
-	Seals []FinalizedSeal
+		// seals of validators who committed to this proposal
+		Seals []FinalizedSeal
 
-	// round in which the proposal was finalized
-	Round uint64
-}
+		// round in which the proposal was finalized
+		Round uint64
+	}
 
-type Subscription[M IBFTMessage] chan MsgNotification[M]
+	Subscription[M IBFTMessage] chan MsgNotification[M]
 
-// MsgNotification is received from the subscription to indicate a new message
-type MsgNotification[M IBFTMessage] interface {
-	// Unwrap returns all messages that fit the subscription
-	Unwrap() []M
-}
+	// MsgNotification is received from the subscription to indicate a new message
+	MsgNotification[M IBFTMessage] interface {
+		// Unwrap returns all messages that fit the subscription
+		Unwrap() []M
+	}
+)
 
 type MsgNotificationFn[M IBFTMessage] func() []M
 
@@ -50,18 +52,18 @@ func (rcc *RoundChangeCertificate) HighestRoundBlock() ([]byte, uint64) {
 	}
 
 	var (
-		maxRound      uint64
-		maxRoundBlock []byte
+		highestRound      uint64
+		highestRoundBlock []byte
 	)
 
 	for round, block := range roundsAndPreparedBlocks {
-		if round >= maxRound {
-			maxRound = round
-			maxRoundBlock = block
+		if round >= highestRound {
+			highestRound = round
+			highestRoundBlock = block
 		}
 	}
 
-	return maxRoundBlock, maxRound
+	return highestRoundBlock, highestRound
 }
 
 func (rcc *RoundChangeCertificate) HighestRoundBlockHash() ([]byte, uint64) {
@@ -81,16 +83,16 @@ func (rcc *RoundChangeCertificate) HighestRoundBlockHash() ([]byte, uint64) {
 	}
 
 	var (
-		maxRound             uint64
-		maxRoundProposalHash []byte
+		highestRound          uint64
+		highestRoundBlockHash []byte
 	)
 
 	for round, proposalHash := range roundsAndPreparedBlockHashes {
-		if round >= maxRound {
-			maxRound = round
-			maxRoundProposalHash = proposalHash
+		if round >= highestRound {
+			highestRound = round
+			highestRoundBlockHash = proposalHash
 		}
 	}
 
-	return maxRoundProposalHash, maxRound
+	return highestRoundBlockHash, highestRound
 }

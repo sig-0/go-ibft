@@ -13,8 +13,7 @@ var (
 	DummyMsgCommitTransport      = ibft.TransportFn[*types.MsgCommit](func(_ *types.MsgCommit) {})
 	DummyMsgRoundChangeTransport = ibft.TransportFn[*types.MsgRoundChange](func(_ *types.MsgRoundChange) {})
 
-	DummyKeccak = ibft.KeccakFn(func(_ []byte) []byte { return []byte("block hash") })
-
+	DummyKeccak   = ibft.KeccakFn(func(_ []byte) []byte { return []byte("block hash") })
 	NoQuorum      = ibft.QuorumFn(func(_ []types.Message) bool { return false })
 	NonZeroQuorum = ibft.QuorumFn(func(messages []types.Message) bool { return len(messages) > 0 })
 
@@ -22,26 +21,15 @@ var (
 	AlwaysValidSignature = func(_, _, _ []byte) bool { return true }
 )
 
-type ValidatorSet map[string]struct{}
-
-func NewValidatorSet(ids ...ValidatorID) ValidatorSet {
-	vs := make(ValidatorSet)
-
-	for _, id := range ids {
-		vs[string(id)] = struct{}{}
-	}
-
-	return vs
-}
-
-func (vs ValidatorSet) IsValidator(id []byte, _ uint64) bool {
-	_, ok := vs[string(id)]
-	return ok
-}
-
 func NewDummyKeccak(digest string) ibft.KeccakFn {
 	return func(_ []byte) []byte {
 		return []byte(digest)
+	}
+}
+
+func QuorumOf(n int) ibft.QuorumFn {
+	return func(messages []types.Message) bool {
+		return len(messages) == n
 	}
 }
 
@@ -61,10 +49,21 @@ func (id ValidatorID) Signer() ibft.SignerFn {
 	}
 }
 
-func QuorumOf(n int) ibft.QuorumFn {
-	return func(messages []types.Message) bool {
-		return len(messages) == n
+type ValidatorSet map[string]struct{}
+
+func NewValidatorSet(ids ...ValidatorID) ValidatorSet {
+	vs := make(ValidatorSet)
+
+	for _, id := range ids {
+		vs[string(id)] = struct{}{}
 	}
+
+	return vs
+}
+
+func (vs ValidatorSet) IsValidator(id []byte, _ uint64) bool {
+	_, ok := vs[string(id)]
+	return ok
 }
 
 type Proposer struct {
