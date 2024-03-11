@@ -39,10 +39,10 @@ type (
 		Sign(digest []byte) []byte
 	}
 
-	// Transport is used to gossip a consensus message to the network
-	Transport[M types.IBFTMessage] interface {
-		// Multicast gossips a consensus message to the network
-		Multicast(M)
+	// Keccak is used to obtain the Keccak encoding of arbitrary data
+	Keccak interface {
+		// Hash returns the Keccak encoding of given input
+		Hash(data []byte) []byte
 	}
 
 	// Quorum is used to check whether the protocol reached consensus during a particular step
@@ -51,17 +51,17 @@ type (
 		HasQuorum(messages []types.Message) bool
 	}
 
-	// Keccak is used to obtain the Keccak encoding of arbitrary data
-	Keccak interface {
-		// Hash returns the Keccak encoding of given input
-		Hash(data []byte) []byte
+	// Transport is used to gossip a consensus message to the network
+	Transport[M types.IBFTMessage] interface {
+		// Multicast gossips a consensus message to the network
+		Multicast(M)
 	}
 )
 
 type (
 	SignerFn                         func([]byte) []byte
-	QuorumFn                         func([]types.Message) bool
 	KeccakFn                         func([]byte) []byte
+	QuorumFn                         func([]types.Message) bool
 	TransportFn[M types.IBFTMessage] func(M)
 )
 

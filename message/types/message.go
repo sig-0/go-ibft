@@ -8,9 +8,12 @@ import (
 )
 
 var (
-	ErrMissingView      = errors.New("missing view field")
-	ErrMissingSender    = errors.New("missing sender field")
-	ErrMissingSignature = errors.New("missing signature")
+	ErrMissingView          = errors.New("missing view field")
+	ErrMissingSender        = errors.New("missing sender field")
+	ErrMissingSignature     = errors.New("missing signature field")
+	ErrMissingProposedBlock = errors.New("missing proposed block field")
+	ErrMissingBlockHash     = errors.New("missing block hash field")
+	ErrMissingCommitSeal    = errors.New("missing commit seal field")
 )
 
 // Message is an opaque wrapper for the IBFT consensus messages. See IBFTMessage for concrete type definitions
@@ -55,19 +58,19 @@ func (x *MsgProposal) Validate() error {
 	}
 
 	if x.From == nil {
-		return errors.New("missing sender")
+		return ErrMissingSender
 	}
 
 	if x.Signature == nil {
-		return errors.New("missing signature")
+		return ErrMissingSignature
 	}
 
 	if x.BlockHash == nil {
-		return errors.New("missing block hash")
+		return ErrMissingBlockHash
 	}
 
 	if x.ProposedBlock == nil {
-		return errors.New("missing proposed block")
+		return ErrMissingProposedBlock
 	}
 
 	return nil
@@ -103,15 +106,15 @@ func (x *MsgPrepare) Validate() error {
 	}
 
 	if x.From == nil {
-		return errors.New("missing sender")
+		return ErrMissingSender
 	}
 
 	if x.Signature == nil {
-		return errors.New("missing signature")
+		return ErrMissingSignature
 	}
 
 	if x.BlockHash == nil {
-		return errors.New("missing block hash")
+		return ErrMissingBlockHash
 	}
 
 	return nil
@@ -145,19 +148,19 @@ func (x *MsgCommit) Validate() error {
 	}
 
 	if x.From == nil {
-		return errors.New("missing sender")
+		return ErrMissingSender
 	}
 
 	if x.Signature == nil {
-		return errors.New("missing signature")
+		return ErrMissingSignature
 	}
 
 	if x.BlockHash == nil {
-		return errors.New("missing block hash")
+		return ErrMissingBlockHash
 	}
 
 	if x.CommitSeal == nil {
-		return errors.New("missing seal")
+		return ErrMissingCommitSeal
 	}
 
 	return nil
@@ -192,11 +195,11 @@ func (x *MsgRoundChange) Validate() error {
 	}
 
 	if x.From == nil {
-		return errors.New("missing sender")
+		return ErrMissingSender
 	}
 
 	if x.Signature == nil {
-		return errors.New("missing signature")
+		return ErrMissingSignature
 	}
 
 	return nil
