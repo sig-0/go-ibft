@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.8.4
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/protobuf v1.34.0
 	pgregory.net/rapid v1.1.0
 )
 
