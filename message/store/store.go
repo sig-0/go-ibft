@@ -4,56 +4,78 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-// MessageStore is a thread-safe storage for consensus messages with a built-in Feed mechanism
-type MessageStore struct {
-	ProposalMessages    MessageCollection[*types.MsgProposal]
-	PrepareMessages     MessageCollection[*types.MsgPrepare]
-	CommitMessages      MessageCollection[*types.MsgCommit]
-	RoundChangeMessages MessageCollection[*types.MsgRoundChange]
+// MsgStore is a thread-safe storage for consensus messages with a built-in sequencer.MsgFeed mechanism
+type MsgStore struct {
+	ProposalMessages    MsgCollection[*types.MsgProposal]
+	PrepareMessages     MsgCollection[*types.MsgPrepare]
+	CommitMessages      MsgCollection[*types.MsgCommit]
+	RoundChangeMessages MsgCollection[*types.MsgRoundChange]
 }
 
-// NewMessageStore returns a new MessageStore instance
-func NewMessageStore() *MessageStore {
-	return &MessageStore{
-		ProposalMessages:    NewMessageCollection[*types.MsgProposal](),
-		PrepareMessages:     NewMessageCollection[*types.MsgPrepare](),
-		CommitMessages:      NewMessageCollection[*types.MsgCommit](),
-		RoundChangeMessages: NewMessageCollection[*types.MsgRoundChange](),
+// NewMsgStore returns a new MsgStore instance
+func NewMsgStore() *MsgStore {
+	return &MsgStore{
+		ProposalMessages:    NewMsgCollection[*types.MsgProposal](),
+		PrepareMessages:     NewMsgCollection[*types.MsgPrepare](),
+		CommitMessages:      NewMsgCollection[*types.MsgCommit](),
+		RoundChangeMessages: NewMsgCollection[*types.MsgRoundChange](),
 	}
 }
 
-func (s *MessageStore) Feed() Feed {
+// Add includes the message in the store
+func (s *MsgStore) Add(m types.Message) {
+	switch m := m.(type) {
+	case *types.MsgProposal:
+		s.ProposalMessages.AddMessage(m)
+	case *types.MsgPrepare:
+		s.PrepareMessages.AddMessage(m)
+	case *types.MsgCommit:
+		s.CommitMessages.AddMessage(m)
+	case *types.MsgRoundChange:
+		s.RoundChangeMessages.AddMessage(m)
+	}
+}
+
+// Clear removes all messages from store
+func (s *MsgStore) Clear() {
+	s.ProposalMessages.Clear()
+	s.PrepareMessages.Clear()
+	s.CommitMessages.Clear()
+	s.RoundChangeMessages.Clear()
+}
+
+func (s *MsgStore) Feed() Feed {
 	return Feed{s}
 }
 
 type Feed struct {
-	*MessageStore
+	*MsgStore
 }
 
 func (f Feed) ProposalMessages(
 	view *types.View,
 	futureRounds bool,
 ) (types.Subscription[*types.MsgProposal], func()) {
-	return f.MessageStore.ProposalMessages.Subscribe(view, futureRounds)
+	return f.MsgStore.ProposalMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) PrepareMessages(
 	view *types.View,
 	futureRounds bool,
 ) (types.Subscription[*types.MsgPrepare], func()) {
-	return f.MessageStore.PrepareMessages.Subscribe(view, futureRounds)
+	return f.MsgStore.PrepareMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) CommitMessages(
 	view *types.View,
 	futureRounds bool,
 ) (types.Subscription[*types.MsgCommit], func()) {
-	return f.MessageStore.CommitMessages.Subscribe(view, futureRounds)
+	return f.MsgStore.CommitMessages.Subscribe(view, futureRounds)
 }
 
 func (f Feed) RoundChangeMessages(
 	view *types.View,
 	futureRounds bool,
 ) (types.Subscription[*types.MsgRoundChange], func()) {
-	return f.MessageStore.RoundChangeMessages.Subscribe(view, futureRounds)
+	return f.MsgStore.RoundChangeMessages.Subscribe(view, futureRounds)
 }

@@ -9,7 +9,7 @@ import (
 
 func (s *Sequencer) sendMsgRoundChange(ctx Context) {
 	msg := &types.MsgRoundChange{
-		View:                        s.state.View(),
+		View:                        s.state.getView(),
 		From:                        s.ID(),
 		LatestPreparedProposedBlock: s.state.latestPB,
 		LatestPreparedCertificate:   s.state.latestPC,
@@ -17,7 +17,7 @@ func (s *Sequencer) sendMsgRoundChange(ctx Context) {
 
 	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
-	ctx.MessageTransport().RoundChange.Multicast(msg)
+	ctx.Transport().MulticastRoundChange(msg)
 }
 
 func (s *Sequencer) awaitRCC(
@@ -54,14 +54,10 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.Add(notification.Unwrap())
+			cache = cache.add(notification.Unwrap())
 
-			roundChanges := cache.Get()
-			if len(roundChanges) == 0 {
-				continue
-			}
-
-			if !ctx.Quorum().HasQuorum(types.WrapMessages(roundChanges...)) {
+			roundChanges := cache.get()
+			if len(roundChanges) == 0 || !ctx.Quorum().HasQuorum(types.WrapMessages(roundChanges...)) {
 				continue
 			}
 
@@ -88,7 +84,7 @@ func (s *Sequencer) isValidMsgRoundChange(
 		return true
 	}
 
-	if pb == nil && pc != nil || pb != nil && pc == nil {
+	if pb == nil || pc == nil {
 		return false
 	}
 

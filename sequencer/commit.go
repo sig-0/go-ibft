@@ -9,14 +9,14 @@ import (
 func (s *Sequencer) sendMsgCommit(ctx Context) {
 	msg := &types.MsgCommit{
 		From:       s.ID(),
-		View:       s.state.View(),
-		BlockHash:  s.state.AcceptedBlockHash(),
-		CommitSeal: s.Sign(s.state.AcceptedBlockHash()),
+		View:       s.state.getView(),
+		BlockHash:  s.state.getProposalBlockHash(),
+		CommitSeal: s.Sign(s.state.getProposalBlockHash()),
 	}
 
 	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
-	ctx.MessageTransport().Commit.Multicast(msg)
+	ctx.Transport().MulticastCommit(msg)
 }
 
 func (s *Sequencer) awaitCommit(ctx Context) error {
@@ -26,14 +26,14 @@ func (s *Sequencer) awaitCommit(ctx Context) error {
 	}
 
 	for _, commit := range commits {
-		s.state.AcceptSeal(commit.From, commit.CommitSeal)
+		s.state.acceptSeal(commit.From, commit.CommitSeal)
 	}
 
 	return nil
 }
 
 func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) {
-	sub, cancelSub := ctx.MessageFeed().CommitMessages(s.state.View(), false)
+	sub, cancelSub := ctx.MessageFeed().CommitMessages(s.state.getView(), false)
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgCommit) bool {
@@ -45,14 +45,10 @@ func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) 
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.Add(notification.Unwrap())
+			cache = cache.add(notification.Unwrap())
 
-			commits := cache.Get()
-			if len(commits) == 0 {
-				continue
-			}
-
-			if !ctx.Quorum().HasQuorum(types.WrapMessages(commits...)) {
+			commits := cache.get()
+			if len(commits) == 0 || !ctx.Quorum().HasQuorum(types.WrapMessages(commits...)) {
 				continue
 			}
 
@@ -66,7 +62,7 @@ func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit) bool {
 		return false
 	}
 
-	if !bytes.Equal(msg.BlockHash, s.state.AcceptedBlockHash()) {
+	if !bytes.Equal(msg.BlockHash, s.state.getProposalBlockHash()) {
 		return false
 	}
 

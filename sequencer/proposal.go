@@ -10,12 +10,12 @@ import (
 func (s *Sequencer) sendMsgProposal(ctx Context, block []byte) {
 	pb := &types.ProposedBlock{
 		Block: block,
-		Round: s.state.Round(),
+		Round: s.state.getRound(),
 	}
 
 	msg := &types.MsgProposal{
 		From:                   s.ID(),
-		View:                   s.state.View(),
+		View:                   s.state.getView(),
 		ProposedBlock:          pb,
 		BlockHash:              ctx.Keccak().Hash(pb.Bytes()),
 		RoundChangeCertificate: s.state.rcc,
@@ -25,16 +25,16 @@ func (s *Sequencer) sendMsgProposal(ctx Context, block []byte) {
 
 	s.state.proposal = msg
 
-	ctx.MessageTransport().Proposal.Multicast(msg)
+	ctx.Transport().MulticastProposal(msg)
 }
 
 func (s *Sequencer) awaitCurrentRoundProposal(ctx Context) error {
-	proposal, err := s.awaitProposal(ctx, s.state.View(), false)
+	proposal, err := s.awaitProposal(ctx, s.state.getView(), false)
 	if err != nil {
 		return err
 	}
 
-	s.state.AcceptProposal(proposal)
+	s.state.acceptProposal(proposal)
 
 	return nil
 }
@@ -56,9 +56,9 @@ func (s *Sequencer) awaitProposal(ctx Context, view *types.View, higherRounds bo
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.Add(notification.Unwrap())
+			cache = cache.add(notification.Unwrap())
 
-			proposals := cache.Get()
+			proposals := cache.get()
 			if len(proposals) == 0 {
 				continue
 			}

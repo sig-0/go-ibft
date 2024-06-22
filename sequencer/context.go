@@ -15,47 +15,30 @@ const (
 	keccak    ctxKey = "keccak"
 )
 
-type ContextOption func(Context) Context
-
-func WithQuorum(q ibft.Quorum) ContextOption {
-	return func(c Context) Context {
-		return Context{context.WithValue(c, quorum, q)}
-	}
-}
-
-func WithKeccak(k ibft.Keccak) ContextOption {
-	return func(c Context) Context {
-		return Context{context.WithValue(c, keccak, k)}
-	}
-}
-
-func WithMessageFeed(f MessageFeed) ContextOption {
-	return func(c Context) Context {
-		return Context{context.WithValue(c, feed, f)}
-	}
-}
-
-func WithMessageTransport(t MessageTransport) ContextOption {
-	return func(c Context) Context {
-		return Context{context.WithValue(c, transport, t)}
-	}
-}
-
 // Context is a convenience wrapper that provides external functionalities
-// to the finalization algorithm (Sequencer). This Context is meant to be cancelled
-// only by the caller and is never cancelled by the protocol itself
+// to the finalization algorithm run by Sequencer. Context is never cancelled by the protocol, only by the caller.
 type Context struct {
 	context.Context
 }
 
-func NewContext(ctx context.Context, opts ...ContextOption) Context {
-	c := Context{ctx}
+func NewContext(ctx context.Context) Context {
+	return Context{ctx}
+}
 
-	for _, opt := range opts {
-		c = opt(c)
-	}
+func (c Context) WithKeccak(k ibft.Keccak) Context {
+	return Context{context.WithValue(c, keccak, k)}
+}
 
-	return c
+func (c Context) WithQuorum(q ibft.Quorum) Context {
+	return Context{context.WithValue(c, quorum, q)}
+}
+
+func (c Context) WithTransport(t ibft.MsgTransport) Context {
+	return Context{context.WithValue(c, transport, t)}
+}
+
+func (c Context) WithMsgFeed(f MsgFeed) Context {
+	return Context{context.WithValue(c, feed, f)}
 }
 
 func (c Context) Keccak() ibft.Keccak {
@@ -66,10 +49,10 @@ func (c Context) Quorum() ibft.Quorum {
 	return c.Value(quorum).(ibft.Quorum) //nolint:forcetypeassert // already wrapped
 }
 
-func (c Context) MessageFeed() MessageFeed {
-	return c.Value(feed).(MessageFeed) //nolint:forcetypeassert // already wrapped
+func (c Context) Transport() ibft.MsgTransport {
+	return c.Value(transport).(ibft.MsgTransport) //nolint:forcetypeassert // redundant
 }
 
-func (c Context) MessageTransport() MessageTransport {
-	return c.Value(transport).(MessageTransport) //nolint:forcetypeassert // already wrapped
+func (c Context) MessageFeed() MsgFeed {
+	return c.Value(feed).(MsgFeed) //nolint:forcetypeassert // redundant
 }

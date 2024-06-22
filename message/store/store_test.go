@@ -11,12 +11,12 @@ import (
 
 type testTable[M types.IBFTMessage] struct {
 	msg       M
-	runTestFn func(*MessageStore, M)
+	runTestFn func(*MsgStore, M)
 	name      string
 }
 
 func Test_Collection_Clear(t *testing.T) {
-	c := NewMessageCollection[*types.MsgProposal]()
+	c := NewMsgCollection[*types.MsgProposal]()
 	view := &types.View{Sequence: 101, Round: 5}
 	msg := &types.MsgProposal{
 		View:      view,
@@ -42,7 +42,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				store.ProposalMessages.AddMessage(msg)
 				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
 			},
@@ -55,7 +55,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 0)
 				store.ProposalMessages.AddMessage(msg)
 
@@ -79,7 +79,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				store.ProposalMessages.AddMessage(msg)
 				store.ProposalMessages.AddMessage(msg)
 
@@ -95,7 +95,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 
-			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				msg2 := &types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 1},
 					From:      []byte("other from"),
@@ -118,7 +118,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 
-			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				msg2 := &types.MsgProposal{
 					View:      &types.View{Sequence: 102, Round: 0},
 					From:      []byte("other from"),
@@ -140,7 +140,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				From:      []byte("from"),
 				Signature: []byte("signature"),
 			},
-			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				store.ProposalMessages.AddMessage(msg)
 				store.ProposalMessages.AddMessage(&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
@@ -161,7 +161,7 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 
-			runTestFn: func(store *MessageStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				store.ProposalMessages.AddMessage(msg)
 
 				view := &types.View{Sequence: msg.View.Sequence, Round: msg.View.Round + 1}
@@ -175,7 +175,7 @@ func TestStore_MsgProposal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			tt.runTestFn(NewMessageStore(), tt.msg)
+			tt.runTestFn(NewMsgStore(), tt.msg)
 		})
 	}
 }
@@ -194,7 +194,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := NewMessageStore()
+		store := NewMsgStore()
 		feed := store.Feed()
 
 		store.ProposalMessages.AddMessage(msg)
@@ -225,7 +225,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := NewMessageStore()
+		store := NewMsgStore()
 		feed := store.Feed()
 
 		store.ProposalMessages.AddMessage(msg1)
@@ -251,7 +251,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store := NewMessageStore()
+		store := NewMsgStore()
 		feed := store.Feed()
 
 		store.ProposalMessages.AddMessage(msg)
@@ -271,7 +271,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("highest round message received", func(t *testing.T) {
 		t.Parallel()
 
-		store := NewMessageStore()
+		store := NewMsgStore()
 		feed := store.Feed()
 
 		sub, cancelSub := feed.ProposalMessages(&types.View{
@@ -312,7 +312,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("subscription not notified", func(t *testing.T) {
 		t.Parallel()
 
-		store := NewMessageStore()
+		store := NewMsgStore()
 		feed := store.Feed()
 
 		view1 := &types.View{Sequence: 101, Round: 1}
@@ -340,7 +340,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 	t.Run("subscription gets latest notification", func(t *testing.T) {
 		t.Parallel()
 
-		store := NewMessageStore()
+		store := NewMsgStore()
 		feed := store.Feed()
 
 		view1 := &types.View{Sequence: 101, Round: 1}

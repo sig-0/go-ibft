@@ -4,19 +4,19 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-type msg interface {
+type ibftMsg interface {
 	types.IBFTMessage
 
 	GetSender() []byte
 }
 
-type msgCache[M msg] struct {
+type msgCache[M ibftMsg] struct {
 	filterFn func(M) bool
 	seen     map[string]struct{}
 	filtered []M
 }
 
-func newMsgCache[M msg](filterFn func(M) bool) msgCache[M] {
+func newMsgCache[M ibftMsg](filterFn func(M) bool) msgCache[M] {
 	return msgCache[M]{
 		filterFn: filterFn,
 		filtered: make([]M, 0),
@@ -24,7 +24,7 @@ func newMsgCache[M msg](filterFn func(M) bool) msgCache[M] {
 	}
 }
 
-func (c msgCache[M]) Add(messages []M) msgCache[M] {
+func (c msgCache[M]) add(messages []M) msgCache[M] {
 	for _, msg := range messages {
 		sender := msg.GetSender()
 		if _, ok := c.seen[string(sender)]; ok {
@@ -43,6 +43,6 @@ func (c msgCache[M]) Add(messages []M) msgCache[M] {
 	return c
 }
 
-func (c msgCache[M]) Get() []M {
+func (c msgCache[M]) get() []M {
 	return c.filtered
 }

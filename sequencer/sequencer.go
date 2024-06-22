@@ -10,63 +10,33 @@ import (
 	"github.com/madz-lab/go-ibft/message/types"
 )
 
-// MessageFeed provides an asynchronous way to receive consensus messages. In addition
-// to listen for any type of message for any particular view, the higherRounds flag provides an option
-// to receive messages from rounds higher than the round in provided view.
-//
-// CONTRACT:
-//
-// 1. any message is valid:
-//   - no required fields missing (Sender, Signature, View)
-//   - signature is valid [ recoverFrom(msg.Payload, Signature) == Sender ]
-//
-// 2. all messages are considered unique (there cannot be 2 or more messages with identical From fields)
-type MessageFeed interface {
-	// ProposalMessages returns the MsgProposal subscription for given view(s)
-	ProposalMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgProposal], func())
-
-	// PrepareMessages returns the MsgPrepare subscription for given view(s)
-	PrepareMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgPrepare], func())
-
-	// CommitMessages returns the MsgCommit subscription for given view(s)
-	CommitMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgCommit], func())
-
-	// RoundChangeMessages returns the MsgRoundChange subscription for given view(s)
-	RoundChangeMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgRoundChange], func())
-}
-
-type MessageTransport struct {
-	Proposal    ibft.Transport[*types.MsgProposal]
-	Prepare     ibft.Transport[*types.MsgPrepare]
-	Commit      ibft.Transport[*types.MsgCommit]
-	RoundChange ibft.Transport[*types.MsgRoundChange]
-}
-
-// Sequencer is an IBFT-Context based block finalizer of a consensus actor. Its only purpose
-// is to determine if consensus is reached in a particular sequence (height)
-// and output the finalized block. Because of its simple API it's envisioned to
-// work alongside a block syncing process
+// Sequencer is the consensus actor's (ibft.Validator) block finalization process. Whenever the network moves to a
+// new sequence, all actors run their Sequencer processes to reach consensus on some proposal. Sequences consist of
+// rounds in which a chosen actor (Proposer) suggests their own proposal to the network. The Sequencer makes sure
+// that consensus is (eventually) reached, moving to higher rounds in case the network cannot agree on some proposal.
+// Given its simple API method Finalize, Sequencer is designed to work alongside a syncing protocol
 type Sequencer struct {
 	ibft.Validator
 
-	state viewState
+	state state
 	wg    sync.WaitGroup
 
+	// Maximum time for the initial round of consensus. MUST be network-wide!
 	Round0Duration time.Duration
 }
 
-// New instantiates a new Sequencer object
-func New(val ibft.Validator, round0Duration time.Duration) *Sequencer {
+// NewSequencer returns a Sequencer object for the provided validator
+func NewSequencer(v ibft.Validator, round0Duration time.Duration) *Sequencer {
 	return &Sequencer{
-		Validator:      val,
+		Validator:      v,
 		Round0Duration: round0Duration,
 	}
 }
 
-// Finalize runs the block finalization loop. This method returns a non-nil value only if
-// consensus is reached for the given sequence. Otherwise, it runs forever until cancelled by the caller
+// Finalize runs the block finalization loop. This method returns a non-nil value only if consensus
+// is reached for the provided sequence. Otherwise, it runs forever until cancelled by the caller
 func (s *Sequencer) Finalize(ctx Context, sequence uint64) *types.FinalizedProposal {
-	s.state.Init(sequence)
+	s.state.init(sequence)
 
 	c := make(chan *types.FinalizedProposal, 1)
 	go func() {
@@ -110,7 +80,7 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 				return nil
 			}
 
-			s.state.MoveToNextRound()
+			s.state.moveToNextRound()
 			s.sendMsgRoundChange(ctx)
 
 		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound):
@@ -120,7 +90,7 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 				return nil
 			}
 
-			s.state.AcceptRCC(rcc)
+			s.state.acceptRCC(rcc)
 
 		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound):
 			teardown()
@@ -129,7 +99,7 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 				return nil
 			}
 
-			s.state.AcceptProposal(proposal)
+			s.state.acceptProposal(proposal)
 			s.sendMsgPrepare(ctx)
 
 		case fb, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound):
@@ -164,7 +134,7 @@ func (s *Sequencer) startRoundTimer(ctx Context) <-chan struct{} {
 		case <-roundTimer.C:
 			c <- struct{}{}
 		}
-	}(s.state.View())
+	}(s.state.getView())
 
 	return c
 }
@@ -187,7 +157,7 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx Context) <-chan *types.MsgPropo
 		}
 
 		c <- proposal
-	}(s.state.View())
+	}(s.state.getView())
 
 	return c
 }
@@ -210,7 +180,7 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx Context) <-chan *types.RoundChangeCe
 		}
 
 		c <- rcc
-	}(s.state.View())
+	}(s.state.getView())
 
 	return c
 }
@@ -236,7 +206,7 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx Context) <-chan *types
 			s.sendMsgProposal(ctx, p)
 		}
 
-		if !s.state.ProposalAccepted() {
+		if !s.state.isProposalAccepted() {
 			if err := s.awaitCurrentRoundProposal(ctx); err != nil {
 				return
 			}
@@ -254,7 +224,7 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx Context) <-chan *types
 			return
 		}
 
-		c <- s.state.FinalizedProposal()
+		c <- s.state.getFinalizedProposal()
 	}()
 
 	return c
@@ -265,17 +235,17 @@ func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
 }
 
 func (s *Sequencer) shouldPropose() bool {
-	return s.IsProposer(s.ID(), s.state.Sequence(), s.state.Round())
+	return s.IsProposer(s.ID(), s.state.getSequence(), s.state.getRound())
 }
 
 func (s *Sequencer) buildProposal(ctx Context) ([]byte, error) {
-	if s.state.Round() == 0 {
-		return s.BuildProposal(s.state.Sequence()), nil
+	if s.state.getRound() == 0 {
+		return s.BuildProposal(s.state.getSequence()), nil
 	}
 
 	if s.state.rcc == nil {
 		// round jump triggered by round timer -> justify proposal with rcc
-		RCC, err := s.awaitRCC(ctx, s.state.View(), false)
+		RCC, err := s.awaitRCC(ctx, s.state.getView(), false)
 		if err != nil {
 			return nil, err
 		}
@@ -285,7 +255,7 @@ func (s *Sequencer) buildProposal(ctx Context) ([]byte, error) {
 
 	block, _ := s.state.rcc.HighestRoundBlock()
 	if block == nil {
-		return s.BuildProposal(s.state.Sequence()), nil
+		return s.BuildProposal(s.state.getSequence()), nil
 	}
 
 	return block, nil

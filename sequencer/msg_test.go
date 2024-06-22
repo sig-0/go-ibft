@@ -15,7 +15,7 @@ import (
 func TestIsValidMsgProposal(t *testing.T) {
 	t.Parallel()
 
-	table := []struct {
+	testTable := []struct {
 		validator ibft.Validator
 		quorum    ibft.Quorum
 		msg       *types.MsgProposal
@@ -25,7 +25,6 @@ func TestIsValidMsgProposal(t *testing.T) {
 		{
 			name:      "proposed block round and view round do not match",
 			validator: mock.Validator{IDFn: Alice.ID},
-
 			msg: &types.MsgProposal{
 				View:          &types.View{Round: 0},
 				ProposedBlock: &types.ProposedBlock{Round: 5},
@@ -35,7 +34,6 @@ func TestIsValidMsgProposal(t *testing.T) {
 		{
 			name:      "cannot verify own proposal",
 			validator: mock.Validator{IDFn: Alice.ID},
-
 			msg: &types.MsgProposal{
 				From:          Alice,
 				View:          &types.View{Sequence: 101, Round: 0},
@@ -53,7 +51,6 @@ func TestIsValidMsgProposal(t *testing.T) {
 					),
 				},
 			},
-
 			msg: &types.MsgProposal{
 				View: &types.View{Sequence: 101, Round: 0},
 				From: mock.NewValidatorID("definitely not bob"),
@@ -74,7 +71,6 @@ func TestIsValidMsgProposal(t *testing.T) {
 					),
 				},
 			},
-
 			msg: &types.MsgProposal{
 				View:          &types.View{Sequence: 101, Round: 0},
 				From:          Bob,
@@ -96,7 +92,6 @@ func TestIsValidMsgProposal(t *testing.T) {
 					},
 				},
 			},
-
 			msg: &types.MsgProposal{
 				View:          &types.View{Sequence: 101, Round: 0},
 				From:          Bob,
@@ -118,7 +113,6 @@ func TestIsValidMsgProposal(t *testing.T) {
 					},
 				},
 			},
-
 			isValid: true,
 			msg: &types.MsgProposal{
 				From:          Bob,
@@ -141,7 +135,6 @@ func TestIsValidMsgProposal(t *testing.T) {
 					},
 				},
 			},
-
 			msg: &types.MsgProposal{
 				From:                   Bob,
 				View:                   &types.View{Sequence: 101, Round: 1},
@@ -152,7 +145,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
-			name: "(non zero round): invalid msg sequence in rcc",
+			name: "(non zero round): invalid message sequence in rcc",
 			validator: mock.Validator{
 				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
@@ -181,7 +174,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
-			name: "(non zero round): invalid msg round in rcc",
+			name: "(non zero round): invalid message round in rcc",
 			validator: mock.Validator{
 				IDFn: Alice.ID,
 				Verifier: mock.Verifier{
@@ -388,7 +381,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 
 		{
-			name:   "(non zero round): valid proposal msg",
+			name:   "(non zero round): valid proposal message",
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
 				IDFn: Alice.ID,
@@ -437,13 +430,13 @@ func TestIsValidMsgProposal(t *testing.T) {
 		},
 	}
 
-	for _, tt := range table {
+	for _, tt := range testTable {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			seq := New(tt.validator, 0)
-			assert.Equal(t, tt.isValid, seq.isValidMsgProposal(tt.msg, tt.quorum, mock.NewDummyKeccak("keccak")))
+			seq := NewSequencer(tt.validator, 0)
+			assert.Equal(t, tt.isValid, seq.isValidMsgProposal(tt.msg, tt.quorum, mock.DummyKeccak("keccak")))
 		})
 	}
 }
@@ -451,7 +444,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 func TestIsValidMsgPrepare(t *testing.T) {
 	t.Parallel()
 
-	table := []struct {
+	testTable := []struct {
 		validator        ibft.Validator
 		msg              *types.MsgPrepare
 		acceptedProposal *types.MsgProposal
@@ -465,7 +458,6 @@ func TestIsValidMsgPrepare(t *testing.T) {
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			msg: &types.MsgPrepare{
 				From: []byte("definitely not a validator"),
 				View: &types.View{Sequence: 101},
@@ -479,7 +471,6 @@ func TestIsValidMsgPrepare(t *testing.T) {
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			msg: &types.MsgPrepare{
 				View:      &types.View{Sequence: 101},
@@ -495,7 +486,6 @@ func TestIsValidMsgPrepare(t *testing.T) {
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			isValid:          true,
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			msg: &types.MsgPrepare{
@@ -506,12 +496,12 @@ func TestIsValidMsgPrepare(t *testing.T) {
 		},
 	}
 
-	for _, tt := range table {
+	for _, tt := range testTable {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			seq := New(tt.validator, 0)
+			seq := NewSequencer(tt.validator, 0)
 			seq.state.proposal = tt.acceptedProposal
 
 			assert.Equal(t, tt.isValid, seq.isValidMsgPrepare(tt.msg))
@@ -522,7 +512,7 @@ func TestIsValidMsgPrepare(t *testing.T) {
 func TestIsValidMsgCommit(t *testing.T) {
 	t.Parallel()
 
-	table := []struct {
+	testTable := []struct {
 		validator        ibft.Validator
 		msg              *types.MsgCommit
 		acceptedProposal *types.MsgProposal
@@ -536,7 +526,6 @@ func TestIsValidMsgCommit(t *testing.T) {
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			msg: &types.MsgCommit{
 				View: &types.View{Sequence: 101},
 				From: []byte("definitely not a validator"),
@@ -551,7 +540,6 @@ func TestIsValidMsgCommit(t *testing.T) {
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			msg: &types.MsgCommit{
 				View:      &types.View{Sequence: 101},
 				From:      Chris,
@@ -570,7 +558,6 @@ func TestIsValidMsgCommit(t *testing.T) {
 					},
 				},
 			},
-
 			msg: &types.MsgCommit{
 				View:       &types.View{Sequence: 101},
 				From:       Chris,
@@ -580,7 +567,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 		},
 
 		{
-			name:             "valid msg",
+			name:             "valid message",
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
@@ -590,7 +577,6 @@ func TestIsValidMsgCommit(t *testing.T) {
 					},
 				},
 			},
-
 			isValid: true,
 			msg: &types.MsgCommit{
 				View:       &types.View{Sequence: 101},
@@ -601,12 +587,12 @@ func TestIsValidMsgCommit(t *testing.T) {
 		},
 	}
 
-	for _, tt := range table {
+	for _, tt := range testTable {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := New(tt.validator, 0)
+			s := NewSequencer(tt.validator, 0)
 			s.state.proposal = tt.acceptedProposal
 
 			assert.Equal(t, tt.isValid, s.isValidMsgCommit(tt.msg))
@@ -617,7 +603,7 @@ func TestIsValidMsgCommit(t *testing.T) {
 func TestIsValidMsgRoundChange(t *testing.T) {
 	t.Parallel()
 
-	table := []struct {
+	testTable := []struct {
 		validator ibft.Validator
 		quorum    ibft.Quorum
 		keccak    ibft.Keccak
@@ -632,7 +618,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				From: []byte("definitely not a validator"),
 				View: &types.View{Sequence: 101},
@@ -640,13 +625,12 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "valid msg (pb and pc are nil)",
+			name: "valid message (pb and pc are nil)",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			isValid: true,
 			msg: &types.MsgRoundChange{
 				View: &types.View{Sequence: 101},
@@ -661,7 +645,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                      &types.View{Sequence: 101},
 				From:                      Chris,
@@ -670,13 +653,12 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "(invalid pc) proposal msg and prepare messages are not both present",
+			name: "(invalid pc) proposal message and prepare messages are not both present",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101},
 				From:                        Chris,
@@ -688,13 +670,12 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "(invalid pc) invalid sequence in proposal msg",
+			name: "(invalid pc) invalid sequence in proposal message",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101},
 				From:                        Chris,
@@ -709,13 +690,12 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "(invalid pc) invalid round in proposal msg",
+			name: "(invalid pc) invalid round in proposal message",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
 					IsValidatorFn: ValidatorSet.IsValidator,
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101},
 				From:                        Chris,
@@ -730,7 +710,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "(invalid pc) invalid proposer in proposal msg",
+			name: "(invalid pc) invalid proposer in proposal message",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
 					IsValidatorFn: ValidatorSet.IsValidator,
@@ -738,7 +718,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 						mock.Proposer{ID: Bob, Round: 0}),
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 1},
 				From:                        Chris,
@@ -762,7 +741,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
 				From:                        Chris,
@@ -790,7 +768,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
 				From:                        Chris,
@@ -818,7 +795,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
 				From:                        Chris,
@@ -840,7 +816,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "(invalid pc) invalid sender in prepare msg",
+			name: "(invalid pc) invalid sender in prepare message",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
 					IsValidatorFn: ValidatorSet.IsValidator,
@@ -848,7 +824,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
 				From:                        Chris,
@@ -871,7 +846,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name: "(invalid pc) duplicate sender in prepare msgs",
+			name: "(invalid pc) duplicate sender in prepare messages",
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
 					IsValidatorFn: ValidatorSet.IsValidator,
@@ -879,7 +854,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
 				From:                        Chris,
@@ -917,7 +891,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
 				From:                        Chris,
@@ -942,7 +915,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		{
 			name:   "latest ppb hash does not match proposal block hash",
 			quorum: mock.NonZeroQuorum,
-
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
 					IsValidatorFn: ValidatorSet.IsValidator,
@@ -950,7 +922,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
-
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
 				From:                        Chris,
@@ -973,9 +944,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 
 		{
-			name:   "valid round change msg",
+			name:   "valid round change ibftMsg",
 			quorum: mock.NonZeroQuorum,
-
 			validator: mock.Validator{
 				Verifier: mock.Verifier{
 					IsValidatorFn: ValidatorSet.IsValidator,
@@ -983,7 +953,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 						mock.Proposer{ID: Bob, Round: 1}),
 				},
 			},
-
 			isValid: true,
 			msg: &types.MsgRoundChange{
 				View:                        &types.View{Sequence: 101, Round: 2},
@@ -1007,13 +976,13 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 		},
 	}
 
-	for _, tt := range table {
+	for _, tt := range testTable {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := New(tt.validator, 0)
-			assert.Equal(t, tt.isValid, s.isValidMsgRoundChange(tt.msg, tt.quorum, mock.NewDummyKeccak("keccak")))
+			s := NewSequencer(tt.validator, 0)
+			assert.Equal(t, tt.isValid, s.isValidMsgRoundChange(tt.msg, tt.quorum, mock.DummyKeccak("keccak")))
 		})
 	}
 }

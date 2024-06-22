@@ -22,40 +22,38 @@ var (
 	ValidatorSet = mock.NewValidatorSet(Alice, Bob, Chris, Dani)
 )
 
-func Test_Sequencer_Finalize_Sequence_Cancelled(t *testing.T) {
+func TestSequencerFinalizeCancelled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancelCtx := context.WithCancel(context.Background())
-	c := make(chan *types.FinalizedProposal)
+	v := mock.Validator{
+		IDFn:     Alice.ID,
+		Verifier: mock.Verifier{IsProposerFn: func(_ []byte, _, _ uint64) bool { return false }},
+	}
 
-	go func(ctx context.Context) {
-		defer close(c)
+	seq := NewSequencer(v, 10*time.Millisecond)
+	c, cancel := context.WithCancel(context.Background())
+	ch := make(chan *types.FinalizedProposal)
 
-		seq := New(
-			mock.Validator{
-				IDFn: Alice.ID,
-				Verifier: mock.Verifier{
-					IsProposerFn: func(_ []byte, _, _ uint64) bool { return false },
-				},
-			},
-			10*time.Millisecond,
-		)
+	go func(c context.Context) {
+		defer close(ch)
 
-		c <- seq.Finalize(NewContext(ctx, WithMessageFeed(mock.NewSingleRoundFeed(nil))), 101)
-	}(ctx)
+		ctx := NewContext(c)
+		ctx = ctx.WithMsgFeed(mock.NewSingleRoundFeed(nil))
+		ch <- seq.Finalize(ctx, 101)
+	}(c)
 
-	cancelCtx()
+	cancel()
 
-	assert.Nil(t, <-c)
+	assert.Nil(t, <-ch)
 }
 
-func Test_Sequencer_Finalize_Sequence(t *testing.T) {
+func TestSequencerFinalize(t *testing.T) {
 	t.Parallel()
 
-	table := []struct {
+	testTable := []struct {
 		validator ibft.Validator
 		quorum    ibft.Quorum
-		feed      MessageFeed
+		feed      MsgFeed
 		expected  *types.FinalizedProposal
 		name      string
 	}{
@@ -66,8 +64,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				IDFn:   Alice.ID,
 				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Bob, Round: 0}),
 				},
@@ -115,7 +113,7 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				Signer:          Alice.Signer(),
 				BuildProposalFn: func(_ uint64) []byte { return []byte("block") },
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
+					IsValidSignatureFn: mock.OkSignature,
 					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Alice, Round: 0}),
 					IsValidatorFn:      ValidatorSet.IsValidator,
 				},
@@ -155,8 +153,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				IDFn:   Alice.ID,
 				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Bob, Round: 1}),
 				},
@@ -209,8 +207,8 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 				IDFn:   Alice.ID,
 				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
 						mock.Proposer{ID: Chris, Round: 0},
@@ -278,15 +276,15 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		},
 
 		{
-			name:   "propose new block in round 1",
+			name:   "block proposed in round 1",
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
 				IDFn:            Alice.ID,
 				Signer:          Alice.Signer(),
 				BuildProposalFn: func(_ uint64) []byte { return []byte("round 1 block") },
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
 						mock.Proposer{ID: Bob, Round: 0},
@@ -329,14 +327,14 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		},
 
 		{
-			name:   "propose old block in round 1",
+			name:   "old block proposed in round 1",
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
 				IDFn:   Alice.ID,
 				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
 						mock.Proposer{ID: Bob, Round: 0},
@@ -395,14 +393,14 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		},
 
 		{
-			name:   "future rcc triggers round jump and new block is finalized",
+			name:   "future rcc triggers round jump",
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
 				IDFn:   Alice.ID,
 				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Chris, Round: 3}),
 				},
@@ -449,14 +447,14 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		},
 
 		{
-			name:   "future proposal triggers round jump and new block is finalized",
+			name:   "future proposal triggers round jump",
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
 				IDFn:   Alice.ID,
 				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Dani, Round: 5}),
 				},
@@ -503,15 +501,15 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		},
 
 		{
-			name:   "round timer triggers round jump and proposer finalizes new block",
+			name:   "round timer triggers round jump",
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
 				IDFn:            Alice.ID,
 				Signer:          Alice.Signer(),
 				BuildProposalFn: func(_ uint64) []byte { return []byte("round 1 block") },
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Alice, Round: 1}),
 				},
@@ -550,14 +548,14 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		},
 
 		{
-			name:   "no prepare msgs in round 0 so new block is finalized in round 1",
+			name:   "no prepare messages in round 0",
 			quorum: mock.NonZeroQuorum,
 			validator: mock.Validator{
 				IDFn:   Alice.ID,
 				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
 						mock.Proposer{ID: Bob, Round: 0},
@@ -614,14 +612,14 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		},
 
 		{
-			name:   "no quorum prepare msgs in round 0 so new block is finalized in round 1",
+			name:   "no commit messages in round 0",
 			quorum: mock.QuorumOf(2),
 			validator: mock.Validator{
 				IDFn:   Alice.ID,
 				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
 						mock.Proposer{ID: Bob, Round: 0},
@@ -645,102 +643,6 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					View:      &types.View{Sequence: 101, Round: 0},
 					BlockHash: []byte("block hash"),
 				},
-
-				/* round 1 */
-
-				&types.MsgProposal{
-					From:          Chris,
-					View:          &types.View{Sequence: 101, Round: 1},
-					BlockHash:     []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
-					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-						{
-							From: Alice,
-							View: &types.View{Sequence: 101, Round: 1},
-						},
-						{
-							From: Chris,
-							View: &types.View{Sequence: 101, Round: 1},
-						},
-					}},
-				},
-
-				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 1},
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgPrepare{
-					From:      Bob,
-					View:      &types.View{Sequence: 101, Round: 1},
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 1},
-					CommitSeal: []byte("commit seal"),
-					BlockHash:  []byte("block hash"),
-				},
-
-				&types.MsgCommit{
-					From:       Bob,
-					View:       &types.View{Sequence: 101, Round: 1},
-					CommitSeal: []byte("other commit seal"),
-					BlockHash:  []byte("block hash"),
-				},
-			}),
-
-			expected: &types.FinalizedProposal{
-				Proposal: []byte("round 1 block"),
-				Round:    1,
-				Seals: []types.FinalizedSeal{
-					{
-						From:       Alice,
-						CommitSeal: []byte("commit seal"),
-					},
-					{
-						From:       Bob,
-						CommitSeal: []byte("other commit seal"),
-					},
-				},
-			},
-		},
-
-		{
-			name:   "no commit msgs in round 0 so new block is finalized in round 1",
-			quorum: mock.QuorumOf(2),
-			validator: mock.Validator{
-				IDFn:   Alice.ID,
-				Signer: Alice.Signer(),
-				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsValidatorFn:      ValidatorSet.IsValidator,
-					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: Bob, Round: 0},
-						mock.Proposer{ID: Chris, Round: 1},
-					),
-				},
-			},
-
-			feed: mock.NewSingleRoundFeed([]types.Message{
-				/* round 0 */
-
-				&types.MsgProposal{
-					From:          Bob,
-					View:          &types.View{Sequence: 101, Round: 0},
-					BlockHash:     []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
-				},
-
-				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 0},
-					BlockHash: []byte("block hash"),
-				},
-
 				&types.MsgPrepare{
 					From:      Bob,
 					View:      &types.View{Sequence: 101, Round: 0},
@@ -771,7 +673,6 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					View:      &types.View{Sequence: 101, Round: 1},
 					BlockHash: []byte("block hash"),
 				},
-
 				&types.MsgPrepare{
 					From:      Bob,
 					View:      &types.View{Sequence: 101, Round: 1},
@@ -784,7 +685,6 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
-
 				&types.MsgCommit{
 					From:       Bob,
 					View:       &types.View{Sequence: 101, Round: 1},
@@ -810,121 +710,14 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		},
 
 		{
-			name:   "no quorum commit msgs in round 0 so new block is finalized in round 1",
+			name:   "round 0 proposer fails to build block",
 			quorum: mock.QuorumOf(2),
 			validator: mock.Validator{
 				IDFn:   Alice.ID,
 				Signer: Alice.Signer(),
 				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
-					IsValidatorFn:      ValidatorSet.IsValidator,
-					IsProposerFn: mock.ProposersInRounds(
-						mock.Proposer{ID: Bob, Round: 0},
-						mock.Proposer{ID: Chris, Round: 1},
-					),
-				},
-			},
-
-			feed: mock.NewSingleRoundFeed([]types.Message{
-				/* round 0 */
-
-				&types.MsgProposal{
-					From:          Bob,
-					View:          &types.View{Sequence: 101, Round: 0},
-					BlockHash:     []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
-				},
-
-				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 0},
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgPrepare{
-					From:      Chris,
-					View:      &types.View{Sequence: 101, Round: 0},
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 0},
-					BlockHash:  []byte("block hash"),
-					CommitSeal: []byte("commit seal"),
-				},
-
-				/* round 1 */
-
-				&types.MsgProposal{
-					From:          Chris,
-					View:          &types.View{Sequence: 101, Round: 1},
-					BlockHash:     []byte("block hash"),
-					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
-					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-						{
-							From: Alice,
-							View: &types.View{Sequence: 101, Round: 1},
-						},
-						{
-							From: Chris,
-							View: &types.View{Sequence: 101, Round: 1},
-						},
-					}},
-				},
-
-				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 1},
-					BlockHash: []byte("block hash"),
-				},
-				&types.MsgPrepare{
-					From:      Chris,
-					View:      &types.View{Sequence: 101, Round: 1},
-					BlockHash: []byte("block hash"),
-				},
-
-				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 1},
-					BlockHash:  []byte("block hash"),
-					CommitSeal: []byte("commit seal"),
-				},
-
-				&types.MsgCommit{
-					From:       Chris,
-					View:       &types.View{Sequence: 101, Round: 1},
-					BlockHash:  []byte("block hash"),
-					CommitSeal: []byte("other commit seal"),
-				},
-			}),
-
-			expected: &types.FinalizedProposal{
-				Proposal: []byte("round 1 block"),
-				Round:    1,
-				Seals: []types.FinalizedSeal{
-					{
-						From:       Alice,
-						CommitSeal: []byte("commit seal"),
-					},
-					{
-						From:       Chris,
-						CommitSeal: []byte("other commit seal"),
-					},
-				},
-			},
-		},
-
-		{
-			name:   "round 1 proposer fails to build block so new block is finalized in round 2",
-			quorum: mock.QuorumOf(2),
-			validator: mock.Validator{
-				IDFn:   Alice.ID,
-				Signer: Alice.Signer(),
-				Verifier: mock.Verifier{
-					IsValidSignatureFn: mock.AlwaysValidSignature,
-					IsValidProposalFn:  mock.AlwaysValidBlock,
+					IsValidSignatureFn: mock.OkSignature,
+					IsValidProposalFn:  mock.OkBlock,
 					IsValidatorFn:      ValidatorSet.IsValidator,
 					IsProposerFn: mock.ProposersInRounds(
 						mock.Proposer{ID: Bob, Round: 0},
@@ -999,24 +792,18 @@ func Test_Sequencer_Finalize_Sequence(t *testing.T) {
 		},
 	}
 
-	for _, tt := range table {
+	for _, tt := range testTable {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := NewContext(context.Background(),
-				WithKeccak(mock.DummyKeccak),
-				WithQuorum(tt.quorum),
-				WithMessageFeed(tt.feed),
-				WithMessageTransport(MessageTransport{
-					Proposal:    mock.DummyMsgProposalTransport,
-					Prepare:     mock.DummyMsgPrepareTransport,
-					Commit:      mock.DummyMsgCommitTransport,
-					RoundChange: mock.DummyMsgRoundChangeTransport,
-				}),
-			)
+			ctx := NewContext(context.Background())
+			ctx = ctx.WithQuorum(tt.quorum)
+			ctx = ctx.WithMsgFeed(tt.feed)
+			ctx = ctx.WithKeccak(mock.DummyKeccak("block hash"))
+			ctx = ctx.WithTransport(mock.DummyTransport())
 
-			s := New(tt.validator, time.Millisecond*50)
+			s := NewSequencer(tt.validator, time.Millisecond*10)
 			assert.True(t, reflect.DeepEqual(tt.expected, s.Finalize(ctx, 101)))
 		})
 	}

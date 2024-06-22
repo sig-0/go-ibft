@@ -13,7 +13,7 @@ type message interface {
 	GetSender() []byte
 }
 
-type MessageCollection[M message] interface {
+type MsgCollection[M message] interface {
 	AddMessage(msg M)
 	GetMessages(view *types.View) []M
 	RemoveMessages(view *types.View)
@@ -28,7 +28,7 @@ type syncCollection[M message] struct {
 	collectionMux, subscriptionMux sync.RWMutex
 }
 
-func NewMessageCollection[M message]() MessageCollection[M] {
+func NewMsgCollection[M message]() MsgCollection[M] {
 	return &syncCollection[M]{
 		msgCollection: msgCollection[M]{},
 		subscriptions: subscriptions[M]{},

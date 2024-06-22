@@ -36,7 +36,9 @@ func Test_EngineConfig(t *testing.T) {
 			name:     "missing prepare transport",
 			expected: ErrInvalidConfig,
 			cfg: Config{
-				TransportMsgProposal: mock.DummyMsgProposalTransport,
+				MsgTransport: ibft.MsgTransport{
+					Proposal: ibft.TransportFn[*types.MsgProposal](func(_ *types.MsgProposal) {}),
+				},
 			},
 		},
 
@@ -44,8 +46,10 @@ func Test_EngineConfig(t *testing.T) {
 			name:     "missing commit transport",
 			expected: ErrInvalidConfig,
 			cfg: Config{
-				TransportMsgProposal: mock.DummyMsgProposalTransport,
-				TransportMsgPrepare:  mock.DummyMsgPrepareTransport,
+				MsgTransport: ibft.MsgTransport{
+					Proposal: ibft.TransportFn[*types.MsgProposal](func(_ *types.MsgProposal) {}),
+					Prepare:  ibft.TransportFn[*types.MsgPrepare](func(_ *types.MsgPrepare) {}),
+				},
 			},
 		},
 
@@ -53,9 +57,11 @@ func Test_EngineConfig(t *testing.T) {
 			name:     "missing round change transport",
 			expected: ErrInvalidConfig,
 			cfg: Config{
-				TransportMsgProposal: mock.DummyMsgProposalTransport,
-				TransportMsgPrepare:  mock.DummyMsgPrepareTransport,
-				TransportMsgCommit:   mock.DummyMsgCommitTransport,
+				MsgTransport: ibft.MsgTransport{
+					Proposal: ibft.TransportFn[*types.MsgProposal](func(_ *types.MsgProposal) {}),
+					Prepare:  ibft.TransportFn[*types.MsgPrepare](func(_ *types.MsgPrepare) {}),
+					Commit:   ibft.TransportFn[*types.MsgCommit](func(_ *types.MsgCommit) {}),
+				},
 			},
 		},
 
@@ -63,10 +69,7 @@ func Test_EngineConfig(t *testing.T) {
 			name:     "missing quorum",
 			expected: ErrInvalidConfig,
 			cfg: Config{
-				TransportMsgProposal:    mock.DummyMsgProposalTransport,
-				TransportMsgPrepare:     mock.DummyMsgPrepareTransport,
-				TransportMsgCommit:      mock.DummyMsgCommitTransport,
-				TransportMsgRoundChange: mock.DummyMsgRoundChangeTransport,
+				MsgTransport: mock.DummyTransport(),
 			},
 		},
 
@@ -74,11 +77,8 @@ func Test_EngineConfig(t *testing.T) {
 			name:     "missing keccak",
 			expected: ErrInvalidConfig,
 			cfg: Config{
-				TransportMsgProposal:    mock.DummyMsgProposalTransport,
-				TransportMsgPrepare:     mock.DummyMsgPrepareTransport,
-				TransportMsgCommit:      mock.DummyMsgCommitTransport,
-				TransportMsgRoundChange: mock.DummyMsgRoundChangeTransport,
-				Quorum:                  mock.NonZeroQuorum,
+				MsgTransport: mock.DummyTransport(),
+				Quorum:       mock.NonZeroQuorum,
 			},
 		},
 
@@ -86,12 +86,9 @@ func Test_EngineConfig(t *testing.T) {
 			name:     "invalid round 0 duration",
 			expected: ErrInvalidConfig,
 			cfg: Config{
-				TransportMsgProposal:    mock.DummyMsgProposalTransport,
-				TransportMsgPrepare:     mock.DummyMsgPrepareTransport,
-				TransportMsgCommit:      mock.DummyMsgCommitTransport,
-				TransportMsgRoundChange: mock.DummyMsgRoundChangeTransport,
-				Quorum:                  mock.NonZeroQuorum,
-				Keccak:                  mock.DummyKeccak,
+				MsgTransport: mock.DummyTransport(),
+				Quorum:       mock.NonZeroQuorum,
+				Keccak:       mock.DummyKeccak("block hash"),
 			},
 		},
 
@@ -99,13 +96,10 @@ func Test_EngineConfig(t *testing.T) {
 			name:     "ok",
 			expected: nil,
 			cfg: Config{
-				TransportMsgProposal:    mock.DummyMsgProposalTransport,
-				TransportMsgPrepare:     mock.DummyMsgPrepareTransport,
-				TransportMsgCommit:      mock.DummyMsgCommitTransport,
-				TransportMsgRoundChange: mock.DummyMsgRoundChangeTransport,
-				Quorum:                  mock.NonZeroQuorum,
-				Keccak:                  mock.DummyKeccak,
-				Round0Duration:          1 * time.Second,
+				MsgTransport:   mock.DummyTransport(),
+				Quorum:         mock.NonZeroQuorum,
+				Keccak:         mock.DummyKeccak("block hash"),
+				Round0Duration: 1 * time.Second,
 			},
 		},
 	}
@@ -124,7 +118,7 @@ func Test_Engine_Add_Message(t *testing.T) {
 	t.Parallel()
 
 	var (
-		keccak        = mock.NewDummyKeccak("block hash")
+		keccak        = mock.DummyKeccak("block hash")
 		goodSignature = mock.Verifier{IsValidSignatureFn: func(_, _, _ []byte) bool { return true }}
 		badSignature  = mock.Verifier{IsValidSignatureFn: func(_, _, _ []byte) bool { return false }}
 	)
@@ -240,13 +234,15 @@ func Test_Engine_Finalize_Sequence(t *testing.T) {
 	engines := make([]Engine, 0, len(validators))
 	for _, v := range validators {
 		engines = append(engines, NewEngine(v, Config{
-			Quorum:                  quorum,
-			Keccak:                  keccak,
-			TransportMsgProposal:    test.GetTransport[*types.MsgProposal](network),
-			TransportMsgPrepare:     test.GetTransport[*types.MsgPrepare](network),
-			TransportMsgCommit:      test.GetTransport[*types.MsgCommit](network),
-			TransportMsgRoundChange: test.GetTransport[*types.MsgRoundChange](network),
-			Round0Duration:          round0Duration,
+			Quorum:         quorum,
+			Keccak:         keccak,
+			Round0Duration: round0Duration,
+			MsgTransport: ibft.MsgTransport{
+				Proposal:    test.GetTransport[*types.MsgProposal](network),
+				Prepare:     test.GetTransport[*types.MsgPrepare](network),
+				Commit:      test.GetTransport[*types.MsgCommit](network),
+				RoundChange: test.GetTransport[*types.MsgRoundChange](network),
+			},
 		}))
 	}
 

@@ -14,42 +14,39 @@ import (
 
 var (
 	ErrInvalidConfig    = errors.New("invalid engine config")
-	ErrInvalidSignature = errors.New("recovered address does not match sender")
+	ErrInvalidSignature = errors.New("invalid message signature")
 )
 
 type Config struct {
-	TransportMsgProposal    ibft.Transport[*types.MsgProposal]
-	TransportMsgPrepare     ibft.Transport[*types.MsgPrepare]
-	TransportMsgCommit      ibft.Transport[*types.MsgCommit]
-	TransportMsgRoundChange ibft.Transport[*types.MsgRoundChange]
-	Quorum                  ibft.Quorum
-	Keccak                  ibft.Keccak
-	Round0Duration          time.Duration
+	MsgTransport   ibft.MsgTransport
+	Quorum         ibft.Quorum
+	Keccak         ibft.Keccak
+	Round0Duration time.Duration
 }
 
 func (cfg Config) Validate() error {
-	if cfg.TransportMsgProposal == nil {
-		return fmt.Errorf("%w: missing *MsgProposal transport", ErrInvalidConfig)
+	if cfg.MsgTransport.Proposal == nil {
+		return fmt.Errorf("%w: missing MsgProposal transport", ErrInvalidConfig)
 	}
 
-	if cfg.TransportMsgPrepare == nil {
-		return fmt.Errorf("%w: missing *MsgPrepare transport", ErrInvalidConfig)
+	if cfg.MsgTransport.Prepare == nil {
+		return fmt.Errorf("%w: missing MsgPrepare transport", ErrInvalidConfig)
 	}
 
-	if cfg.TransportMsgCommit == nil {
-		return fmt.Errorf("%w: missing *MsgCommit transport", ErrInvalidConfig)
+	if cfg.MsgTransport.Commit == nil {
+		return fmt.Errorf("%w: missing MsgCommit transport", ErrInvalidConfig)
 	}
 
-	if cfg.TransportMsgRoundChange == nil {
-		return fmt.Errorf("%w: missing *MsgRoundChange transport", ErrInvalidConfig)
+	if cfg.MsgTransport.RoundChange == nil {
+		return fmt.Errorf("%w: missing MsgRoundChange transport", ErrInvalidConfig)
 	}
 
 	if cfg.Quorum == nil {
-		return fmt.Errorf("%w: missing quorum", ErrInvalidConfig)
+		return fmt.Errorf("%w: missing Quorum", ErrInvalidConfig)
 	}
 
 	if cfg.Keccak == nil {
-		return fmt.Errorf("%w: missing keccak", ErrInvalidConfig)
+		return fmt.Errorf("%w: missing Keccak", ErrInvalidConfig)
 	}
 
 	if cfg.Round0Duration == 0 {
@@ -61,14 +58,14 @@ func (cfg Config) Validate() error {
 
 type Engine struct {
 	sequencer *sequencer.Sequencer
-	messages  *store.MessageStore
+	messages  *store.MsgStore
 	cfg       Config
 }
 
 func NewEngine(validator ibft.Validator, cfg Config) Engine {
 	return Engine{
-		sequencer: sequencer.New(validator, cfg.Round0Duration),
-		messages:  store.NewMessageStore(),
+		sequencer: sequencer.NewSequencer(validator, cfg.Round0Duration),
+		messages:  store.NewMsgStore(),
 		cfg:       cfg,
 	}
 }
@@ -85,19 +82,10 @@ func (e Engine) AddMessage(msg types.Message) error {
 	)
 
 	if !e.sequencer.Validator.IsValidSignature(sender, digest, signature) {
-		return fmt.Errorf("signature verification failed: %w", ErrInvalidSignature)
+		return ErrInvalidSignature
 	}
 
-	switch msg := msg.(type) {
-	case *types.MsgProposal:
-		e.messages.ProposalMessages.AddMessage(msg)
-	case *types.MsgPrepare:
-		e.messages.PrepareMessages.AddMessage(msg)
-	case *types.MsgCommit:
-		e.messages.CommitMessages.AddMessage(msg)
-	case *types.MsgRoundChange:
-		e.messages.RoundChangeMessages.AddMessage(msg)
-	}
+	e.messages.Add(msg)
 
 	return nil
 }
@@ -107,28 +95,19 @@ type SequenceResult struct {
 	Sequence         uint64
 }
 
-func (e Engine) FinalizeSequence(ctx context.Context, sequence uint64) SequenceResult {
+func (e Engine) FinalizeSequence(c context.Context, sequence uint64) SequenceResult {
 	defer func() {
-		e.messages.ProposalMessages.Clear()
-		e.messages.PrepareMessages.Clear()
-		e.messages.CommitMessages.Clear()
-		e.messages.RoundChangeMessages.Clear()
+		e.messages.Clear()
 	}()
 
-	c := sequencer.NewContext(ctx,
-		sequencer.WithQuorum(e.cfg.Quorum),
-		sequencer.WithKeccak(e.cfg.Keccak),
-		sequencer.WithMessageFeed(e.messages.Feed()),
-		sequencer.WithMessageTransport(sequencer.MessageTransport{
-			Proposal:    e.cfg.TransportMsgProposal,
-			Prepare:     e.cfg.TransportMsgPrepare,
-			Commit:      e.cfg.TransportMsgCommit,
-			RoundChange: e.cfg.TransportMsgRoundChange,
-		}),
-	)
+	ctx := sequencer.NewContext(c)
+	ctx = ctx.WithQuorum(e.cfg.Quorum)
+	ctx = ctx.WithKeccak(e.cfg.Keccak)
+	ctx = ctx.WithTransport(e.cfg.MsgTransport)
+	ctx = ctx.WithMsgFeed(e.messages.Feed())
 
 	return SequenceResult{
 		Sequence:         sequence,
-		SequenceProposal: e.sequencer.Finalize(c, sequence),
+		SequenceProposal: e.sequencer.Finalize(ctx, sequence),
 	}
 }

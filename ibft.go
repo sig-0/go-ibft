@@ -2,22 +2,22 @@ package ibft
 
 import "github.com/madz-lab/go-ibft/message/types"
 
-// Validator represents a unique consensus actor in the network.
-// Its role in the protocol is to broadcast (signed) consensus messages and make proposals (if elected)
-type Validator interface {
-	Signer
-	Verifier
-
-	// ID returns the network-unique ID of this validator
-	ID() []byte
-
-	// BuildProposal returns this validator's proposal for given sequence
-	BuildProposal(sequence uint64) []byte
-}
-
-/** External functionalities required by the IBFT block finalization algorithm	**/
+/*** External functionalities required by the IBFT 2.0 block finalization algorithm	***/
 
 type (
+	// Validator represents a unique consensus actor in the network.
+	// Its role in the protocol is to broadcast (signed) consensus messages and make proposals (if elected)
+	Validator interface {
+		Signer
+		Verifier
+
+		// ID returns the network-unique ID of this validator
+		ID() []byte
+
+		// BuildProposal returns this validator's proposal for given sequence
+		BuildProposal(sequence uint64) []byte
+	}
+
 	// Verifier authenticates consensus messages gossiped in the network
 	Verifier interface {
 		// IsValidSignature checks if the signature of the message is valid
@@ -45,13 +45,13 @@ type (
 		Hash(data []byte) []byte
 	}
 
-	// Quorum is used to check whether the protocol reached consensus during a particular step
+	// Quorum is used to check if provided messages satisfy a consensus in the network
 	Quorum interface {
 		// HasQuorum returns true if messages accumulate consensus for a particular sequence
 		HasQuorum(messages []types.Message) bool
 	}
 
-	// Transport is used to gossip a consensus message to the network
+	// Transport is used to gossip consensus messages to the network
 	Transport[M types.IBFTMessage] interface {
 		// Multicast gossips a consensus message to the network
 		Multicast(M)
@@ -79,4 +79,27 @@ func (f KeccakFn) Hash(data []byte) []byte {
 
 func (f TransportFn[M]) Multicast(msg M) {
 	f(msg)
+}
+
+type MsgTransport struct {
+	Proposal    Transport[*types.MsgProposal]
+	Prepare     Transport[*types.MsgPrepare]
+	Commit      Transport[*types.MsgCommit]
+	RoundChange Transport[*types.MsgRoundChange]
+}
+
+func (t MsgTransport) MulticastProposal(msg *types.MsgProposal) {
+	t.Proposal.Multicast(msg)
+}
+
+func (t MsgTransport) MulticastPrepare(msg *types.MsgPrepare) {
+	t.Prepare.Multicast(msg)
+}
+
+func (t MsgTransport) MulticastCommit(msg *types.MsgCommit) {
+	t.Commit.Multicast(msg)
+}
+
+func (t MsgTransport) MulticastRoundChange(msg *types.MsgRoundChange) {
+	t.RoundChange.Multicast(msg)
 }

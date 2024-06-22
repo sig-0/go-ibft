@@ -9,13 +9,13 @@ import (
 func (s *Sequencer) sendMsgPrepare(ctx Context) {
 	msg := &types.MsgPrepare{
 		From:      s.ID(),
-		View:      s.state.View(),
-		BlockHash: s.state.AcceptedBlockHash(),
+		View:      s.state.getView(),
+		BlockHash: s.state.getProposalBlockHash(),
 	}
 
 	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
-	ctx.MessageTransport().Prepare.Multicast(msg)
+	ctx.Transport().MulticastPrepare(msg)
 }
 
 func (s *Sequencer) awaitPrepare(ctx Context) error {
@@ -24,13 +24,13 @@ func (s *Sequencer) awaitPrepare(ctx Context) error {
 		return err
 	}
 
-	s.state.PrepareCertificate(messages)
+	s.state.prepareCertificate(messages)
 
 	return nil
 }
 
 func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error) {
-	sub, cancelSub := ctx.MessageFeed().PrepareMessages(s.state.View(), false)
+	sub, cancelSub := ctx.MessageFeed().PrepareMessages(s.state.getView(), false)
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgPrepare) bool {
@@ -42,9 +42,9 @@ func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.Add(notification.Unwrap())
+			cache = cache.add(notification.Unwrap())
 
-			prepares := cache.Get()
+			prepares := cache.get()
 			if !ctx.Quorum().HasQuorum(types.WrapMessages(prepares...)) {
 				continue
 			}
@@ -59,7 +59,7 @@ func (s *Sequencer) isValidMsgPrepare(msg *types.MsgPrepare) bool {
 		return false
 	}
 
-	if !bytes.Equal(msg.BlockHash, s.state.AcceptedBlockHash()) {
+	if !bytes.Equal(msg.BlockHash, s.state.getProposalBlockHash()) {
 		return false
 	}
 
