@@ -23,7 +23,7 @@ func DummyKeccak(digest string) ibft.KeccakFn {
 
 func QuorumOf(n int) ibft.QuorumFn {
 	return func(messages []types.Message) bool {
-		return len(messages) == n
+		return len(messages) >= n
 	}
 }
 

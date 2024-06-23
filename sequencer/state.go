@@ -69,13 +69,10 @@ func (s *state) acceptRCC(rcc *types.RoundChangeCertificate) {
 }
 
 func (s *state) prepareCertificate(prepares []*types.MsgPrepare) {
-	pb := s.getProposalBlock()
-	pc := &types.PreparedCertificate{
+	s.latestPB, s.latestPC = s.getProposalBlock(), &types.PreparedCertificate{
 		ProposalMessage: s.proposal,
 		PrepareMessages: prepares,
 	}
-
-	s.latestPB, s.latestPC = pb, pc
 }
 
 func (s *state) acceptSeal(from, seal []byte) {

@@ -24,11 +24,11 @@ func Test_Collection_Clear(t *testing.T) {
 		Signature: []byte("signature"),
 	}
 
-	c.AddMessage(msg)
-	require.Equal(t, msg, c.GetMessages(view)[0])
+	c.Add(msg)
+	require.Equal(t, msg, c.Get(view)[0])
 
 	c.Clear()
-	assert.Len(t, c.GetMessages(view), 0)
+	assert.Len(t, c.Get(view), 0)
 }
 
 func TestStore_MsgProposal(t *testing.T) {
@@ -43,8 +43,8 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				store.ProposalMessages.AddMessage(msg)
-				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
+				store.ProposalMessages.Add(msg)
+				assert.Len(t, store.ProposalMessages.Get(msg.View), 1)
 			},
 		},
 
@@ -56,19 +56,19 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 0)
-				store.ProposalMessages.AddMessage(msg)
+				require.Len(t, store.ProposalMessages.Get(msg.View), 0)
+				store.ProposalMessages.Add(msg)
 
 				view := &types.View{Sequence: msg.View.Sequence + 1}
-				store.ProposalMessages.RemoveMessages(view)
-				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
+				store.ProposalMessages.Remove(view)
+				require.Len(t, store.ProposalMessages.Get(msg.View), 1)
 
 				view = &types.View{Sequence: msg.View.Sequence, Round: msg.View.Round + 1}
-				store.ProposalMessages.RemoveMessages(view)
-				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
+				store.ProposalMessages.Remove(view)
+				require.Len(t, store.ProposalMessages.Get(msg.View), 1)
 
-				store.ProposalMessages.RemoveMessages(msg.View)
-				require.Len(t, store.ProposalMessages.GetMessages(msg.View), 0)
+				store.ProposalMessages.Remove(msg.View)
+				require.Len(t, store.ProposalMessages.Get(msg.View), 0)
 			},
 		},
 
@@ -80,10 +80,10 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				store.ProposalMessages.AddMessage(msg)
-				store.ProposalMessages.AddMessage(msg)
+				store.ProposalMessages.Add(msg)
+				store.ProposalMessages.Add(msg)
 
-				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
+				assert.Len(t, store.ProposalMessages.Get(msg.View), 1)
 			},
 		},
 
@@ -102,11 +102,11 @@ func TestStore_MsgProposal(t *testing.T) {
 					Signature: []byte("other signature"),
 				}
 
-				store.ProposalMessages.AddMessage(msg)
-				store.ProposalMessages.AddMessage(msg2)
+				store.ProposalMessages.Add(msg)
+				store.ProposalMessages.Add(msg2)
 
-				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
-				assert.Len(t, store.ProposalMessages.GetMessages(msg2.View), 1)
+				assert.Len(t, store.ProposalMessages.Get(msg.View), 1)
+				assert.Len(t, store.ProposalMessages.Get(msg2.View), 1)
 			},
 		},
 
@@ -125,11 +125,11 @@ func TestStore_MsgProposal(t *testing.T) {
 					Signature: []byte("other signature"),
 				}
 
-				store.ProposalMessages.AddMessage(msg)
-				store.ProposalMessages.AddMessage(msg2)
+				store.ProposalMessages.Add(msg)
+				store.ProposalMessages.Add(msg2)
 
-				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 1)
-				assert.Len(t, store.ProposalMessages.GetMessages(msg2.View), 1)
+				assert.Len(t, store.ProposalMessages.Get(msg.View), 1)
+				assert.Len(t, store.ProposalMessages.Get(msg2.View), 1)
 			},
 		},
 
@@ -141,15 +141,15 @@ func TestStore_MsgProposal(t *testing.T) {
 				Signature: []byte("signature"),
 			},
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				store.ProposalMessages.AddMessage(msg)
-				store.ProposalMessages.AddMessage(&types.MsgProposal{
+				store.ProposalMessages.Add(msg)
+				store.ProposalMessages.Add(&types.MsgProposal{
 					View:      &types.View{Sequence: 101, Round: 0},
 					From:      []byte("other from"),
 					Signature: []byte("other signature"),
 				})
 
-				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 2)
-				assert.Len(t, store.ProposalMessages.GetMessages(msg.View), 2)
+				assert.Len(t, store.ProposalMessages.Get(msg.View), 2)
+				assert.Len(t, store.ProposalMessages.Get(msg.View), 2)
 			},
 		},
 
@@ -162,10 +162,10 @@ func TestStore_MsgProposal(t *testing.T) {
 			},
 
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				store.ProposalMessages.AddMessage(msg)
+				store.ProposalMessages.Add(msg)
 
 				view := &types.View{Sequence: msg.View.Sequence, Round: msg.View.Round + 1}
-				assert.Len(t, store.ProposalMessages.GetMessages(view), 0)
+				assert.Len(t, store.ProposalMessages.Get(view), 0)
 			},
 		},
 	}
@@ -197,7 +197,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		store := NewMsgStore()
 		feed := store.Feed()
 
-		store.ProposalMessages.AddMessage(msg)
+		store.ProposalMessages.Add(msg)
 
 		sub, cancelSub := feed.ProposalMessages(view, false)
 		defer cancelSub()
@@ -228,8 +228,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 		store := NewMsgStore()
 		feed := store.Feed()
 
-		store.ProposalMessages.AddMessage(msg1)
-		store.ProposalMessages.AddMessage(msg2)
+		store.ProposalMessages.Add(msg1)
+		store.ProposalMessages.Add(msg2)
 
 		sub, cancelSub := feed.ProposalMessages(view1, false)
 		defer cancelSub()
@@ -254,8 +254,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 		store := NewMsgStore()
 		feed := store.Feed()
 
-		store.ProposalMessages.AddMessage(msg)
-		require.Len(t, store.ProposalMessages.GetMessages(view), 1)
+		store.ProposalMessages.Add(msg)
+		require.Len(t, store.ProposalMessages.Get(view), 1)
 
 		previousView := &types.View{Sequence: view.Sequence, Round: view.Round - 1}
 
@@ -299,8 +299,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store.ProposalMessages.AddMessage(msg3)
-		store.ProposalMessages.AddMessage(msg1)
+		store.ProposalMessages.Add(msg3)
+		store.ProposalMessages.Add(msg1)
 
 		r = <-sub
 		messages := r.Unwrap()
@@ -329,7 +329,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 			Signature: []byte("signature"),
 		}
 
-		store.ProposalMessages.AddMessage(msg)
+		store.ProposalMessages.Add(msg)
 
 		cancelSub() // close the sub so the channel can be read
 
@@ -362,8 +362,8 @@ func TestFeed_MsgProposal(t *testing.T) {
 			}
 		)
 
-		store.ProposalMessages.AddMessage(msg1)
-		store.ProposalMessages.AddMessage(msg2)
+		store.ProposalMessages.Add(msg1)
+		store.ProposalMessages.Add(msg2)
 
 		r := <-sub
 		messages := r.Unwrap()

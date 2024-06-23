@@ -90,12 +90,7 @@ func (e Engine) AddMessage(msg types.Message) error {
 	return nil
 }
 
-type SequenceResult struct {
-	SequenceProposal *types.FinalizedProposal
-	Sequence         uint64
-}
-
-func (e Engine) FinalizeSequence(c context.Context, sequence uint64) SequenceResult {
+func (e Engine) FinalizeSequence(c context.Context, sequence uint64) *types.FinalizedProposal {
 	defer func() {
 		e.messages.Clear()
 	}()
@@ -106,8 +101,5 @@ func (e Engine) FinalizeSequence(c context.Context, sequence uint64) SequenceRes
 	ctx = ctx.WithTransport(e.cfg.MsgTransport)
 	ctx = ctx.WithMsgFeed(e.messages.Feed())
 
-	return SequenceResult{
-		Sequence:         sequence,
-		SequenceProposal: e.sequencer.Finalize(ctx, sequence),
-	}
+	return e.sequencer.Finalize(ctx, sequence)
 }

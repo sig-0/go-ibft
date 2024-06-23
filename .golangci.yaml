@@ -60,7 +60,6 @@ linters:
     - gocheckcompilerdirectives # Checks that compiler directive comments (//go:) are valid
     - gochecknoinits # Checks for init methods
     - whitespace # Tool for detection of leading and trailing whitespace
-    - wsl # Forces you to use empty lines
     - unconvert # Unnecessary type conversions
     - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
     - thelper # Detects golang test helpers without t.Helper() call and checks the consistency of test helpers

@@ -20,7 +20,7 @@ import (
 func Test_EngineConfig(t *testing.T) {
 	t.Parallel()
 
-	table := []struct {
+	testTable := []struct {
 		validator ibft.Validator
 		expected  error
 		cfg       Config
@@ -104,7 +104,7 @@ func Test_EngineConfig(t *testing.T) {
 		},
 	}
 
-	for _, tt := range table {
+	for _, tt := range testTable {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -123,7 +123,7 @@ func Test_Engine_Add_Message(t *testing.T) {
 		badSignature  = mock.Verifier{IsValidSignatureFn: func(_, _, _ []byte) bool { return false }}
 	)
 
-	table := []struct {
+	testTable := []struct {
 		validator ibft.Validator
 		msg       types.Message
 		expected  error
@@ -209,7 +209,7 @@ func Test_Engine_Add_Message(t *testing.T) {
 		},
 	}
 
-	for _, tt := range table {
+	for _, tt := range testTable {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -256,7 +256,7 @@ func Test_Engine_Finalize_Sequence(t *testing.T) {
 	})
 
 	var (
-		results = make(chan SequenceResult, len(validators))
+		results = make(chan *types.FinalizedProposal, len(validators))
 		wg      sync.WaitGroup
 	)
 
@@ -273,20 +273,15 @@ func Test_Engine_Finalize_Sequence(t *testing.T) {
 	wg.Wait()
 	close(results)
 
-	rr := make([]SequenceResult, 0, len(validators))
+	rr := make([]*types.FinalizedProposal, 0, len(validators))
 	for result := range results {
 		rr = append(rr, result)
 	}
 
-	block := rr[0].SequenceProposal.Proposal
-	round := rr[0].SequenceProposal.Round
+	block := rr[0].Proposal
 
-	for _, result := range rr[1:] {
-		if !bytes.Equal(block, result.SequenceProposal.Proposal) {
-			t.FailNow()
-		}
-
-		if round != result.SequenceProposal.Round {
+	for _, r := range rr[1:] {
+		if !bytes.Equal(block, r.Proposal) {
 			t.FailNow()
 		}
 	}

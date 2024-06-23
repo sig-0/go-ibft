@@ -14,9 +14,9 @@ type message interface {
 }
 
 type MsgCollection[M message] interface {
-	AddMessage(msg M)
-	GetMessages(view *types.View) []M
-	RemoveMessages(view *types.View)
+	Add(msg M)
+	Get(view *types.View) []M
+	Remove(view *types.View)
 	Subscribe(view *types.View, higherRounds bool) (types.Subscription[M], func())
 	Clear()
 }
@@ -65,7 +65,7 @@ func (c *syncCollection[M]) registerSubscription(sub subscription[M]) func() {
 	}
 }
 
-func (c *syncCollection[M]) AddMessage(msg M) {
+func (c *syncCollection[M]) Add(msg M) {
 	c.collectionMux.Lock()
 	defer c.collectionMux.Unlock()
 
@@ -91,7 +91,7 @@ func (c *syncCollection[M]) AddMessage(msg M) {
 	})
 }
 
-func (c *syncCollection[M]) GetMessages(view *types.View) []M {
+func (c *syncCollection[M]) Get(view *types.View) []M {
 	c.collectionMux.RLock()
 	defer c.collectionMux.RUnlock()
 
@@ -111,7 +111,7 @@ func (c *syncCollection[M]) getNotificationFn(view *types.View, higherRounds boo
 	}
 }
 
-func (c *syncCollection[M]) RemoveMessages(view *types.View) {
+func (c *syncCollection[M]) Remove(view *types.View) {
 	c.collectionMux.Lock()
 	defer c.collectionMux.Unlock()
 

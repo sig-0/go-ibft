@@ -66,7 +66,6 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 	for {
 		c, cancelRound := context.WithCancel(ctx)
 		ctxRound := Context{c}
-
 		teardown := func() {
 			cancelRound()
 			s.wg.Wait()
@@ -75,7 +74,6 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 		select {
 		case _, ok := <-s.startRoundTimer(ctxRound):
 			teardown()
-
 			if !ok {
 				return nil
 			}
@@ -85,7 +83,6 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 
 		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound):
 			teardown()
-
 			if !ok {
 				return nil
 			}
@@ -94,7 +91,6 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 
 		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound):
 			teardown()
-
 			if !ok {
 				return nil
 			}
@@ -104,7 +100,6 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 
 		case fb, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound):
 			teardown()
-
 			if !ok {
 				return nil
 			}
@@ -116,10 +111,9 @@ func (s *Sequencer) finalize(ctx Context) *types.FinalizedProposal {
 
 // startRoundTimer starts the round timer of the current round
 func (s *Sequencer) startRoundTimer(ctx Context) <-chan struct{} {
-	c := make(chan struct{}, 1)
-
 	s.wg.Add(1)
 
+	c := make(chan struct{}, 1)
 	go func(view *types.View) {
 		defer func() {
 			close(c)
@@ -141,10 +135,9 @@ func (s *Sequencer) startRoundTimer(ctx Context) <-chan struct{} {
 
 // awaitHigherRoundProposal listens for proposal messages from rounds higher than the current
 func (s *Sequencer) awaitHigherRoundProposal(ctx Context) <-chan *types.MsgProposal {
-	c := make(chan *types.MsgProposal, 1)
-
 	s.wg.Add(1)
 
+	c := make(chan *types.MsgProposal, 1)
 	go func(view *types.View) {
 		defer func() {
 			close(c)
@@ -164,10 +157,9 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx Context) <-chan *types.MsgPropo
 
 // awaitHigherRoundRCC listens for round change certificates from rounds higher than the current
 func (s *Sequencer) awaitHigherRoundRCC(ctx Context) <-chan *types.RoundChangeCertificate {
-	c := make(chan *types.RoundChangeCertificate, 1)
-
 	s.wg.Add(1)
 
+	c := make(chan *types.RoundChangeCertificate, 1)
 	go func(view *types.View) {
 		defer func() {
 			close(c)
@@ -187,10 +179,9 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx Context) <-chan *types.RoundChangeCe
 
 // awaitFinalizedBlockInCurrentRound starts the block finalization algorithm for the current round
 func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx Context) <-chan *types.FinalizedProposal {
-	c := make(chan *types.FinalizedProposal, 1)
-
 	s.wg.Add(1)
 
+	c := make(chan *types.FinalizedProposal, 1)
 	go func() {
 		defer func() {
 			close(c)

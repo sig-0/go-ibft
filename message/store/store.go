@@ -26,13 +26,13 @@ func NewMsgStore() *MsgStore {
 func (s *MsgStore) Add(m types.Message) {
 	switch m := m.(type) {
 	case *types.MsgProposal:
-		s.ProposalMessages.AddMessage(m)
+		s.ProposalMessages.Add(m)
 	case *types.MsgPrepare:
-		s.PrepareMessages.AddMessage(m)
+		s.PrepareMessages.Add(m)
 	case *types.MsgCommit:
-		s.CommitMessages.AddMessage(m)
+		s.CommitMessages.Add(m)
 	case *types.MsgRoundChange:
-		s.RoundChangeMessages.AddMessage(m)
+		s.RoundChangeMessages.Add(m)
 	}
 }
 
