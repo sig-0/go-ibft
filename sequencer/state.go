@@ -59,12 +59,12 @@ func (s *state) moveToNextRound() {
 }
 
 func (s *state) acceptProposal(proposal *types.MsgProposal) {
-	s.proposal, s.view.Round = proposal, proposal.View.Round
+	s.proposal, s.view.Round = proposal, proposal.Round()
 	clear(s.seals)
 }
 
 func (s *state) acceptRCC(rcc *types.RoundChangeCertificate) {
-	s.rcc, s.view.Round, s.proposal = rcc, rcc.Messages[0].View.Round, nil
+	s.rcc, s.view.Round, s.proposal = rcc, rcc.Messages[0].Round(), nil
 	clear(s.seals)
 }
 

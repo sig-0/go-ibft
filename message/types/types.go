@@ -44,7 +44,7 @@ func (rcc *RoundChangeCertificate) HighestRoundBlock() ([]byte, uint64) {
 			continue
 		}
 
-		roundsAndPreparedBlocks[pc.ProposalMessage.View.Round] = pb.Block
+		roundsAndPreparedBlocks[pc.ProposalMessage.Round()] = pb.Block
 	}
 
 	if len(roundsAndPreparedBlocks) == 0 {
@@ -75,7 +75,7 @@ func (rcc *RoundChangeCertificate) HighestRoundBlockHash() ([]byte, uint64) {
 			continue
 		}
 
-		roundsAndPreparedBlockHashes[pc.ProposalMessage.View.Round] = pc.ProposalMessage.BlockHash
+		roundsAndPreparedBlockHashes[pc.ProposalMessage.Round()] = pc.ProposalMessage.BlockHash
 	}
 
 	if len(roundsAndPreparedBlockHashes) == 0 {

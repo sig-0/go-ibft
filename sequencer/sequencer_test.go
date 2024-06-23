@@ -73,21 +73,29 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgProposal{
-					From:          Bob,
-					View:          &types.View{Sequence: 101, Round: 0},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 0},
+					},
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 0},
 				},
 
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 0},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 0},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 0},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 0},
+					},
+
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -121,14 +129,19 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgPrepare{
-					From:      Bob,
-					View:      &types.View{Sequence: 101, Round: 0},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 0},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Bob,
-					View:       &types.View{Sequence: 101, Round: 0},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 0},
+					},
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -162,27 +175,35 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgProposal{
-					From:          Bob,
-					View:          &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
-							View: &types.View{Sequence: 101, Round: 1},
-							From: Alice,
+							Metadata: &types.MsgMetadata{
+								View:   &types.View{Sequence: 101, Round: 1},
+								Sender: Alice,
+							},
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -219,18 +240,27 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgProposal{
-					From:          Bob,
-					View:          &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
-							From: Chris,
-							View: &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
+
 							LatestPreparedCertificate: &types.PreparedCertificate{
 								ProposalMessage: &types.MsgProposal{
-									From:      Chris,
-									View:      &types.View{Sequence: 101, Round: 0},
+									Metadata: &types.MsgMetadata{
+										Sender: Chris,
+										View:   &types.View{Sequence: 101, Round: 0},
+									},
+
 									BlockHash: []byte("block hash"),
 									ProposedBlock: &types.ProposedBlock{
 										Block: []byte("round 0 block"),
@@ -239,8 +269,11 @@ func TestSequencerFinalize(t *testing.T) {
 								},
 								PrepareMessages: []*types.MsgPrepare{
 									{
-										From:      Alice,
-										View:      &types.View{Sequence: 101, Round: 0},
+										Metadata: &types.MsgMetadata{
+											Sender: Alice,
+											View:   &types.View{Sequence: 101, Round: 0},
+										},
+
 										BlockHash: []byte("block hash"),
 									},
 								},
@@ -250,14 +283,20 @@ func TestSequencerFinalize(t *testing.T) {
 				},
 
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -296,19 +335,27 @@ func TestSequencerFinalize(t *testing.T) {
 			feed: mock.NewMessageFeed([]types.Message{
 				// need to justify Alice's proposal for round 1
 				&types.MsgRoundChange{
-					View: &types.View{Sequence: 101, Round: 1},
-					From: Alice,
+					Metadata: &types.MsgMetadata{
+						View:   &types.View{Sequence: 101, Round: 1},
+						Sender: Alice,
+					},
 				},
 
 				&types.MsgPrepare{
-					View:      &types.View{Sequence: 101, Round: 1},
-					From:      Bob,
+					Metadata: &types.MsgMetadata{
+						View:   &types.View{Sequence: 101, Round: 1},
+						Sender: Bob,
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					View:       &types.View{Sequence: 101, Round: 1},
-					From:       Bob,
+					Metadata: &types.MsgMetadata{
+						View:   &types.View{Sequence: 101, Round: 1},
+						Sender: Bob,
+					},
+
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -345,21 +392,29 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgRoundChange{
-					From:                        Chris,
-					View:                        &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Chris,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					LatestPreparedProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 					LatestPreparedCertificate: &types.PreparedCertificate{
 						ProposalMessage: &types.MsgProposal{
-							From:          Bob,
-							View:          &types.View{Sequence: 101, Round: 0},
+							Metadata: &types.MsgMetadata{
+								Sender: Bob,
+								View:   &types.View{Sequence: 101, Round: 0},
+							},
+
 							BlockHash:     []byte("block hash"),
 							ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 						},
 
 						PrepareMessages: []*types.MsgPrepare{
 							{
-								From:      Chris,
-								View:      &types.View{Sequence: 101, Round: 0},
+								Metadata: &types.MsgMetadata{
+									Sender: Chris,
+									View:   &types.View{Sequence: 101, Round: 0},
+								},
 								BlockHash: []byte("block hash"),
 							},
 						},
@@ -367,14 +422,19 @@ func TestSequencerFinalize(t *testing.T) {
 				},
 
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -408,27 +468,38 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgProposal{
-					From:          Chris,
-					View:          &types.View{Sequence: 101, Round: 3},
+					Metadata: &types.MsgMetadata{
+						Sender: Chris,
+						View:   &types.View{Sequence: 101, Round: 3},
+					},
+
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 3},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
-							From: Bob,
-							View: &types.View{Sequence: 101, Round: 3},
+							Metadata: &types.MsgMetadata{
+								Sender: Bob,
+								View:   &types.View{Sequence: 101, Round: 3},
+							},
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 3},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 3},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 3},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 3},
+					},
+
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -462,27 +533,38 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewMessageFeed([]types.Message{
 				&types.MsgProposal{
-					From:          Dani,
-					View:          &types.View{Sequence: 101, Round: 5},
+					Metadata: &types.MsgMetadata{
+						Sender: Dani,
+						View:   &types.View{Sequence: 101, Round: 5},
+					},
+
 					ProposedBlock: &types.ProposedBlock{Block: []byte("round 5 block"), Round: 5},
 					BlockHash:     []byte("block hash"),
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
-							View: &types.View{Sequence: 101, Round: 5},
-							From: Chris,
+							Metadata: &types.MsgMetadata{
+								View:   &types.View{Sequence: 101, Round: 5},
+								Sender: Chris,
+							},
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 5},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 5},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 5},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 5},
+					},
+
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -517,19 +599,27 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewSingleRoundFeed([]types.Message{
 				&types.MsgRoundChange{
-					From: Bob,
-					View: &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
 				},
 
 				&types.MsgPrepare{
-					From:      Bob,
-					View:      &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Bob,
-					View:       &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -566,34 +656,47 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewSingleRoundFeed([]types.Message{
 				&types.MsgProposal{
-					From:          Bob,
-					View:          &types.View{Sequence: 101, Round: 0},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 0},
+					},
+
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 				},
 
 				&types.MsgProposal{
-					From:          Chris,
-					View:          &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Chris,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
-							View: &types.View{Sequence: 101, Round: 1},
-							From: Alice,
+							Metadata: &types.MsgMetadata{
+								View:   &types.View{Sequence: 101, Round: 1},
+								Sender: Alice,
+							},
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
@@ -632,62 +735,87 @@ func TestSequencerFinalize(t *testing.T) {
 				/* round 0 */
 
 				&types.MsgProposal{
-					From:          Bob,
-					View:          &types.View{Sequence: 101, Round: 0},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 0},
+					},
+
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 				},
 
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 0},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 0},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 				&types.MsgPrepare{
-					From:      Bob,
-					View:      &types.View{Sequence: 101, Round: 0},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 0},
+					},
 					BlockHash: []byte("block hash"),
 				},
 
 				/* round 1 */
 
 				&types.MsgProposal{
-					From:          Chris,
-					View:          &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Chris,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash:     []byte("block hash"),
 					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
-							From: Alice,
-							View: &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Alice,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 						},
 						{
-							From: Bob,
-							View: &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Bob,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 				&types.MsgPrepare{
-					From:      Bob,
-					View:      &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
 				&types.MsgCommit{
-					From:       Bob,
-					View:       &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("other commit seal"),
 				},
@@ -729,47 +857,66 @@ func TestSequencerFinalize(t *testing.T) {
 
 			feed: mock.NewSingleRoundFeed([]types.Message{
 				&types.MsgRoundChange{
-					From: Chris,
-					View: &types.View{Sequence: 101, Round: 1},
+					Metadata: &types.MsgMetadata{
+						Sender: Chris,
+						View:   &types.View{Sequence: 101, Round: 1},
+					},
 				},
 
 				&types.MsgProposal{
-					From:          Chris,
-					View:          &types.View{Sequence: 101, Round: 2},
+					Metadata: &types.MsgMetadata{
+						Sender: Chris,
+						View:   &types.View{Sequence: 101, Round: 2},
+					},
+
 					ProposedBlock: &types.ProposedBlock{Block: []byte("round 2 block"), Round: 2},
 					BlockHash:     []byte("block hash"),
 					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
 						{
-							From: Bob,
-							View: &types.View{Sequence: 101, Round: 2},
+							Metadata: &types.MsgMetadata{
+								Sender: Bob,
+								View:   &types.View{Sequence: 101, Round: 2},
+							},
 						},
 						{
-							From: Chris,
-							View: &types.View{Sequence: 101, Round: 2},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 2},
+							},
 						},
 					}},
 				},
 
 				&types.MsgPrepare{
-					From:      Bob,
-					View:      &types.View{Sequence: 101, Round: 2},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 2},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 				&types.MsgPrepare{
-					From:      Alice,
-					View:      &types.View{Sequence: 101, Round: 2},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 2},
+					},
+
 					BlockHash: []byte("block hash"),
 				},
 
 				&types.MsgCommit{
-					From:       Bob,
-					View:       &types.View{Sequence: 101, Round: 2},
+					Metadata: &types.MsgMetadata{
+						Sender: Bob,
+						View:   &types.View{Sequence: 101, Round: 2},
+					},
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("commit seal"),
 				},
 				&types.MsgCommit{
-					From:       Alice,
-					View:       &types.View{Sequence: 101, Round: 2},
+					Metadata: &types.MsgMetadata{
+						Sender: Alice,
+						View:   &types.View{Sequence: 101, Round: 2},
+					},
 					BlockHash:  []byte("block hash"),
 					CommitSeal: []byte("other commit seal"),
 				},

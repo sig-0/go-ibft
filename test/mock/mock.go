@@ -244,7 +244,8 @@ func (f SingleRoundFeed) RoundChangeMessages(
 type msg interface {
 	types.IBFTMessage
 
-	GetView() *types.View
+	Sequence() uint64
+	Round() uint64
 }
 
 type messagesByView[M msg] map[uint64]map[uint64][]M
@@ -264,22 +265,22 @@ func (m messagesByView[M]) rounds(sequence uint64) []uint64 {
 }
 
 func (m messagesByView[M]) add(msg M) {
-	view := msg.GetView()
+	sequence, round := msg.Sequence(), msg.Round()
 
-	messagesInSequence, ok := m[view.Sequence]
+	messagesInSequence, ok := m[sequence]
 	if !ok {
-		m[view.Sequence] = make(map[uint64][]M)
-		messagesInSequence = m[view.Sequence]
+		m[sequence] = make(map[uint64][]M)
+		messagesInSequence = m[sequence]
 	}
 
-	messagesInRound, ok := messagesInSequence[view.Round]
+	messagesInRound, ok := messagesInSequence[round]
 	if !ok {
-		messagesInSequence[view.Round] = make([]M, 0)
-		messagesInRound = messagesInSequence[view.Round]
+		messagesInSequence[round] = make([]M, 0)
+		messagesInRound = messagesInSequence[round]
 	}
 
 	messagesInRound = append(messagesInRound, msg)
-	messagesInSequence[view.Round] = messagesInRound
+	messagesInSequence[round] = messagesInRound
 }
 
 func (m messagesByView[M]) notification(view *types.View, higherRounds bool) types.MsgNotification[M] {

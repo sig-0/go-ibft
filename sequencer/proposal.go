@@ -14,14 +14,16 @@ func (s *Sequencer) sendMsgProposal(ctx Context, block []byte) {
 	}
 
 	msg := &types.MsgProposal{
-		From:                   s.ID(),
-		View:                   s.state.getView(),
 		ProposedBlock:          pb,
 		BlockHash:              ctx.Keccak().Hash(pb.Bytes()),
 		RoundChangeCertificate: s.state.rcc,
+		Metadata: &types.MsgMetadata{
+			Sender: s.ID(),
+			View:   s.state.getView(),
+		},
 	}
 
-	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
+	msg.Metadata.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	s.state.proposal = msg
 
@@ -69,15 +71,15 @@ func (s *Sequencer) awaitProposal(ctx Context, view *types.View, higherRounds bo
 }
 
 func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quorum, keccak ibft.Keccak) bool {
-	if msg.ProposedBlock.Round != msg.View.Round {
+	if msg.ProposedBlock.Round != msg.Round() {
 		return false
 	}
 
-	if bytes.Equal(msg.From, s.ID()) {
+	if bytes.Equal(msg.Sender(), s.ID()) {
 		return false
 	}
 
-	if !s.IsProposer(msg.From, msg.View.Sequence, msg.View.Round) {
+	if !s.IsProposer(msg.Sender(), msg.Sequence(), msg.Round()) {
 		return false
 	}
 
@@ -85,8 +87,8 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 		return false
 	}
 
-	if msg.View.Round == 0 {
-		return s.IsValidProposal(msg.ProposedBlock.Block, msg.View.Sequence)
+	if msg.Round() == 0 {
+		return s.IsValidProposal(msg.ProposedBlock.Block, msg.Sequence())
 	}
 
 	rcc := msg.RoundChangeCertificate
@@ -111,7 +113,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 
 	blockHash, round := trimmedRCC.HighestRoundBlockHash()
 	if blockHash == nil {
-		return s.IsValidProposal(msg.ProposedBlock.Block, msg.View.Sequence)
+		return s.IsValidProposal(msg.ProposedBlock.Block, msg.Sequence())
 	}
 
 	pb := &types.ProposedBlock{

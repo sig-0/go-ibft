@@ -72,12 +72,12 @@ func NewEngine(validator ibft.Validator, cfg Config) Engine {
 
 func (e Engine) AddMessage(msg types.Message) error {
 	if err := msg.Validate(); err != nil {
-		return fmt.Errorf("malformed message: %w", err)
+		return err
 	}
 
 	var (
-		sender    = msg.GetSender()
-		signature = msg.GetSignature()
+		sender    = msg.Sender()
+		signature = msg.Signature()
 		digest    = e.cfg.Keccak.Hash(msg.Payload())
 	)
 

@@ -2,64 +2,89 @@ syntax = "proto3";
 
 option go_package = "message/types";
 
-// View represents a time interval in which validators attempt to reach consensus for a particular sequence.
-// Initially for a given sequence, round starts at 0. Whenever consensus is not reached in a round, validators move on to the next.
+// View indicates the (sequence, round) pair in which a message was gossiped
 message View {
   uint64 sequence = 1;
   uint64 round = 2;
 }
 
-// ProposedBlock is a block constructed by the proposer in a specific round
+// MsgMetadata contains common message details
+message MsgMetadata {
+  // View in which the message was gossiped
+  View view = 1;
+
+  // ID of the validator who sent the message
+  bytes sender = 2;
+
+  // Validator's signature over the message
+  bytes signature = 3;
+}
+
+// ProposedBlock is the proposer's block
 message ProposedBlock {
+  // Proposed block content
   bytes block = 1;
+
+  // Round in which the block was proposed
   uint64 round = 2;
 }
 
-// PreparedCertificate is the last PROPOSAL message to reach Quorum-1 PREPARE messages
-message PreparedCertificate {
-  MsgProposal proposal_message = 1;
-  repeated MsgPrepare prepare_messages = 2;
-}
-
-// RoundChangeCertificate is a collection of ROUND-CHANGE messages multicasted by validators in a specific view
+// RoundChangeCertificate is a collection of round-change messages used as proof that validators moved to a new round
 message RoundChangeCertificate {
   repeated MsgRoundChange messages = 1;
 }
 
-// MsgProposal is a proposed block multicasted by the proposer in a specific view.
-// If round_change_certificate is not empty, the block was extracted from previous rounds
+// MsgProposal is the initial consensus message that starts the finalization process. It's gossiped by
+// a chosen proposer in a specific round and represents the proposal being voted on by the network
 message MsgProposal {
-  View view = 1;
-  bytes from = 2;
-  bytes signature = 3;
-  ProposedBlock proposed_block = 4;
-  bytes block_hash = 5;
-  RoundChangeCertificate round_change_certificate = 6;
+  MsgMetadata metadata = 1;
+
+  // Proposal being voted on
+  ProposedBlock proposed_block = 2;
+
+  // Keccak hash of the proposed_block
+  bytes block_hash = 3;
+
+  // Proof that a round-change occurred in the previous round
+  RoundChangeCertificate round_change_certificate = 4;
 }
 
-// MsgPrepare is the keccak hash corresponding to a proposed block in a specific view
+// MsgPrepare is sent when a validator accepts a proposal
 message MsgPrepare {
-  View view = 1;
-  bytes from = 2;
-  bytes signature = 3;
-  bytes block_hash = 4;
+  MsgMetadata metadata = 1;
+
+  // Keccak hash of the proposal being voted on
+  bytes block_hash = 2;
 }
 
-// MsgCommit is a validator's seal(signature) over a proposed block in a specific view
+// MsgCommit is a validator's commitment on a proposal that passed the PREPARE phase
 message MsgCommit {
-  View view = 1;
-  bytes from = 2;
-  bytes signature = 3;
-  bytes block_hash = 4;
-  bytes commit_seal = 5;
+  MsgMetadata metadata = 1;
+
+  // Keccak hash of the proposal being voted on
+  bytes block_hash = 2;
+
+  // Validator's signature over block_hash
+  bytes commit_seal = 3;
 }
 
-// MsgRoundChange is a message multicasted when the round timer expire.
+// PreparedCertificate is the last proposal to pass the PREPARE phase
+message PreparedCertificate {
+  // The original MsgProposal
+  MsgProposal proposal_message = 1;
+
+  // Proof the original message passed PREPARE phase
+  repeated MsgPrepare prepare_messages = 2;
+}
+
+// MsgRoundChange is sent when a validator's round timer expires
 message MsgRoundChange {
-  View view = 1;
-  bytes from = 2;
-  bytes signature = 3;
-  ProposedBlock latest_prepared_proposed_block = 4;
-  PreparedCertificate latest_prepared_certificate = 5;
+  MsgMetadata metadata = 1;
+
+  // Proposal from previous round
+  ProposedBlock latest_prepared_proposed_block = 2;
+
+  // Certificate that proposal passed the PREPARE phase
+  PreparedCertificate latest_prepared_certificate = 3;
 }
 

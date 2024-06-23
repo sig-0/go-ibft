@@ -16,31 +16,39 @@ func Test_Msg_Bytes_And_Payload(t *testing.T) {
 		t.Parallel()
 
 		m := &MsgProposal{
-			View:          &View{Sequence: 101, Round: 1},
-			From:          []byte("from"),
-			Signature:     []byte("signature"),
+			Metadata: &MsgMetadata{
+				View:      &View{Sequence: 101, Round: 1},
+				Sender:    []byte("from"),
+				Signature: []byte("signature"),
+			},
 			ProposedBlock: &ProposedBlock{Block: []byte("block"), Round: 1},
 			BlockHash:     []byte("block hash"),
 			RoundChangeCertificate: &RoundChangeCertificate{
 				Messages: []*MsgRoundChange{
 					{
-						View:                        &View{Sequence: 101, Round: 1},
-						From:                        []byte("from"),
-						Signature:                   []byte("signature"),
+						Metadata: &MsgMetadata{
+							View:      &View{Sequence: 101, Round: 1},
+							Sender:    []byte("from"),
+							Signature: []byte("signature"),
+						},
 						LatestPreparedProposedBlock: &ProposedBlock{Block: []byte("block"), Round: 1},
 						LatestPreparedCertificate: &PreparedCertificate{
 							ProposalMessage: &MsgProposal{
-								View:          &View{Sequence: 101, Round: 1},
-								From:          []byte("from"),
-								Signature:     []byte("signature"),
+								Metadata: &MsgMetadata{
+									View:      &View{Sequence: 101, Round: 1},
+									Sender:    []byte("from"),
+									Signature: []byte("signature"),
+								},
 								ProposedBlock: &ProposedBlock{Block: []byte("block"), Round: 1},
 								BlockHash:     []byte("block hash"),
 							},
 							PrepareMessages: []*MsgPrepare{
 								{
-									View:      &View{Sequence: 101, Round: 1},
-									From:      []byte("from"),
-									Signature: []byte("signature"),
+									Metadata: &MsgMetadata{
+										View:      &View{Sequence: 101, Round: 1},
+										Sender:    []byte("from"),
+										Signature: []byte("signature"),
+									},
 									BlockHash: []byte("block hash"),
 								},
 							},
@@ -60,9 +68,11 @@ func Test_Msg_Bytes_And_Payload(t *testing.T) {
 		t.Parallel()
 
 		m := &MsgPrepare{
-			View:      &View{Sequence: 101, Round: 0},
-			From:      []byte("from"),
-			Signature: []byte("signature"),
+			Metadata: &MsgMetadata{
+				View:      &View{Sequence: 101, Round: 0},
+				Sender:    []byte("from"),
+				Signature: []byte("signature"),
+			},
 			BlockHash: []byte("block hash"),
 		}
 
@@ -76,9 +86,11 @@ func Test_Msg_Bytes_And_Payload(t *testing.T) {
 		t.Parallel()
 
 		m := &MsgCommit{
-			View:       &View{Sequence: 101, Round: 0},
-			From:       []byte("from"),
-			Signature:  []byte("signature"),
+			Metadata: &MsgMetadata{
+				View:      &View{Sequence: 101, Round: 0},
+				Sender:    []byte("from"),
+				Signature: []byte("signature"),
+			},
 			BlockHash:  []byte("block hash"),
 			CommitSeal: []byte("commit seal"),
 		}
@@ -93,23 +105,29 @@ func Test_Msg_Bytes_And_Payload(t *testing.T) {
 		t.Parallel()
 
 		m := &MsgRoundChange{
-			View:                        &View{Sequence: 101, Round: 0},
-			From:                        []byte("from"),
-			Signature:                   []byte("signature"),
+			Metadata: &MsgMetadata{
+				View:      &View{Sequence: 101, Round: 0},
+				Sender:    []byte("from"),
+				Signature: []byte("signature"),
+			},
 			LatestPreparedProposedBlock: &ProposedBlock{Block: []byte("block"), Round: 0},
 			LatestPreparedCertificate: &PreparedCertificate{
 				ProposalMessage: &MsgProposal{
-					View:          &View{Sequence: 101, Round: 0},
-					From:          []byte("from"),
-					Signature:     []byte("signature"),
+					Metadata: &MsgMetadata{
+						View:      &View{Sequence: 101, Round: 0},
+						Sender:    []byte("from"),
+						Signature: []byte("signature"),
+					},
 					ProposedBlock: &ProposedBlock{Block: []byte("block"), Round: 0},
 					BlockHash:     []byte("block hash"),
 				},
 				PrepareMessages: []*MsgPrepare{
 					{
-						View:      &View{Sequence: 101, Round: 0},
-						From:      []byte("from"),
-						Signature: []byte("signature"),
+						Metadata: &MsgMetadata{
+							View:      &View{Sequence: 101, Round: 0},
+							Sender:    []byte("from"),
+							Signature: []byte("signature"),
+						},
 						BlockHash: []byte("block hash"),
 					},
 				},

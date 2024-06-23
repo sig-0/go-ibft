@@ -26,7 +26,7 @@ func TestIsValidMsgProposal(t *testing.T) {
 			name:      "proposed block round and view round do not match",
 			validator: mock.Validator{IDFn: Alice.ID},
 			msg: &types.MsgProposal{
-				View:          &types.View{Round: 0},
+				Metadata:      &types.MsgMetadata{View: &types.View{Round: 0}},
 				ProposedBlock: &types.ProposedBlock{Round: 5},
 			},
 		},
@@ -35,8 +35,10 @@ func TestIsValidMsgProposal(t *testing.T) {
 			name:      "cannot verify own proposal",
 			validator: mock.Validator{IDFn: Alice.ID},
 			msg: &types.MsgProposal{
-				From:          Alice,
-				View:          &types.View{Sequence: 101, Round: 0},
+				Metadata: &types.MsgMetadata{
+					Sender: Alice,
+					View:   &types.View{Sequence: 101, Round: 0},
+				},
 				ProposedBlock: &types.ProposedBlock{Round: 0},
 			},
 		},
@@ -52,8 +54,10 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 			msg: &types.MsgProposal{
-				View: &types.View{Sequence: 101, Round: 0},
-				From: mock.NewValidatorID("definitely not bob"),
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 0},
+					Sender: mock.NewValidatorID("definitely not bob"),
+				},
 				ProposedBlock: &types.ProposedBlock{
 					Block: []byte("block"),
 					Round: 0,
@@ -72,8 +76,10 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 			msg: &types.MsgProposal{
-				View:          &types.View{Sequence: 101, Round: 0},
-				From:          Bob,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 0},
+					Sender: Bob,
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 0},
 				BlockHash:     []byte("definitely not keccak"),
 			},
@@ -93,8 +99,10 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 			msg: &types.MsgProposal{
-				View:          &types.View{Sequence: 101, Round: 0},
-				From:          Bob,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 0},
+					Sender: Bob,
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("invalid block"), Round: 0},
 				BlockHash:     []byte("keccak"),
 			},
@@ -115,8 +123,10 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 			isValid: true,
 			msg: &types.MsgProposal{
-				From:          Bob,
-				View:          &types.View{Sequence: 101, Round: 0},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 0},
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 0},
 				BlockHash:     []byte("keccak"),
 			},
@@ -136,8 +146,10 @@ func TestIsValidMsgProposal(t *testing.T) {
 				},
 			},
 			msg: &types.MsgProposal{
-				From:                   Bob,
-				View:                   &types.View{Sequence: 101, Round: 1},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 1},
+				},
 				ProposedBlock:          &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:              []byte("keccak"),
 				RoundChangeCertificate: nil,
@@ -159,14 +171,16 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:          Bob,
-				View:          &types.View{Sequence: 101, Round: 1},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 1},
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							View: &types.View{Sequence: 99},
+							Metadata: &types.MsgMetadata{View: &types.View{Sequence: 99}},
 						},
 					},
 				},
@@ -188,14 +202,16 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:          Bob,
-				View:          &types.View{Sequence: 101, Round: 1},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 1},
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							View: &types.View{Sequence: 101, Round: 0},
+							Metadata: &types.MsgMetadata{View: &types.View{Sequence: 101, Round: 0}},
 						},
 					},
 				},
@@ -218,15 +234,19 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:          Bob,
-				View:          &types.View{Sequence: 101, Round: 1},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 1},
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: []byte("definitely not a validator"),
-							View: &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: []byte("definitely not a validator"),
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 						},
 					},
 				},
@@ -249,20 +269,26 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:          Bob,
-				View:          &types.View{Sequence: 101, Round: 1},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 1},
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: Chris,
-							View: &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 						},
 
 						{
-							From: Chris,
-							View: &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 						},
 					},
 				},
@@ -286,15 +312,19 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:          Bob,
-				View:          &types.View{Sequence: 101, Round: 1},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 1},
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: Chris,
-							View: &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 						},
 					},
 				},
@@ -318,15 +348,20 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:          Bob,
-				View:          &types.View{Sequence: 101, Round: 1},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 1},
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("invalid block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: Chris,
-							View: &types.View{Sequence: 101, Round: 1},
+
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 						},
 					},
 				},
@@ -351,25 +386,33 @@ func TestIsValidMsgProposal(t *testing.T) {
 			},
 
 			msg: &types.MsgProposal{
-				From:          Bob,
-				View:          &types.View{Sequence: 101, Round: 1},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 1},
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From: Chris,
-							View: &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 							LatestPreparedCertificate: &types.PreparedCertificate{
 								ProposalMessage: &types.MsgProposal{
-									From:      Alice,
-									View:      &types.View{Sequence: 101, Round: 0},
+									Metadata: &types.MsgMetadata{
+										Sender: Alice,
+										View:   &types.View{Sequence: 101, Round: 0},
+									},
 									BlockHash: []byte("invalid keccak"),
 								},
 								PrepareMessages: []*types.MsgPrepare{
 									{
-										View:      &types.View{Sequence: 101, Round: 0},
-										From:      Chris,
+										Metadata: &types.MsgMetadata{
+											View:   &types.View{Sequence: 101, Round: 0},
+											Sender: Chris,
+										},
 										BlockHash: []byte("invalid keccak"),
 									},
 								},
@@ -399,26 +442,36 @@ func TestIsValidMsgProposal(t *testing.T) {
 
 			isValid: true,
 			msg: &types.MsgProposal{
-				From:          Bob,
-				View:          &types.View{Sequence: 101, Round: 1},
+				Metadata: &types.MsgMetadata{
+					Sender: Bob,
+					View:   &types.View{Sequence: 101, Round: 1},
+				},
 				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &types.RoundChangeCertificate{
 					Messages: []*types.MsgRoundChange{
 						{
-							From:                        Chris,
-							View:                        &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 							LatestPreparedProposedBlock: &types.ProposedBlock{},
 							LatestPreparedCertificate: &types.PreparedCertificate{
 								ProposalMessage: &types.MsgProposal{
-									From:      Alice,
-									View:      &types.View{Sequence: 101, Round: 0},
+									Metadata: &types.MsgMetadata{
+										Sender: Alice,
+										View:   &types.View{Sequence: 101, Round: 0},
+									},
+
 									BlockHash: []byte("keccak"),
 								},
 								PrepareMessages: []*types.MsgPrepare{
 									{
-										View:      &types.View{Sequence: 101, Round: 0},
-										From:      Chris,
+										Metadata: &types.MsgMetadata{
+											View:   &types.View{Sequence: 101, Round: 0},
+											Sender: Chris,
+										},
+
 										BlockHash: []byte("keccak"),
 									},
 								},
@@ -459,8 +512,10 @@ func TestIsValidMsgPrepare(t *testing.T) {
 				},
 			},
 			msg: &types.MsgPrepare{
-				From: []byte("definitely not a validator"),
-				View: &types.View{Sequence: 101},
+				Metadata: &types.MsgMetadata{
+					Sender: []byte("definitely not a validator"),
+					View:   &types.View{Sequence: 101},
+				},
 			},
 		},
 
@@ -473,8 +528,10 @@ func TestIsValidMsgPrepare(t *testing.T) {
 			},
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			msg: &types.MsgPrepare{
-				View:      &types.View{Sequence: 101},
-				From:      Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
 				BlockHash: []byte("definitely not keccak"),
 			},
 		},
@@ -489,8 +546,11 @@ func TestIsValidMsgPrepare(t *testing.T) {
 			isValid:          true,
 			acceptedProposal: &types.MsgProposal{BlockHash: []byte("keccak")},
 			msg: &types.MsgPrepare{
-				View:      &types.View{Sequence: 101},
-				From:      Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
+
 				BlockHash: []byte("keccak"),
 			},
 		},
@@ -527,8 +587,10 @@ func TestIsValidMsgCommit(t *testing.T) {
 				},
 			},
 			msg: &types.MsgCommit{
-				View: &types.View{Sequence: 101},
-				From: []byte("definitely not a validator"),
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: []byte("definitely not a validator"),
+				},
 			},
 		},
 
@@ -541,8 +603,11 @@ func TestIsValidMsgCommit(t *testing.T) {
 				},
 			},
 			msg: &types.MsgCommit{
-				View:      &types.View{Sequence: 101},
-				From:      Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
+
 				BlockHash: []byte("definitely not keccak"),
 			},
 		},
@@ -559,8 +624,11 @@ func TestIsValidMsgCommit(t *testing.T) {
 				},
 			},
 			msg: &types.MsgCommit{
-				View:       &types.View{Sequence: 101},
-				From:       Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
+
 				BlockHash:  []byte("keccak"),
 				CommitSeal: []byte("invalid commit seal"),
 			},
@@ -579,8 +647,11 @@ func TestIsValidMsgCommit(t *testing.T) {
 			},
 			isValid: true,
 			msg: &types.MsgCommit{
-				View:       &types.View{Sequence: 101},
-				From:       Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
+
 				BlockHash:  []byte("keccak"),
 				CommitSeal: []byte("commit seal"),
 			},
@@ -619,8 +690,10 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				From: []byte("definitely not a validator"),
-				View: &types.View{Sequence: 101},
+				Metadata: &types.MsgMetadata{
+					Sender: []byte("definitely not a validator"),
+					View:   &types.View{Sequence: 101},
+				},
 			},
 		},
 
@@ -633,8 +706,10 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			},
 			isValid: true,
 			msg: &types.MsgRoundChange{
-				View: &types.View{Sequence: 101},
-				From: Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
 			},
 		},
 
@@ -646,8 +721,10 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                      &types.View{Sequence: 101},
-				From:                      Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
 				LatestPreparedCertificate: &types.PreparedCertificate{},
 			},
 		},
@@ -660,8 +737,10 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: nil,
@@ -677,12 +756,17 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						View: &types.View{Sequence: 100},
+						Metadata: &types.MsgMetadata{
+							View: &types.View{Sequence: 100},
+						},
 					},
 					PrepareMessages: []*types.MsgPrepare{},
 				},
@@ -697,12 +781,17 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						View: &types.View{Sequence: 101, Round: 5},
+						Metadata: &types.MsgMetadata{
+							View: &types.View{Sequence: 101, Round: 5},
+						},
 					},
 					PrepareMessages: []*types.MsgPrepare{},
 				},
@@ -719,13 +808,18 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 1},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 1},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From: mock.NewValidatorID("dani"),
-						View: &types.View{Sequence: 101, Round: 0},
+						Metadata: &types.MsgMetadata{
+							Sender: mock.NewValidatorID("dani"),
+							View:   &types.View{Sequence: 101, Round: 0},
+						},
 					},
 					PrepareMessages: []*types.MsgPrepare{},
 				},
@@ -742,17 +836,24 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 2},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From: Bob,
-						View: &types.View{Sequence: 101, Round: 1},
+						Metadata: &types.MsgMetadata{
+							Sender: Bob,
+							View:   &types.View{Sequence: 101, Round: 1},
+						},
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							View: &types.View{Sequence: 99},
+							Metadata: &types.MsgMetadata{
+								View: &types.View{Sequence: 99},
+							},
 						},
 					},
 				},
@@ -769,17 +870,24 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 2},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From: Bob,
-						View: &types.View{Sequence: 101, Round: 1},
+						Metadata: &types.MsgMetadata{
+							Sender: Bob,
+							View:   &types.View{Sequence: 101, Round: 1},
+						},
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							View: &types.View{Sequence: 101, Round: 0},
+							Metadata: &types.MsgMetadata{
+								View: &types.View{Sequence: 101, Round: 0},
+							},
 						},
 					},
 				},
@@ -796,18 +904,27 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 2},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      Bob,
-						View:      &types.View{Sequence: 101, Round: 1},
+						Metadata: &types.MsgMetadata{
+							Sender: Bob,
+							View:   &types.View{Sequence: 101, Round: 1},
+						},
+
 						BlockHash: []byte("keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							View:      &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								View: &types.View{Sequence: 101, Round: 1},
+							},
+
 							BlockHash: []byte("some other keccak"),
 						},
 					},
@@ -825,19 +942,27 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 2},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      Bob,
-						View:      &types.View{Sequence: 101, Round: 1},
+						Metadata: &types.MsgMetadata{
+							Sender: Bob,
+							View:   &types.View{Sequence: 101, Round: 1},
+						},
+
 						BlockHash: []byte("keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      []byte("definitely not a validator"),
-							View:      &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: []byte("definitely not a validator"),
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
 							BlockHash: []byte("keccak"),
 						},
 					},
@@ -855,25 +980,37 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 2},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      Bob,
-						View:      &types.View{Sequence: 101, Round: 1},
+						Metadata: &types.MsgMetadata{
+							Sender: Bob,
+							View:   &types.View{Sequence: 101, Round: 1},
+						},
+
 						BlockHash: []byte("keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      Chris,
-							View:      &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
+
 							BlockHash: []byte("keccak"),
 						},
 
 						{
-							From:      Chris,
-							View:      &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
+
 							BlockHash: []byte("keccak"),
 						},
 					},
@@ -892,19 +1029,28 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 2},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      Bob,
-						View:      &types.View{Sequence: 101, Round: 1},
+						Metadata: &types.MsgMetadata{
+							Sender: Bob,
+							View:   &types.View{Sequence: 101, Round: 1},
+						},
+
 						BlockHash: []byte("keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      Chris,
-							View:      &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
+
 							BlockHash: []byte("keccak"),
 						},
 					},
@@ -923,19 +1069,28 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				},
 			},
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 2},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      Bob,
-						View:      &types.View{Sequence: 101, Round: 1},
+						Metadata: &types.MsgMetadata{
+							Sender: Bob,
+							View:   &types.View{Sequence: 101, Round: 1},
+						},
+
 						BlockHash: []byte("some other keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      Chris,
-							View:      &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
+
 							BlockHash: []byte("some other keccak"),
 						},
 					},
@@ -955,19 +1110,28 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			},
 			isValid: true,
 			msg: &types.MsgRoundChange{
-				View:                        &types.View{Sequence: 101, Round: 2},
-				From:                        Chris,
+				Metadata: &types.MsgMetadata{
+					View:   &types.View{Sequence: 101, Round: 2},
+					Sender: Chris,
+				},
+
 				LatestPreparedProposedBlock: &types.ProposedBlock{},
 				LatestPreparedCertificate: &types.PreparedCertificate{
 					ProposalMessage: &types.MsgProposal{
-						From:      Bob,
-						View:      &types.View{Sequence: 101, Round: 1},
+						Metadata: &types.MsgMetadata{
+							Sender: Bob,
+							View:   &types.View{Sequence: 101, Round: 1},
+						},
+
 						BlockHash: []byte("keccak"),
 					},
 					PrepareMessages: []*types.MsgPrepare{
 						{
-							From:      Chris,
-							View:      &types.View{Sequence: 101, Round: 1},
+							Metadata: &types.MsgMetadata{
+								Sender: Chris,
+								View:   &types.View{Sequence: 101, Round: 1},
+							},
+
 							BlockHash: []byte("keccak"),
 						},
 					},

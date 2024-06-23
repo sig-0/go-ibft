@@ -8,12 +8,14 @@ import (
 
 func (s *Sequencer) sendMsgPrepare(ctx Context) {
 	msg := &types.MsgPrepare{
-		From:      s.ID(),
-		View:      s.state.getView(),
 		BlockHash: s.state.getProposalBlockHash(),
+		Metadata: &types.MsgMetadata{
+			Sender: s.ID(),
+			View:   s.state.getView(),
+		},
 	}
 
-	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
+	msg.Metadata.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	ctx.Transport().MulticastPrepare(msg)
 }
@@ -55,7 +57,7 @@ func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error
 }
 
 func (s *Sequencer) isValidMsgPrepare(msg *types.MsgPrepare) bool {
-	if !s.IsValidator(msg.From, msg.View.Sequence) {
+	if !s.IsValidator(msg.Sender(), msg.Sequence()) {
 		return false
 	}
 

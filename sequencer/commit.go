@@ -8,13 +8,15 @@ import (
 
 func (s *Sequencer) sendMsgCommit(ctx Context) {
 	msg := &types.MsgCommit{
-		From:       s.ID(),
-		View:       s.state.getView(),
 		BlockHash:  s.state.getProposalBlockHash(),
 		CommitSeal: s.Sign(s.state.getProposalBlockHash()),
+		Metadata: &types.MsgMetadata{
+			View:   s.state.getView(),
+			Sender: s.ID(),
+		},
 	}
 
-	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
+	msg.Metadata.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	ctx.Transport().MulticastCommit(msg)
 }
@@ -26,7 +28,7 @@ func (s *Sequencer) awaitCommit(ctx Context) error {
 	}
 
 	for _, commit := range commits {
-		s.state.acceptSeal(commit.From, commit.CommitSeal)
+		s.state.acceptSeal(commit.Sender(), commit.CommitSeal)
 	}
 
 	return nil
@@ -58,7 +60,7 @@ func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) 
 }
 
 func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit) bool {
-	if !s.IsValidator(msg.From, msg.View.Sequence) {
+	if !s.IsValidator(msg.Sender(), msg.Sequence()) {
 		return false
 	}
 
@@ -66,7 +68,7 @@ func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit) bool {
 		return false
 	}
 
-	if !s.IsValidSignature(msg.GetSender(), msg.BlockHash, msg.CommitSeal) {
+	if !s.IsValidSignature(msg.Sender(), msg.BlockHash, msg.CommitSeal) {
 		return false
 	}
 

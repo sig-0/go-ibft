@@ -19,9 +19,11 @@ func Test_Collection_Clear(t *testing.T) {
 	c := NewMsgCollection[*types.MsgProposal]()
 	view := &types.View{Sequence: 101, Round: 5}
 	msg := &types.MsgProposal{
-		View:      view,
-		From:      []byte("someone"),
-		Signature: []byte("signature"),
+		Metadata: &types.MsgMetadata{
+			View:      view,
+			Sender:    []byte("someone"),
+			Signature: []byte("signature"),
+		},
 	}
 
 	c.Add(msg)
@@ -38,133 +40,169 @@ func TestStore_MsgProposal(t *testing.T) {
 		{
 			name: "message added",
 			msg: &types.MsgProposal{
-				View:      &types.View{Sequence: 101, Round: 0},
-				From:      []byte("from"),
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      &types.View{Sequence: 101, Round: 0},
+					Sender:    []byte("from"),
+					Signature: []byte("signature"),
+				},
 			},
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+				view := &types.View{Sequence: msg.Sequence(), Round: msg.Round()}
 				store.ProposalMessages.Add(msg)
-				assert.Len(t, store.ProposalMessages.Get(msg.View), 1)
+				assert.Len(t, store.ProposalMessages.Get(view), 1)
 			},
 		},
 
 		{
 			name: "message removed",
 			msg: &types.MsgProposal{
-				View:      &types.View{Sequence: 101, Round: 0},
-				From:      []byte("from"),
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      &types.View{Sequence: 101, Round: 0},
+					Sender:    []byte("from"),
+					Signature: []byte("signature"),
+				},
 			},
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				require.Len(t, store.ProposalMessages.Get(msg.View), 0)
+				view := &types.View{
+					Sequence: msg.Sequence(),
+					Round:    msg.Round(),
+				}
+				require.Len(t, store.ProposalMessages.Get(view), 0)
 				store.ProposalMessages.Add(msg)
 
-				view := &types.View{Sequence: msg.View.Sequence + 1}
-				store.ProposalMessages.Remove(view)
-				require.Len(t, store.ProposalMessages.Get(msg.View), 1)
+				vv := &types.View{Sequence: msg.Sequence() + 1}
+				store.ProposalMessages.Remove(vv)
+				require.Len(t, store.ProposalMessages.Get(view), 1)
 
-				view = &types.View{Sequence: msg.View.Sequence, Round: msg.View.Round + 1}
-				store.ProposalMessages.Remove(view)
-				require.Len(t, store.ProposalMessages.Get(msg.View), 1)
+				vvv := &types.View{Sequence: msg.Sequence(), Round: view.Round + 1}
+				store.ProposalMessages.Remove(vvv)
+				require.Len(t, store.ProposalMessages.Get(view), 1)
 
-				store.ProposalMessages.Remove(msg.View)
-				require.Len(t, store.ProposalMessages.Get(msg.View), 0)
+				store.ProposalMessages.Remove(view)
+				require.Len(t, store.ProposalMessages.Get(view), 0)
 			},
 		},
 
 		{
 			name: "no duplicate message when added twice",
 			msg: &types.MsgProposal{
-				View:      &types.View{Sequence: 101, Round: 0},
-				From:      []byte("from"),
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      &types.View{Sequence: 101, Round: 0},
+					Sender:    []byte("from"),
+					Signature: []byte("signature"),
+				},
 			},
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				store.ProposalMessages.Add(msg)
 				store.ProposalMessages.Add(msg)
 
-				assert.Len(t, store.ProposalMessages.Get(msg.View), 1)
+				view := &types.View{Sequence: msg.Sequence(), Round: msg.Round()}
+				assert.Len(t, store.ProposalMessages.Get(view), 1)
 			},
 		},
 
 		{
 			name: "2 messages with different round",
 			msg: &types.MsgProposal{
-				View:      &types.View{Sequence: 101, Round: 0},
-				From:      []byte("from"),
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      &types.View{Sequence: 101, Round: 0},
+					Sender:    []byte("from"),
+					Signature: []byte("signature"),
+				},
 			},
 
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				msg2 := &types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 1},
-					From:      []byte("other from"),
-					Signature: []byte("other signature"),
+					Metadata: &types.MsgMetadata{
+						View:      &types.View{Sequence: 101, Round: 1},
+						Sender:    []byte("other from"),
+						Signature: []byte("other signature"),
+					},
 				}
 
 				store.ProposalMessages.Add(msg)
 				store.ProposalMessages.Add(msg2)
 
-				assert.Len(t, store.ProposalMessages.Get(msg.View), 1)
-				assert.Len(t, store.ProposalMessages.Get(msg2.View), 1)
+				view1 := &types.View{
+					Sequence: msg.Sequence(),
+					Round:    msg.Round(),
+				}
+
+				view2 := &types.View{
+					Sequence: msg2.Sequence(),
+					Round:    msg2.Round(),
+				}
+				assert.Len(t, store.ProposalMessages.Get(view1), 1)
+				assert.Len(t, store.ProposalMessages.Get(view2), 1)
 			},
 		},
 
 		{
 			name: "2 messages with different sequence",
 			msg: &types.MsgProposal{
-				View:      &types.View{Sequence: 101, Round: 0},
-				From:      []byte("from"),
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      &types.View{Sequence: 101, Round: 0},
+					Sender:    []byte("from"),
+					Signature: []byte("signature"),
+				},
 			},
 
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				msg2 := &types.MsgProposal{
-					View:      &types.View{Sequence: 102, Round: 0},
-					From:      []byte("other from"),
-					Signature: []byte("other signature"),
+					Metadata: &types.MsgMetadata{
+						View:      &types.View{Sequence: 102, Round: 0},
+						Sender:    []byte("other from"),
+						Signature: []byte("other signature"),
+					},
 				}
 
 				store.ProposalMessages.Add(msg)
 				store.ProposalMessages.Add(msg2)
 
-				assert.Len(t, store.ProposalMessages.Get(msg.View), 1)
-				assert.Len(t, store.ProposalMessages.Get(msg2.View), 1)
+				assert.Len(t, store.ProposalMessages.Get(&types.View{Sequence: msg.Sequence(), Round: msg.Round()}), 1)
+				assert.Len(t, store.ProposalMessages.Get(&types.View{Sequence: msg2.Sequence(), Round: msg2.Round()}), 1)
 			},
 		},
 
 		{
 			name: "2 unique messages with same view",
 			msg: &types.MsgProposal{
-				View:      &types.View{Sequence: 101, Round: 0},
-				From:      []byte("from"),
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      &types.View{Sequence: 101, Round: 0},
+					Sender:    []byte("from"),
+					Signature: []byte("signature"),
+				},
 			},
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				store.ProposalMessages.Add(msg)
 				store.ProposalMessages.Add(&types.MsgProposal{
-					View:      &types.View{Sequence: 101, Round: 0},
-					From:      []byte("other from"),
-					Signature: []byte("other signature"),
+					Metadata: &types.MsgMetadata{
+						View:      &types.View{Sequence: 101, Round: 0},
+						Sender:    []byte("other from"),
+						Signature: []byte("other signature"),
+					},
 				})
 
-				assert.Len(t, store.ProposalMessages.Get(msg.View), 2)
-				assert.Len(t, store.ProposalMessages.Get(msg.View), 2)
+				view := &types.View{Sequence: msg.Sequence(), Round: msg.Round()}
+				assert.Len(t, store.ProposalMessages.Get(view), 2)
+				assert.Len(t, store.ProposalMessages.Get(view), 2)
 			},
 		},
 
 		{
 			name: "no message for given round",
 			msg: &types.MsgProposal{
-				View:      &types.View{Sequence: 101, Round: 0},
-				From:      []byte("from"),
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      &types.View{Sequence: 101, Round: 0},
+					Sender:    []byte("from"),
+					Signature: []byte("signature"),
+				},
 			},
 
 			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
 				store.ProposalMessages.Add(msg)
 
-				view := &types.View{Sequence: msg.View.Sequence, Round: msg.View.Round + 1}
+				view := &types.View{Sequence: msg.Sequence(), Round: msg.Round() + 1}
 				assert.Len(t, store.ProposalMessages.Get(view), 0)
 			},
 		},
@@ -189,8 +227,10 @@ func TestFeed_MsgProposal(t *testing.T) {
 		var (
 			view = &types.View{Sequence: 101, Round: 0}
 			msg  = &types.MsgProposal{
-				View:      view,
-				Signature: []byte("sig"),
+				Metadata: &types.MsgMetadata{
+					View:      view,
+					Signature: []byte("sig"),
+				},
 			}
 		)
 
@@ -214,14 +254,18 @@ func TestFeed_MsgProposal(t *testing.T) {
 		var (
 			view1 = &types.View{Sequence: 101, Round: 0}
 			msg1  = &types.MsgProposal{
-				View:      view1,
-				Signature: []byte("sig"),
+				Metadata: &types.MsgMetadata{
+					View:      view1,
+					Signature: []byte("sig"),
+				},
 			}
 
 			view2 = &types.View{Sequence: 101, Round: 5}
 			msg2  = &types.MsgProposal{
-				View:      view2,
-				Signature: []byte("sig"),
+				Metadata: &types.MsgMetadata{
+					View:      view2,
+					Signature: []byte("sig"),
+				},
 			}
 		)
 
@@ -246,8 +290,10 @@ func TestFeed_MsgProposal(t *testing.T) {
 		var (
 			view = &types.View{Sequence: 101, Round: 1}
 			msg  = &types.MsgProposal{
-				View:      view,
-				Signature: []byte("signature 2"),
+				Metadata: &types.MsgMetadata{
+					View:      view,
+					Signature: []byte("signature 2"),
+				},
 			}
 		)
 
@@ -288,14 +334,18 @@ func TestFeed_MsgProposal(t *testing.T) {
 		var (
 			view1 = &types.View{Sequence: 101, Round: 1}
 			msg1  = &types.MsgProposal{
-				View:      view1,
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      view1,
+					Signature: []byte("signature"),
+				},
 			}
 
 			view3 = &types.View{Sequence: 101, Round: 10}
 			msg3  = &types.MsgProposal{
-				View:      view3,
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      view3,
+					Signature: []byte("signature"),
+				},
 			}
 		)
 
@@ -325,8 +375,10 @@ func TestFeed_MsgProposal(t *testing.T) {
 		require.Len(t, r.Unwrap(), 0)
 
 		msg := &types.MsgProposal{
-			View:      view2,
-			Signature: []byte("signature"),
+			Metadata: &types.MsgMetadata{
+				View:      view2,
+				Signature: []byte("signature"),
+			},
 		}
 
 		store.ProposalMessages.Add(msg)
@@ -352,13 +404,17 @@ func TestFeed_MsgProposal(t *testing.T) {
 
 		var (
 			msg1 = &types.MsgProposal{
-				View:      view1,
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      view1,
+					Signature: []byte("signature"),
+				},
 			}
 
 			msg2 = &types.MsgProposal{
-				View:      view2,
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      view2,
+					Signature: []byte("signature"),
+				},
 			}
 		)
 

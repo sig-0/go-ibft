@@ -9,13 +9,15 @@ import (
 
 func (s *Sequencer) sendMsgRoundChange(ctx Context) {
 	msg := &types.MsgRoundChange{
-		View:                        s.state.getView(),
-		From:                        s.ID(),
 		LatestPreparedProposedBlock: s.state.latestPB,
 		LatestPreparedCertificate:   s.state.latestPC,
+		Metadata: &types.MsgMetadata{
+			View:   s.state.getView(),
+			Sender: s.ID(),
+		},
 	}
 
-	msg.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
+	msg.Metadata.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	ctx.Transport().MulticastRoundChange(msg)
 }
@@ -71,7 +73,7 @@ func (s *Sequencer) isValidMsgRoundChange(
 	quorum ibft.Quorum,
 	keccak ibft.Keccak,
 ) bool {
-	if !s.IsValidator(msg.From, msg.View.Sequence) {
+	if !s.IsValidator(msg.Sender(), msg.Sequence()) {
 		return false
 	}
 
@@ -108,31 +110,31 @@ func (s *Sequencer) isValidPC(
 		return false
 	}
 
-	if pc.ProposalMessage.View.Sequence != msg.View.Sequence {
+	if pc.ProposalMessage.Sequence() != msg.Sequence() {
 		return false
 	}
 
-	if pc.ProposalMessage.View.Round >= msg.View.Round {
+	if pc.ProposalMessage.Round() >= msg.Round() {
 		return false
 	}
 
 	var (
-		sequence = pc.ProposalMessage.View.Sequence
-		round    = pc.ProposalMessage.View.Round
+		sequence = pc.ProposalMessage.Sequence()
+		round    = pc.ProposalMessage.Round()
 	)
 
-	if !s.IsProposer(pc.ProposalMessage.From, sequence, round) {
+	if !s.IsProposer(pc.ProposalMessage.Sender(), sequence, round) {
 		return false
 	}
 
-	senders := map[string]struct{}{string(pc.ProposalMessage.From): {}}
+	senders := map[string]struct{}{string(pc.ProposalMessage.Sender()): {}}
 
 	for _, msg := range pc.PrepareMessages {
-		if msg.View.Sequence != sequence {
+		if msg.Sequence() != sequence {
 			return false
 		}
 
-		if msg.View.Round != round {
+		if msg.Round() != round {
 			return false
 		}
 
@@ -140,11 +142,11 @@ func (s *Sequencer) isValidPC(
 			return false
 		}
 
-		if !s.IsValidator(msg.From, sequence) {
+		if !s.IsValidator(msg.Sender(), sequence) {
 			return false
 		}
 
-		senders[string(msg.From)] = struct{}{}
+		senders[string(msg.Sender())] = struct{}{}
 	}
 
 	if len(senders) != 1+len(pc.PrepareMessages) {
@@ -167,26 +169,26 @@ func (s *Sequencer) isValidRCC(
 	}
 
 	var (
-		sequence = proposal.View.Sequence
-		round    = proposal.View.Round
+		sequence = proposal.Sequence()
+		round    = proposal.Round()
 	)
 
 	uniqueSenders := make(map[string]struct{})
 
 	for _, msg := range rcc.Messages {
-		if msg.View.Sequence != sequence {
+		if msg.Sequence() != sequence {
 			return false
 		}
 
-		if msg.View.Round != round {
+		if msg.Round() != round {
 			return false
 		}
 
-		if !s.IsValidator(msg.From, sequence) {
+		if !s.IsValidator(msg.Sender(), sequence) {
 			return false
 		}
 
-		uniqueSenders[string(msg.From)] = struct{}{}
+		uniqueSenders[string(msg.Sender())] = struct{}{}
 	}
 
 	if len(uniqueSenders) != len(rcc.Messages) {

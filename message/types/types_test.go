@@ -35,9 +35,9 @@ func Test_RCC_Highest_Round_Block(t *testing.T) {
 				{
 					LatestPreparedCertificate: &PreparedCertificate{
 						ProposalMessage: &MsgProposal{
-							View: &View{
+							Metadata: &MsgMetadata{View: &View{
 								Round: 0,
-							},
+							}},
 						},
 					},
 					LatestPreparedProposedBlock: &ProposedBlock{
@@ -53,9 +53,7 @@ func Test_RCC_Highest_Round_Block(t *testing.T) {
 				{
 					LatestPreparedCertificate: &PreparedCertificate{
 						ProposalMessage: &MsgProposal{
-							View: &View{
-								Round: 0,
-							},
+							Metadata: &MsgMetadata{View: &View{Round: 0}},
 						},
 					},
 					LatestPreparedProposedBlock: &ProposedBlock{
@@ -65,9 +63,7 @@ func Test_RCC_Highest_Round_Block(t *testing.T) {
 				{
 					LatestPreparedCertificate: &PreparedCertificate{
 						ProposalMessage: &MsgProposal{
-							View: &View{
-								Round: 1,
-							},
+							Metadata: &MsgMetadata{View: &View{Round: 1}},
 						},
 					},
 					LatestPreparedProposedBlock: &ProposedBlock{
@@ -121,9 +117,7 @@ func Test_RCC_Highest_Round_Block_Hash(t *testing.T) {
 				{
 					LatestPreparedCertificate: &PreparedCertificate{
 						ProposalMessage: &MsgProposal{
-							View: &View{
-								Round: 0,
-							},
+							Metadata:  &MsgMetadata{View: &View{Round: 0}},
 							BlockHash: []byte("block hash 0"),
 						},
 					},
@@ -137,9 +131,7 @@ func Test_RCC_Highest_Round_Block_Hash(t *testing.T) {
 				{
 					LatestPreparedCertificate: &PreparedCertificate{
 						ProposalMessage: &MsgProposal{
-							View: &View{
-								Round: 0,
-							},
+							Metadata:  &MsgMetadata{View: &View{Round: 0}},
 							BlockHash: []byte("block hash 0"),
 						},
 					},
@@ -147,9 +139,7 @@ func Test_RCC_Highest_Round_Block_Hash(t *testing.T) {
 				{
 					LatestPreparedCertificate: &PreparedCertificate{
 						ProposalMessage: &MsgProposal{
-							View: &View{
-								Round: 1,
-							},
+							Metadata:  &MsgMetadata{View: &View{Round: 1}},
 							BlockHash: []byte("block hash 1"),
 						},
 					},

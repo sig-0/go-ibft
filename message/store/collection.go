@@ -9,8 +9,9 @@ import (
 type message interface {
 	types.IBFTMessage
 
-	GetView() *types.View
-	GetSender() []byte
+	Sequence() uint64
+	Round() uint64
+	Sender() []byte
 }
 
 type MsgCollection[M message] interface {
@@ -74,16 +75,16 @@ func (c *syncCollection[M]) Add(msg M) {
 	c.subscriptionMux.RLock()
 	defer c.subscriptionMux.RUnlock()
 
-	view := msg.GetView()
+	seq, round := msg.Sequence(), msg.Round()
 
 	c.subscriptions.Notify(func(sub subscription[M]) {
 		// match the sequence
-		if view.Sequence != sub.View.Sequence {
+		if seq != sub.View.Sequence {
 			return
 		}
 
 		// exclude lower rounds
-		if view.Round < sub.View.Round {
+		if round < sub.View.Round {
 			return
 		}
 
@@ -121,20 +122,20 @@ func (c *syncCollection[M]) Remove(view *types.View) {
 type msgCollection[M message] map[uint64]map[uint64]msgSet[M]
 
 func (c *msgCollection[M]) add(msg M) {
-	c.loadOrStoreSet(msg.GetView())[string(msg.GetSender())] = msg
+	c.loadOrStoreSet(msg.Sequence(), msg.Round())[string(msg.Sender())] = msg
 }
 
-func (c *msgCollection[M]) loadOrStoreSet(view *types.View) msgSet[M] {
-	sameSequenceMessages, ok := (*c)[view.Sequence]
+func (c *msgCollection[M]) loadOrStoreSet(sequence, round uint64) msgSet[M] {
+	sameSequenceMessages, ok := (*c)[sequence]
 	if !ok {
-		(*c)[view.Sequence] = map[uint64]msgSet[M]{}
-		sameSequenceMessages = (*c)[view.Sequence]
+		(*c)[sequence] = map[uint64]msgSet[M]{}
+		sameSequenceMessages = (*c)[sequence]
 	}
 
-	set, ok := sameSequenceMessages[view.Round]
+	set, ok := sameSequenceMessages[round]
 	if !ok {
-		(*c)[view.Sequence][view.Round] = msgSet[M]{}
-		set = (*c)[view.Sequence][view.Round]
+		(*c)[sequence][round] = msgSet[M]{}
+		set = (*c)[sequence][round]
 	}
 
 	return set

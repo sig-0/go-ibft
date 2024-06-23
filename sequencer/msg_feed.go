@@ -5,8 +5,8 @@ import (
 )
 
 // MsgFeed provides Sequencer an asynchronous way to receive consensus messages. In addition to
-// listening for any type of message for any particular view, the higherRounds flag provides an option
-// to receive messages from rounds higher than the round in provided view.
+// listening for any type of message in any particular view, the higherRounds flag provides an option
+// to include messages from higher rounds as well.
 //
 // CONTRACT:
 //
@@ -14,7 +14,7 @@ import (
 //   - no required fields missing (Sender, Signature, getView)
 //   - signature is valid [ recover(ibftMsg.Payload, Signature) == Sender ]
 //
-// 2. all messages are considered unique (there cannot be 2 or more messages with identical From fields)
+// 2. all messages are considered unique (there cannot be 2 or more messages from the same sender)
 type MsgFeed interface {
 	// ProposalMessages returns the MsgProposal subscription for given view(s)
 	ProposalMessages(view *types.View, higherRounds bool) (types.Subscription[*types.MsgProposal], func())

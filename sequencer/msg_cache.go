@@ -7,7 +7,7 @@ import (
 type ibftMsg interface {
 	types.IBFTMessage
 
-	GetSender() []byte
+	Sender() []byte
 }
 
 type msgCache[M ibftMsg] struct {
@@ -26,7 +26,7 @@ func newMsgCache[M ibftMsg](filterFn func(M) bool) msgCache[M] {
 
 func (c msgCache[M]) add(messages []M) msgCache[M] {
 	for _, msg := range messages {
-		sender := msg.GetSender()
+		sender := msg.Sender()
 		if _, ok := c.seen[string(sender)]; ok {
 			continue
 		}

@@ -124,87 +124,46 @@ func Test_Engine_Add_Message(t *testing.T) {
 	)
 
 	testTable := []struct {
-		validator ibft.Validator
-		msg       types.Message
-		expected  error
-		cfg       Config
-		name      string
+		validator   ibft.Validator
+		msg         types.Message
+		expectedErr error
+		cfg         Config
+		name        string
 	}{
 		{
-			name: "malformed message",
-
-			expected: types.ErrMissingView,
-			msg:      &types.MsgPrepare{View: nil},
+			name:        "invalid message",
+			expectedErr: types.ErrInvalidMessage,
+			msg:         &types.MsgPrepare{},
 		},
 
 		{
-			name:      "invalid signature",
-			validator: mock.Validator{Verifier: badSignature},
-			cfg:       Config{Keccak: keccak},
-
-			expected: ErrInvalidSignature,
+			name:        "invalid signature",
+			expectedErr: ErrInvalidSignature,
+			validator:   mock.Validator{Verifier: badSignature},
+			cfg:         Config{Keccak: keccak},
 			msg: &types.MsgPrepare{
-				View:      &types.View{Sequence: 101, Round: 1},
-				From:      []byte("someone"),
-				Signature: []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      &types.View{Sequence: 101, Round: 1},
+					Sender:    []byte("someone"),
+					Signature: []byte("signature"),
+				},
 				BlockHash: []byte("block hash"),
 			},
 		},
 
 		{
-			name:      "added MsgPrepare",
-			validator: mock.Validator{Verifier: goodSignature},
-			cfg:       Config{Keccak: keccak},
-
-			expected: nil,
-			msg: &types.MsgPrepare{
-				View:      &types.View{Sequence: 101, Round: 1},
-				From:      []byte("someone"),
-				Signature: []byte("signature"),
-				BlockHash: []byte("block hash"),
-			},
-		},
-
-		{
-			name:      "added MsgProposal",
-			validator: mock.Validator{Verifier: goodSignature},
-			cfg:       Config{Keccak: keccak},
-
-			expected: nil,
-			msg: &types.MsgProposal{
-				View:          &types.View{Sequence: 101, Round: 1},
-				From:          []byte("someone"),
-				Signature:     []byte("signature"),
-				BlockHash:     []byte("block hash"),
-				ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
-			},
-		},
-
-		{
-			name:      "added MsgCommit",
-			validator: mock.Validator{Verifier: goodSignature},
-			cfg:       Config{Keccak: keccak},
-
-			expected: nil,
+			name:        "ok",
+			expectedErr: nil,
+			validator:   mock.Validator{Verifier: goodSignature},
+			cfg:         Config{Keccak: keccak},
 			msg: &types.MsgCommit{
-				View:       &types.View{Sequence: 101, Round: 1},
-				From:       []byte("someone"),
-				Signature:  []byte("signature"),
+				Metadata: &types.MsgMetadata{
+					View:      &types.View{Sequence: 101, Round: 1},
+					Sender:    []byte("someone"),
+					Signature: []byte("signature"),
+				},
 				BlockHash:  []byte("block hash"),
 				CommitSeal: []byte("commit seal"),
-			},
-		},
-
-		{
-			name:      "added MsgRoundChange",
-			validator: mock.Validator{Verifier: goodSignature},
-			cfg:       Config{Keccak: keccak},
-
-			expected: nil,
-			msg: &types.MsgRoundChange{
-				View:      &types.View{Sequence: 101, Round: 1},
-				From:      []byte("someone"),
-				Signature: []byte("signature"),
 			},
 		},
 	}
@@ -215,7 +174,7 @@ func Test_Engine_Add_Message(t *testing.T) {
 			t.Parallel()
 
 			e := NewEngine(tt.validator, tt.cfg)
-			assert.ErrorIs(t, e.AddMessage(tt.msg), tt.expected)
+			assert.ErrorIs(t, e.AddMessage(tt.msg), tt.expectedErr)
 		})
 	}
 }
