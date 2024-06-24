@@ -8,7 +8,7 @@ import (
 
 func (s *Sequencer) sendMsgPrepare(ctx Context) {
 	msg := &types.MsgPrepare{
-		BlockHash: s.state.getProposalBlockHash(),
+		BlockHash: s.state.getProposedBlockHash(),
 		Metadata: &types.MsgMetadata{
 			Sender: s.ID(),
 			View:   s.state.getView(),
@@ -61,7 +61,7 @@ func (s *Sequencer) isValidMsgPrepare(msg *types.MsgPrepare) bool {
 		return false
 	}
 
-	if !bytes.Equal(msg.BlockHash, s.state.getProposalBlockHash()) {
+	if !bytes.Equal(msg.BlockHash, s.state.getProposedBlockHash()) {
 		return false
 	}
 

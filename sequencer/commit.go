@@ -8,8 +8,8 @@ import (
 
 func (s *Sequencer) sendMsgCommit(ctx Context) {
 	msg := &types.MsgCommit{
-		BlockHash:  s.state.getProposalBlockHash(),
-		CommitSeal: s.Sign(s.state.getProposalBlockHash()),
+		BlockHash:  s.state.getProposedBlockHash(),
+		CommitSeal: s.Sign(s.state.getProposedBlockHash()),
 		Metadata: &types.MsgMetadata{
 			View:   s.state.getView(),
 			Sender: s.ID(),
@@ -64,7 +64,7 @@ func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit) bool {
 		return false
 	}
 
-	if !bytes.Equal(msg.BlockHash, s.state.getProposalBlockHash()) {
+	if !bytes.Equal(msg.BlockHash, s.state.getProposedBlockHash()) {
 		return false
 	}
 

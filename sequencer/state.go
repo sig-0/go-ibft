@@ -45,11 +45,11 @@ func (s *state) isProposalAccepted() bool {
 	return s.proposal != nil
 }
 
-func (s *state) getProposalBlock() *types.ProposedBlock {
+func (s *state) getProposedBlock() *types.ProposedBlock {
 	return s.proposal.ProposedBlock
 }
 
-func (s *state) getProposalBlockHash() []byte {
+func (s *state) getProposedBlockHash() []byte {
 	return s.proposal.BlockHash
 }
 
@@ -69,7 +69,7 @@ func (s *state) acceptRCC(rcc *types.RoundChangeCertificate) {
 }
 
 func (s *state) prepareCertificate(prepares []*types.MsgPrepare) {
-	s.latestPB, s.latestPC = s.getProposalBlock(), &types.PreparedCertificate{
+	s.latestPB, s.latestPC = s.getProposedBlock(), &types.PreparedCertificate{
 		ProposalMessage: s.proposal,
 		PrepareMessages: prepares,
 	}
@@ -84,7 +84,7 @@ func (s *state) acceptSeal(from, seal []byte) {
 
 func (s *state) getFinalizedProposal() *types.FinalizedProposal {
 	return &types.FinalizedProposal{
-		Proposal: s.getProposalBlock().Block,
+		Proposal: s.getProposedBlock().Block,
 		Round:    s.getRound(),
 		Seals:    s.seals,
 	}
