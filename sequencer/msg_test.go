@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/madz-lab/go-ibft"
-	"github.com/madz-lab/go-ibft/message/types"
-	"github.com/madz-lab/go-ibft/test/mock"
+	"github.com/sig-0/go-ibft"
+	"github.com/sig-0/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/test/mock"
 )
 
 //nolint:dupl // messages are not entirely different among cases

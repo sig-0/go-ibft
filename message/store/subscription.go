@@ -3,7 +3,7 @@ package store
 import (
 	"github.com/rs/xid"
 
-	"github.com/madz-lab/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/message/types"
 )
 
 type subscription[M types.IBFTMessage] struct {

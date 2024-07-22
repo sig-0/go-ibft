@@ -3,8 +3,8 @@ package mock
 import (
 	"bytes"
 
-	"github.com/madz-lab/go-ibft"
-	"github.com/madz-lab/go-ibft/message/types"
+	"github.com/sig-0/go-ibft"
+	"github.com/sig-0/go-ibft/message/types"
 )
 
 var (

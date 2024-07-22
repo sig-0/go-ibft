@@ -3,7 +3,7 @@ package sequencer
 import (
 	"context"
 
-	"github.com/madz-lab/go-ibft"
+	"github.com/sig-0/go-ibft"
 )
 
 type ctxKey string

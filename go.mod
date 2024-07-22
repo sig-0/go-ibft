@@ -1,4 +1,4 @@
-module github.com/madz-lab/go-ibft
+module github.com/sig-0/go-ibft
 
 go 1.22
 

@@ -3,7 +3,7 @@ package store
 import (
 	"sync"
 
-	"github.com/madz-lab/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/message/types"
 )
 
 type message interface {

@@ -1,7 +1,7 @@
 package sequencer
 
 import (
-	"github.com/madz-lab/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/message/types"
 )
 
 // state is a collection of consensus artifacts obtained by Sequencer during the finalization protocol

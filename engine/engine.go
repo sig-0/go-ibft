@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/madz-lab/go-ibft"
-	"github.com/madz-lab/go-ibft/message/store"
-	"github.com/madz-lab/go-ibft/message/types"
-	"github.com/madz-lab/go-ibft/sequencer"
+	"github.com/sig-0/go-ibft"
+	"github.com/sig-0/go-ibft/message/store"
+	"github.com/sig-0/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/sequencer"
 )
 
 var (

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/madz-lab/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/message/types"
 )
 
 type testTable[M types.IBFTMessage] struct {

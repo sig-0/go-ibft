@@ -1,7 +1,7 @@
 package store
 
 import (
-	"github.com/madz-lab/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/message/types"
 )
 
 // MsgStore is a thread-safe storage for consensus messages with a built-in sequencer.MsgFeed mechanism

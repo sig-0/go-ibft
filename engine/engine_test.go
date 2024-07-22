@@ -9,12 +9,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/madz-lab/go-ibft"
-	"github.com/madz-lab/go-ibft/message/types"
-	"github.com/madz-lab/go-ibft/test"
-	"github.com/madz-lab/go-ibft/test/mock"
+	"github.com/sig-0/go-ibft"
+	"github.com/sig-0/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/test"
+	"github.com/sig-0/go-ibft/test/mock"
 
-	. "github.com/madz-lab/go-ibft/engine" //nolint:revive // convenience
+	. "github.com/sig-0/go-ibft/engine" //nolint:revive // convenience
 )
 
 func Test_EngineConfig(t *testing.T) {

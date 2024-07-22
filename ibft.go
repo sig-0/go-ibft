@@ -1,6 +1,6 @@
 package ibft
 
-import "github.com/madz-lab/go-ibft/message/types"
+import "github.com/sig-0/go-ibft/message/types"
 
 /*** External functionalities required by the IBFT 2.0 block finalization algorithm	***/
 
