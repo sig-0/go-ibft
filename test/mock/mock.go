@@ -52,22 +52,17 @@ func (id ValidatorID) Signer() ibft.SignerFn {
 	}
 }
 
-type ValidatorSet map[string]struct{}
-
-func NewValidatorSet(ids ...ValidatorID) ValidatorSet {
-	vs := make(ValidatorSet)
-
-	for _, id := range ids {
-		vs[string(id)] = struct{}{}
-	}
-
-	return vs
+type ValidatorSet struct {
+	IsValidatorFn func([]byte, uint64) bool
+	IsProposerFn  func([]byte, uint64, uint64) bool
 }
 
-func (vs ValidatorSet) IsValidator(id []byte, _ uint64) bool {
-	_, ok := vs[string(id)]
+func (vs ValidatorSet) IsProposer(id []byte, sequence, round uint64) bool {
+	return vs.IsProposerFn(id, sequence, round)
+}
 
-	return ok
+func (vs ValidatorSet) IsValidator(id []byte, sequence uint64) bool {
+	return vs.IsValidatorFn(id, sequence)
 }
 
 type Proposer struct {
@@ -87,42 +82,34 @@ func ProposersInRounds(proposers ...Proposer) func([]byte, uint64, uint64) bool 
 }
 
 type Validator struct {
-	ibft.Signer
-	ibft.Verifier
-
-	IDFn            func() []byte
-	BuildProposalFn func(uint64) []byte
+	IDFn              func() []byte
+	SignFn            func([]byte) []byte
+	BuildProposalFn   func(uint64) []byte
+	IsValidProposalFn func([]byte, uint64) bool
 }
 
 func (v Validator) ID() []byte {
 	return v.IDFn()
 }
 
+func (v Validator) Sign(digest []byte) []byte {
+	return v.SignFn(digest)
+}
+
 func (v Validator) BuildProposal(sequence uint64) []byte {
 	return v.BuildProposalFn(sequence)
 }
 
-type Verifier struct {
-	IsValidSignatureFn func([]byte, []byte, []byte) bool
-	IsValidatorFn      func([]byte, uint64) bool
-	IsValidProposalFn  func([]byte, uint64) bool
-	IsProposerFn       func([]byte, uint64, uint64) bool
-}
-
-func (v Verifier) IsValidSignature(sender, digest, sig []byte) bool {
-	return v.IsValidSignatureFn(sender, digest, sig)
-}
-
-func (v Verifier) IsValidator(id []byte, sequence uint64) bool {
-	return v.IsValidatorFn(id, sequence)
-}
-
-func (v Verifier) IsValidProposal(proposal []byte, sequence uint64) bool {
+func (v Validator) IsValidProposal(proposal []byte, sequence uint64) bool {
 	return v.IsValidProposalFn(proposal, sequence)
 }
 
-func (v Verifier) IsProposer(id []byte, sequence, round uint64) bool {
-	return v.IsProposerFn(id, sequence, round)
+type SigVerifier struct {
+	VerifyFn func([]byte, []byte, []byte) error
+}
+
+func (v SigVerifier) Verify(id, digest, sig []byte) error {
+	return v.VerifyFn(id, digest, sig)
 }
 
 type MessageFeed struct {

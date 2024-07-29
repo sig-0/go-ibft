@@ -119,8 +119,8 @@ func Test_Engine_Add_Message(t *testing.T) {
 
 	var (
 		keccak        = mock.DummyKeccak("block hash")
-		goodSignature = mock.Verifier{IsValidSignatureFn: func(_, _, _ []byte) bool { return true }}
-		badSignature  = mock.Verifier{IsValidSignatureFn: func(_, _, _ []byte) bool { return false }}
+		goodSignature = mock.SigVerifier{IsValidSignatureFn: func(_, _, _ []byte) bool { return true }}
+		badSignature  = mock.SigVerifier{IsValidSignatureFn: func(_, _, _ []byte) bool { return false }}
 	)
 
 	testTable := []struct {
@@ -139,7 +139,7 @@ func Test_Engine_Add_Message(t *testing.T) {
 		{
 			name:        "invalid signature",
 			expectedErr: ErrInvalidSignature,
-			validator:   mock.Validator{Verifier: badSignature},
+			validator:   mock.Validator{SigVerifier: badSignature},
 			cfg:         Config{Keccak: keccak},
 			msg: &types.MsgPrepare{
 				Metadata: &types.MsgMetadata{
@@ -154,7 +154,7 @@ func Test_Engine_Add_Message(t *testing.T) {
 		{
 			name:        "ok",
 			expectedErr: nil,
-			validator:   mock.Validator{Verifier: goodSignature},
+			validator:   mock.Validator{SigVerifier: goodSignature},
 			cfg:         Config{Keccak: keccak},
 			msg: &types.MsgCommit{
 				Metadata: &types.MsgMetadata{

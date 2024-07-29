@@ -13,11 +13,11 @@ func (s *Sequencer) sendMsgRoundChange(ctx Context) {
 		LatestPreparedCertificate:   s.state.latestPC,
 		Metadata: &types.MsgMetadata{
 			View:   s.state.getView(),
-			Sender: s.ID(),
+			Sender: s.validator.ID(),
 		},
 	}
 
-	msg.Metadata.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
+	msg.Metadata.Signature = s.validator.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	ctx.Transport().MulticastRoundChange(msg)
 }
@@ -73,7 +73,7 @@ func (s *Sequencer) isValidMsgRoundChange(
 	quorum ibft.Quorum,
 	keccak ibft.Keccak,
 ) bool {
-	if !s.IsValidator(msg.Sender(), msg.Sequence()) {
+	if !s.validatorSet.IsValidator(msg.Sender(), msg.Sequence()) {
 		return false
 	}
 
@@ -123,7 +123,7 @@ func (s *Sequencer) isValidPC(
 		round    = pc.ProposalMessage.Round()
 	)
 
-	if !s.IsProposer(pc.ProposalMessage.Sender(), sequence, round) {
+	if !s.validatorSet.IsProposer(pc.ProposalMessage.Sender(), sequence, round) {
 		return false
 	}
 
@@ -142,7 +142,7 @@ func (s *Sequencer) isValidPC(
 			return false
 		}
 
-		if !s.IsValidator(msg.Sender(), sequence) {
+		if !s.validatorSet.IsValidator(msg.Sender(), sequence) {
 			return false
 		}
 
@@ -184,7 +184,7 @@ func (s *Sequencer) isValidRCC(
 			return false
 		}
 
-		if !s.IsValidator(msg.Sender(), sequence) {
+		if !s.validatorSet.IsValidator(msg.Sender(), sequence) {
 			return false
 		}
 

@@ -9,25 +9,20 @@ type (
 	// Its role in the protocol is to broadcast (signed) consensus messages and make proposals (if elected)
 	Validator interface {
 		Signer
-		Verifier
 
 		// ID returns the network-unique ID of this validator
 		ID() []byte
 
 		// BuildProposal returns this validator's proposal for given sequence
 		BuildProposal(sequence uint64) []byte
-	}
-
-	// Verifier authenticates consensus messages gossiped in the network
-	Verifier interface {
-		// IsValidSignature checks if the signature of the message is valid
-		IsValidSignature(sender, digest, sig []byte) bool
-
-		// IsValidator checks if id is part of consensus for given sequence
-		IsValidator(id []byte, sequence uint64) bool
 
 		// IsValidProposal checks if the provided proposal is valid for given sequence
 		IsValidProposal(proposal []byte, sequence uint64) bool
+	}
+
+	ValidatorSet interface {
+		// IsValidator checks if id is part of consensus for given sequence
+		IsValidator(id []byte, sequence uint64) bool
 
 		// IsProposer asserts if id is the elected proposer for given sequence and round
 		IsProposer(id []byte, sequence, round uint64) bool
@@ -37,6 +32,12 @@ type (
 	Signer interface {
 		// Sign computes the signature of given digest
 		Sign(digest []byte) []byte
+	}
+
+	// SigVerifier authenticates consensus messages gossiped in the network
+	SigVerifier interface {
+		// Verify checks if the signature of the message is valid
+		Verify(signer, digest, signature []byte) error
 	}
 
 	// Keccak is used to obtain the Keccak encoding of arbitrary data
@@ -60,6 +61,7 @@ type (
 
 type (
 	SignerFn                         func([]byte) []byte
+	SigVerifierFn                    func([]byte, []byte, []byte) error
 	KeccakFn                         func([]byte) []byte
 	QuorumFn                         func([]types.Message) bool
 	TransportFn[M types.IBFTMessage] func(M)
@@ -67,6 +69,10 @@ type (
 
 func (f SignerFn) Sign(digest []byte) []byte {
 	return f(digest)
+}
+
+func (f SigVerifierFn) Verify(id, digest, sig []byte) error {
+	return f(id, digest, sig)
 }
 
 func (f QuorumFn) HasQuorum(messages []types.Message) bool {
@@ -86,6 +92,20 @@ type MsgTransport struct {
 	Prepare     Transport[*types.MsgPrepare]
 	Commit      Transport[*types.MsgCommit]
 	RoundChange Transport[*types.MsgRoundChange]
+}
+
+func NewMsgTransport(
+	proposal func(*types.MsgProposal),
+	prepare func(*types.MsgPrepare),
+	commit func(*types.MsgCommit),
+	roundChange func(change *types.MsgRoundChange),
+) MsgTransport {
+	return MsgTransport{
+		Proposal:    TransportFn[*types.MsgProposal](proposal),
+		Prepare:     TransportFn[*types.MsgPrepare](prepare),
+		Commit:      TransportFn[*types.MsgCommit](commit),
+		RoundChange: TransportFn[*types.MsgRoundChange](roundChange),
+	}
 }
 
 func (t MsgTransport) MulticastProposal(msg *types.MsgProposal) {

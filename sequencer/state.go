@@ -4,7 +4,7 @@ import (
 	"github.com/sig-0/go-ibft/message/types"
 )
 
-// state is a collection of consensus artifacts obtained by Sequencer during the finalization protocol
+// state is a collection of consensus artifacts obtained by Sequencer during Finalize
 type state struct {
 	// the active sequence and round of this validator
 	view *types.View

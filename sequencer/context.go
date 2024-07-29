@@ -9,10 +9,11 @@ import (
 type ctxKey string
 
 const (
-	transport ctxKey = "transport"
-	feed      ctxKey = "feed"
-	quorum    ctxKey = "quorum"
-	keccak    ctxKey = "keccak"
+	transport   ctxKey = "transport"
+	feed        ctxKey = "feed"
+	quorum      ctxKey = "quorum"
+	keccak      ctxKey = "keccak"
+	sigVerifier ctxKey = "sig_verifier"
 )
 
 // Context is a convenience wrapper that provides external functionalities
@@ -41,6 +42,10 @@ func (c Context) WithMsgFeed(f MsgFeed) Context {
 	return Context{context.WithValue(c, feed, f)}
 }
 
+func (c Context) WithSigVerifier(vrf ibft.SigVerifier) Context {
+	return Context{context.WithValue(c, sigVerifier, vrf)}
+}
+
 func (c Context) Keccak() ibft.Keccak {
 	return c.Value(keccak).(ibft.Keccak) //nolint:forcetypeassert // already wrapped
 }
@@ -55,4 +60,8 @@ func (c Context) Transport() ibft.MsgTransport {
 
 func (c Context) MessageFeed() MsgFeed {
 	return c.Value(feed).(MsgFeed) //nolint:forcetypeassert // redundant
+}
+
+func (c Context) SigVerifier() ibft.SigVerifier {
+	return c.Value(sigVerifier).(ibft.SigVerifier) //nolint:forcetypeassert // redundant
 }

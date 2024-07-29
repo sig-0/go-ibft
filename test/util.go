@@ -88,7 +88,7 @@ func (v IBFTValidator) Sign(digest []byte) []byte {
 	return append(digest, v.ID()...)
 }
 
-func (v IBFTValidator) IsValidSignature(sender, digest, sig []byte) bool {
+func (v IBFTValidator) Verify(sender, digest, sig []byte) bool {
 	if !bytes.Equal(digest, sig[:len(digest)]) {
 		return false
 	}

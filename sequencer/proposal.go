@@ -18,12 +18,12 @@ func (s *Sequencer) sendMsgProposal(ctx Context, block []byte) {
 		BlockHash:              ctx.Keccak().Hash(pb.Bytes()),
 		RoundChangeCertificate: s.state.rcc,
 		Metadata: &types.MsgMetadata{
-			Sender: s.ID(),
+			Sender: s.validator.ID(),
 			View:   s.state.getView(),
 		},
 	}
 
-	msg.Metadata.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
+	msg.Metadata.Signature = s.validator.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	s.state.proposal = msg
 
@@ -75,11 +75,11 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 		return false
 	}
 
-	if bytes.Equal(msg.Sender(), s.ID()) {
+	if bytes.Equal(msg.Sender(), s.validator.ID()) {
 		return false
 	}
 
-	if !s.IsProposer(msg.Sender(), msg.Sequence(), msg.Round()) {
+	if !s.validatorSet.IsProposer(msg.Sender(), msg.Sequence(), msg.Round()) {
 		return false
 	}
 
@@ -88,7 +88,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 	}
 
 	if msg.Round() == 0 {
-		return s.IsValidProposal(msg.ProposedBlock.Block, msg.Sequence())
+		return s.validator.IsValidProposal(msg.ProposedBlock.Block, msg.Sequence())
 	}
 
 	rcc := msg.RoundChangeCertificate
@@ -113,7 +113,7 @@ func (s *Sequencer) isValidMsgProposal(msg *types.MsgProposal, quorum ibft.Quoru
 
 	blockHash, round := trimmedRCC.HighestRoundBlockHash()
 	if blockHash == nil {
-		return s.IsValidProposal(msg.ProposedBlock.Block, msg.Sequence())
+		return s.validator.IsValidProposal(msg.ProposedBlock.Block, msg.Sequence())
 	}
 
 	pb := &types.ProposedBlock{

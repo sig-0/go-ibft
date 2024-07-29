@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"bytes"
+	"github.com/sig-0/go-ibft"
 
 	"github.com/sig-0/go-ibft/message/types"
 )
@@ -9,14 +10,14 @@ import (
 func (s *Sequencer) sendMsgCommit(ctx Context) {
 	msg := &types.MsgCommit{
 		BlockHash:  s.state.getProposedBlockHash(),
-		CommitSeal: s.Sign(s.state.getProposedBlockHash()),
+		CommitSeal: s.validator.Sign(s.state.getProposedBlockHash()),
 		Metadata: &types.MsgMetadata{
 			View:   s.state.getView(),
-			Sender: s.ID(),
+			Sender: s.validator.ID(),
 		},
 	}
 
-	msg.Metadata.Signature = s.Sign(ctx.Keccak().Hash(msg.Payload()))
+	msg.Metadata.Signature = s.validator.Sign(ctx.Keccak().Hash(msg.Payload()))
 
 	ctx.Transport().MulticastCommit(msg)
 }
@@ -39,7 +40,7 @@ func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) 
 	defer cancelSub()
 
 	cache := newMsgCache(func(msg *types.MsgCommit) bool {
-		return s.isValidMsgCommit(msg)
+		return s.isValidMsgCommit(msg, ctx.SigVerifier())
 	})
 
 	for {
@@ -59,16 +60,19 @@ func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) 
 	}
 }
 
-func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit) bool {
-	if !s.IsValidator(msg.Sender(), msg.Sequence()) {
+func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit, sigVerifier ibft.SigVerifier) bool {
+	// sender is in the validator set
+	if !s.validatorSet.IsValidator(msg.Sender(), msg.Sequence()) {
 		return false
 	}
 
+	// block hash is the same as block hash of the accepted proposal
 	if !bytes.Equal(msg.BlockHash, s.state.getProposedBlockHash()) {
 		return false
 	}
 
-	if !s.IsValidSignature(msg.Sender(), msg.BlockHash, msg.CommitSeal) {
+	// sender generated commit seal by signing over block hash
+	if err := sigVerifier.Verify(msg.Sender(), msg.BlockHash, msg.CommitSeal); err != nil {
 		return false
 	}
 

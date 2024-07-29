@@ -81,7 +81,7 @@ func (e Engine) AddMessage(msg types.Message) error {
 		digest    = e.cfg.Keccak.Hash(msg.Payload())
 	)
 
-	if !e.sequencer.Validator.IsValidSignature(sender, digest, signature) {
+	if !e.sequencer.Validator.Verify(sender, digest, signature) {
 		return ErrInvalidSignature
 	}
 

@@ -16,20 +16,19 @@ import (
 // that consensus is (eventually) reached, moving to higher rounds in case the network cannot agree on some proposal.
 // Given its simple API method Finalize, Sequencer is designed to work alongside a syncing protocol
 type Sequencer struct {
-	ibft.Validator
-
-	state state
-	wg    sync.WaitGroup
-
-	// Maximum time for the initial round of consensus. MUST be network-wide!
-	Round0Duration time.Duration
+	validator      ibft.Validator
+	validatorSet   ibft.ValidatorSet
+	state          state
+	wg             sync.WaitGroup
+	round0Duration time.Duration // Maximum time for the initial round of consensus. MUST be network-wide!
 }
 
 // NewSequencer returns a Sequencer object for the provided validator
-func NewSequencer(v ibft.Validator, round0Duration time.Duration) *Sequencer {
+func NewSequencer(v ibft.Validator, vs ibft.ValidatorSet, round0Duration time.Duration) *Sequencer {
 	return &Sequencer{
-		Validator:      v,
-		Round0Duration: round0Duration,
+		validator:      v,
+		validatorSet:   vs,
+		round0Duration: round0Duration,
 	}
 }
 
@@ -222,16 +221,16 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx Context) <-chan *types
 }
 
 func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
-	return time.NewTimer(s.Round0Duration * time.Duration(math.Pow(2, float64(round))))
+	return time.NewTimer(s.round0Duration * time.Duration(math.Pow(2, float64(round))))
 }
 
 func (s *Sequencer) shouldPropose() bool {
-	return s.IsProposer(s.ID(), s.state.getSequence(), s.state.getRound())
+	return s.validatorSet.IsProposer(s.validator.ID(), s.state.getSequence(), s.state.getRound())
 }
 
 func (s *Sequencer) buildProposal(ctx Context) ([]byte, error) {
 	if s.state.getRound() == 0 {
-		return s.BuildProposal(s.state.getSequence()), nil
+		return s.validator.BuildProposal(s.state.getSequence()), nil
 	}
 
 	if s.state.rcc == nil {
@@ -246,7 +245,7 @@ func (s *Sequencer) buildProposal(ctx Context) ([]byte, error) {
 
 	block, _ := s.state.rcc.HighestRoundBlock()
 	if block == nil {
-		return s.BuildProposal(s.state.getSequence()), nil
+		return s.validator.BuildProposal(s.state.getSequence()), nil
 	}
 
 	return block, nil
