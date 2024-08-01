@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/madz-lab/go-ibft/messages"
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/rs/xid"
+	"github.com/sig-0/go-ibft/messages"
+	"github.com/sig-0/go-ibft/messages/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -260,7 +261,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						cancelFn()
 
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: make(chan uint64),
 						}
 					},
@@ -356,7 +357,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 				messages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
@@ -364,8 +365,8 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						cancelFn()
 					},
 					getValidMessagesFn: func(
-						view *proto.View,
-						messageType proto.MessageType,
+						_ *proto.View,
+						_ proto.MessageType,
 						isValid func(message *proto.Message) bool,
 					) []*proto.Message {
 						return filterMessages(
@@ -513,7 +514,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 				messages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
@@ -521,8 +522,8 @@ func TestRunNewRound_Proposer(t *testing.T) {
 						cancelFn()
 					},
 					getValidMessagesFn: func(
-						view *proto.View,
-						messageType proto.MessageType,
+						_ *proto.View,
+						_ proto.MessageType,
 						isValid func(message *proto.Message) bool,
 					) []*proto.Message {
 						return filterMessages(
@@ -591,7 +592,7 @@ func TestRunNewRound_Validator_Zero(t *testing.T) {
 			quorumFn: func(_ uint64) uint64 {
 				return 1
 			},
-			buildPrepareMessageFn: func(proposal []byte, view *proto.View) *proto.Message {
+			buildPrepareMessageFn: func(_ []byte, view *proto.View) *proto.Message {
 				return &proto.Message{
 					View: view,
 					Type: proto.MessageType_PREPARE,
@@ -612,7 +613,7 @@ func TestRunNewRound_Validator_Zero(t *testing.T) {
 		messages = mockMessages{
 			subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 				return &messages.Subscription{
-					ID:    messages.SubscriptionID(1),
+					ID:    messages.SubscriptionID(xid.New()),
 					SubCh: notifyCh,
 				}
 			},
@@ -759,7 +760,7 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 					quorumFn: func(_ uint64) uint64 {
 						return 1
 					},
-					buildPrepareMessageFn: func(proposal []byte, view *proto.View) *proto.Message {
+					buildPrepareMessageFn: func(_ []byte, view *proto.View) *proto.Message {
 						return &proto.Message{
 							View: view,
 							Type: proto.MessageType_PREPARE,
@@ -780,7 +781,7 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 				messages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
@@ -788,7 +789,7 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 						cancelFn()
 					},
 					getValidMessagesFn: func(
-						view *proto.View,
+						_ *proto.View,
 						_ proto.MessageType,
 						isValid func(message *proto.Message) bool,
 					) []*proto.Message {
@@ -875,7 +876,7 @@ func TestRunPrepare(t *testing.T) {
 				messages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
@@ -982,7 +983,7 @@ func TestRunCommit(t *testing.T) {
 				messages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
@@ -1138,11 +1139,12 @@ func TestIBFT_IsAcceptableMessage(t *testing.T) {
 				log       = mockLogger{}
 				transport = mockTransport{}
 				backend   = mockBackend{
-					isValidSenderFn: func(message *proto.Message) bool {
+					isValidSenderFn: func(_ *proto.Message) bool {
 						return !testCase.invalidSender
 					},
 				}
 			)
+
 			i := NewIBFT(log, backend, transport)
 			i.state.view = testCase.currentView
 
@@ -1177,6 +1179,7 @@ func TestIBFT_StartRoundTimer(t *testing.T) {
 
 		wg.Add(1)
 		i.wg.Add(1)
+
 		go func() {
 			i.startRoundTimer(ctx, 0)
 
@@ -1206,6 +1209,7 @@ func TestIBFT_StartRoundTimer(t *testing.T) {
 		ctx, cancelFn := context.WithCancel(context.Background())
 
 		wg.Add(1)
+
 		go func() {
 			defer func() {
 				wg.Done()
@@ -1362,12 +1366,12 @@ func TestIBFT_FutureProposal(t *testing.T) {
 				mMessages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
 					getValidMessagesFn: func(
-						view *proto.View,
+						_ *proto.View,
 						_ proto.MessageType,
 						isValid func(message *proto.Message) bool,
 					) []*proto.Message {
@@ -1385,6 +1389,7 @@ func TestIBFT_FutureProposal(t *testing.T) {
 			i.messages = mMessages
 
 			wg.Add(1)
+
 			go func() {
 				defer func() {
 					cancelFn()
@@ -1797,7 +1802,7 @@ func TestIBFT_ValidPC(t *testing.T) {
 				isProposerFn: func(proposer []byte, _ uint64, _ uint64) bool {
 					return bytes.Equal(proposer, sender)
 				},
-				isValidSenderFn: func(message *proto.Message) bool {
+				isValidSenderFn: func(_ *proto.Message) bool {
 					return true
 				},
 			}
@@ -2114,13 +2119,13 @@ func TestIBFT_WatchForFutureRCC(t *testing.T) {
 		messages = mockMessages{
 			subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 				return &messages.Subscription{
-					ID:    messages.SubscriptionID(1),
+					ID:    messages.SubscriptionID(xid.New()),
 					SubCh: notifyCh,
 				}
 			},
 			getValidMessagesFn: func(
-				view *proto.View,
-				messageType proto.MessageType,
+				_ *proto.View,
+				_ proto.MessageType,
 				isValid func(message *proto.Message) bool,
 			) []*proto.Message {
 				return filterMessages(

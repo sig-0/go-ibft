@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/madz-lab/go-ibft/messages"
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages"
+	"github.com/sig-0/go-ibft/messages/proto"
 )
 
 // Define delegation methods

@@ -1,7 +1,7 @@
 package messages
 
 import (
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages/proto"
 )
 
 type eventSubscription struct {

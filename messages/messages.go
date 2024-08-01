@@ -3,7 +3,7 @@ package messages
 import (
 	"sync"
 
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages/proto"
 )
 
 // Messages contains the relevant messages for each view (height, round)

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/madz-lab/go-ibft/messages"
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages"
+	"github.com/sig-0/go-ibft/messages/proto"
 	"github.com/stretchr/testify/assert"
 	"pgregory.net/rapid"
 )
@@ -121,12 +121,12 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 			}
 
 			// Make sure the prepare message is built correctly
-			backend.buildPrepareMessageFn = func(proposal []byte, view *proto.View) *proto.Message {
+			backend.buildPrepareMessageFn = func(_ []byte, view *proto.View) *proto.Message {
 				return buildBasicPrepareMessage(proposalHash, nodes[nodeIndex], view)
 			}
 
 			// Make sure the commit message is built correctly
-			backend.buildCommitMessageFn = func(proposal []byte, view *proto.View) *proto.Message {
+			backend.buildCommitMessageFn = func(_ []byte, view *proto.View) *proto.Message {
 				return buildBasicCommitMessage(proposalHash, committedSeal, nodes[nodeIndex], view)
 			}
 
@@ -145,7 +145,7 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 			}
 
 			// Make sure the proposal can be built
-			backend.buildProposalFn = func(u uint64) []byte {
+			backend.buildProposalFn = func(_ uint64) []byte {
 				return proposal
 			}
 		}
@@ -314,12 +314,12 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 			}
 
 			// Make sure the prepare message is built correctly
-			backend.buildPrepareMessageFn = func(proposal []byte, view *proto.View) *proto.Message {
+			backend.buildPrepareMessageFn = func(_ []byte, view *proto.View) *proto.Message {
 				return buildBasicPrepareMessage(proposalHash, nodes[nodeIndex], view)
 			}
 
 			// Make sure the commit message is built correctly
-			backend.buildCommitMessageFn = func(proposal []byte, view *proto.View) *proto.Message {
+			backend.buildCommitMessageFn = func(_ []byte, view *proto.View) *proto.Message {
 				return buildBasicCommitMessage(proposalHash, committedSeal, nodes[nodeIndex], view)
 			}
 
@@ -338,7 +338,7 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 			}
 
 			// Make sure the proposal can be built
-			backend.buildProposalFn = func(u uint64) []byte {
+			backend.buildProposalFn = func(_ uint64) []byte {
 				return proposal
 			}
 		}

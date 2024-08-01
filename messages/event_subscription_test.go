@@ -3,7 +3,7 @@ package messages
 import (
 	"testing"
 
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages/proto"
 	"github.com/stretchr/testify/assert"
 )
 
