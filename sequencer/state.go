@@ -1,36 +1,36 @@
 package sequencer
 
 import (
-	"github.com/sig-0/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/message"
 )
 
 // state is a collection of consensus artifacts obtained by Sequencer during Finalize
 type state struct {
 	// the active sequence and round of this validator
-	view *types.View
+	view *message.View
 
 	// proposal that's being voted on
-	proposal *types.MsgProposal
+	proposal *message.MsgProposal
 
 	// proposal that passed the PREPARE phase
-	latestPB *types.ProposedBlock
+	latestPB *message.ProposedBlock
 
 	// proof that PREPARE was successful
-	latestPC *types.PreparedCertificate
+	latestPC *message.PreparedCertificate
 
 	// proof that ROUND CHANGE happened
-	rcc *types.RoundChangeCertificate
+	rcc *message.RoundChangeCertificate
 
 	// proof that the proposal passed COMMIT phase
-	seals []types.FinalizedSeal
+	seals []CommitSeal
 }
 
 func (s *state) init(sequence uint64) {
-	*s = state{view: &types.View{Sequence: sequence, Round: 0}}
+	*s = state{view: &message.View{Sequence: sequence, Round: 0}}
 }
 
-func (s *state) getView() *types.View {
-	return &types.View{Sequence: s.view.Sequence, Round: s.view.Round}
+func (s *state) getView() *message.View {
+	return &message.View{Sequence: s.view.Sequence, Round: s.view.Round}
 }
 
 func (s *state) getSequence() uint64 {
@@ -45,7 +45,7 @@ func (s *state) isProposalAccepted() bool {
 	return s.proposal != nil
 }
 
-func (s *state) getProposedBlock() *types.ProposedBlock {
+func (s *state) getProposedBlock() *message.ProposedBlock {
 	return s.proposal.ProposedBlock
 }
 
@@ -58,34 +58,26 @@ func (s *state) moveToNextRound() {
 	clear(s.seals)
 }
 
-func (s *state) acceptProposal(proposal *types.MsgProposal) {
-	s.proposal, s.view.Round = proposal, proposal.Round()
+func (s *state) acceptProposal(proposal *message.MsgProposal) {
+	s.proposal, s.view.Round = proposal, proposal.Info.View.Round
 	clear(s.seals)
 }
 
-func (s *state) acceptRCC(rcc *types.RoundChangeCertificate) {
-	s.rcc, s.view.Round, s.proposal = rcc, rcc.Messages[0].Round(), nil
+func (s *state) acceptRCC(rcc *message.RoundChangeCertificate) {
+	s.rcc, s.view.Round, s.proposal = rcc, rcc.Messages[0].Info.View.Round, nil
 	clear(s.seals)
 }
 
-func (s *state) prepareCertificate(prepares []*types.MsgPrepare) {
-	s.latestPB, s.latestPC = s.getProposedBlock(), &types.PreparedCertificate{
+func (s *state) prepareCertificate(prepares []*message.MsgPrepare) {
+	s.latestPB, s.latestPC = s.getProposedBlock(), &message.PreparedCertificate{
 		ProposalMessage: s.proposal,
 		PrepareMessages: prepares,
 	}
 }
 
 func (s *state) acceptSeal(from, seal []byte) {
-	s.seals = append(s.seals, types.FinalizedSeal{
-		From:       from,
-		CommitSeal: seal,
+	s.seals = append(s.seals, CommitSeal{
+		From: from,
+		Seal: seal,
 	})
-}
-
-func (s *state) getFinalizedProposal() *types.FinalizedProposal {
-	return &types.FinalizedProposal{
-		Proposal: s.getProposedBlock().Block,
-		Round:    s.getRound(),
-		Seals:    s.seals,
-	}
 }

@@ -2,32 +2,31 @@ package store
 
 import (
 	"github.com/rs/xid"
-
-	"github.com/sig-0/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/message"
 )
 
-type subscription[M types.IBFTMessage] struct {
-	View         *types.View
-	Channel      types.Subscription[M]
+type subscription[M message.IBFTMessage] struct {
+	View         *message.View
+	Channel      message.Subscription[M]
 	HigherRounds bool
 }
 
-func newSubscription[M types.IBFTMessage](view *types.View, higherRounds bool) subscription[M] {
+func newSubscription[M message.IBFTMessage](view *message.View, higherRounds bool) subscription[M] {
 	return subscription[M]{
 		View:         view,
 		HigherRounds: higherRounds,
-		Channel:      make(types.Subscription[M], 1),
+		Channel:      make(message.Subscription[M], 1),
 	}
 }
 
-func (s *subscription[M]) Notify(receiver types.MsgNotificationFn[M]) {
+func (s *subscription[M]) Notify(receiver message.MsgNotificationFn[M]) {
 	select {
 	case s.Channel <- receiver:
 	default: // consumer hasn't used the callback
 	}
 }
 
-type subscriptions[M types.IBFTMessage] map[string]subscription[M]
+type subscriptions[M message.IBFTMessage] map[string]subscription[M]
 
 func (s *subscriptions[M]) Add(sub subscription[M]) string {
 	id := xid.New()

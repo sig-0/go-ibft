@@ -1,39 +1,84 @@
 package store
 
 import (
-	"github.com/sig-0/go-ibft/message/types"
+	"errors"
+	"fmt"
+	"github.com/sig-0/go-ibft/message"
 )
 
-// MsgStore is a thread-safe storage for consensus messages with a built-in sequencer.MsgFeed mechanism
+var (
+	ErrInvalidMessage = errors.New("invalid consensus message")
+)
+
+// MsgStore is a thread-safe storage for consensus messages with a built-in sequencer.Feed mechanism
 type MsgStore struct {
-	ProposalMessages    MsgCollection[*types.MsgProposal]
-	PrepareMessages     MsgCollection[*types.MsgPrepare]
-	CommitMessages      MsgCollection[*types.MsgCommit]
-	RoundChangeMessages MsgCollection[*types.MsgRoundChange]
+	ProposalMessages    MsgCollection[*message.MsgProposal]
+	PrepareMessages     MsgCollection[*message.MsgPrepare]
+	CommitMessages      MsgCollection[*message.MsgCommit]
+	RoundChangeMessages MsgCollection[*message.MsgRoundChange]
 }
 
 // NewMsgStore returns a new MsgStore instance
 func NewMsgStore() *MsgStore {
 	return &MsgStore{
-		ProposalMessages:    NewMsgCollection[*types.MsgProposal](),
-		PrepareMessages:     NewMsgCollection[*types.MsgPrepare](),
-		CommitMessages:      NewMsgCollection[*types.MsgCommit](),
-		RoundChangeMessages: NewMsgCollection[*types.MsgRoundChange](),
+		ProposalMessages:    NewMsgCollection[*message.MsgProposal](),
+		PrepareMessages:     NewMsgCollection[*message.MsgPrepare](),
+		CommitMessages:      NewMsgCollection[*message.MsgCommit](),
+		RoundChangeMessages: NewMsgCollection[*message.MsgRoundChange](),
 	}
 }
 
 // Add includes the message in the store
-func (s *MsgStore) Add(m types.Message) {
+func (s *MsgStore) Add(m message.Message) error {
+	info := m.GetInfo()
+	if info == nil {
+		return fmt.Errorf("%w: nil info field", ErrInvalidMessage)
+	}
+
+	if info.View == nil {
+		return fmt.Errorf("%w: nil view field", ErrInvalidMessage)
+	}
+
+	if info.Sender == nil {
+		return fmt.Errorf("%w: nil sender field", ErrInvalidMessage)
+	}
+
+	if info.Signature == nil {
+		return fmt.Errorf("%w: nil signature field", ErrInvalidMessage)
+	}
+
 	switch m := m.(type) {
-	case *types.MsgProposal:
+	case *message.MsgProposal:
+		if m.BlockHash == nil {
+			return fmt.Errorf("%w: nil block_hash field", ErrInvalidMessage)
+		}
+
+		if m.ProposedBlock == nil {
+			return fmt.Errorf("%w: nil proposed_block field", ErrInvalidMessage)
+		}
+
 		s.ProposalMessages.Add(m)
-	case *types.MsgPrepare:
+	case *message.MsgPrepare:
+		if m.BlockHash == nil {
+			return fmt.Errorf("%w: nil block_hash field", ErrInvalidMessage)
+		}
+
 		s.PrepareMessages.Add(m)
-	case *types.MsgCommit:
+	case *message.MsgCommit:
+		if m.BlockHash == nil {
+			return fmt.Errorf("%w: nil block_hash field", ErrInvalidMessage)
+		}
+
+		if m.CommitSeal == nil {
+			return fmt.Errorf("%w: nil commit_seal field", ErrInvalidMessage)
+		}
+
 		s.CommitMessages.Add(m)
-	case *types.MsgRoundChange:
+	case *message.MsgRoundChange:
 		s.RoundChangeMessages.Add(m)
 	}
+
+	return nil
 }
 
 // Clear removes all messages from store
@@ -42,40 +87,4 @@ func (s *MsgStore) Clear() {
 	s.PrepareMessages.Clear()
 	s.CommitMessages.Clear()
 	s.RoundChangeMessages.Clear()
-}
-
-func (s *MsgStore) Feed() Feed {
-	return Feed{s}
-}
-
-type Feed struct {
-	*MsgStore
-}
-
-func (f Feed) ProposalMessages(
-	view *types.View,
-	futureRounds bool,
-) (types.Subscription[*types.MsgProposal], func()) {
-	return f.MsgStore.ProposalMessages.Subscribe(view, futureRounds)
-}
-
-func (f Feed) PrepareMessages(
-	view *types.View,
-	futureRounds bool,
-) (types.Subscription[*types.MsgPrepare], func()) {
-	return f.MsgStore.PrepareMessages.Subscribe(view, futureRounds)
-}
-
-func (f Feed) CommitMessages(
-	view *types.View,
-	futureRounds bool,
-) (types.Subscription[*types.MsgCommit], func()) {
-	return f.MsgStore.CommitMessages.Subscribe(view, futureRounds)
-}
-
-func (f Feed) RoundChangeMessages(
-	view *types.View,
-	futureRounds bool,
-) (types.Subscription[*types.MsgRoundChange], func()) {
-	return f.MsgStore.RoundChangeMessages.Subscribe(view, futureRounds)
 }

@@ -2,53 +2,53 @@ package sequencer
 
 import (
 	"bytes"
+	"context"
 
-	"github.com/sig-0/go-ibft"
-	"github.com/sig-0/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/message"
+	"github.com/sig-0/go-ibft/message/store"
 )
 
-func (s *Sequencer) sendMsgRoundChange(ctx Context) {
-	msg := &types.MsgRoundChange{
+func (s *Sequencer) sendMsgRoundChange() {
+	msg := &message.MsgRoundChange{
+		Info: &message.MsgInfo{
+			View:   s.state.getView(),
+			Sender: s.validator.Address(),
+		},
 		LatestPreparedProposedBlock: s.state.latestPB,
 		LatestPreparedCertificate:   s.state.latestPC,
-		Metadata: &types.MsgMetadata{
-			View:   s.state.getView(),
-			Sender: s.validator.ID(),
-		},
 	}
 
-	msg.Metadata.Signature = s.validator.Sign(ctx.Keccak().Hash(msg.Payload()))
-
-	ctx.Transport().MulticastRoundChange(msg)
+	msg = message.SignMsg(msg, s.validator)
+	s.transport.MulticastRoundChange(msg)
 }
 
 func (s *Sequencer) awaitRCC(
-	ctx Context,
-	view *types.View,
+	ctx context.Context,
+	view *message.View,
 	higherRounds bool,
-) (*types.RoundChangeCertificate, error) {
+) (*message.RoundChangeCertificate, error) {
 	messages, err := s.awaitQuorumRoundChanges(ctx, view, higherRounds)
 	if err != nil {
 		return nil, err
 	}
 
-	return &types.RoundChangeCertificate{Messages: messages}, nil
+	return &message.RoundChangeCertificate{Messages: messages}, nil
 }
 
 func (s *Sequencer) awaitQuorumRoundChanges(
-	ctx Context,
-	view *types.View,
+	ctx context.Context,
+	view *message.View,
 	higherRounds bool,
-) ([]*types.MsgRoundChange, error) {
+) ([]*message.MsgRoundChange, error) {
 	if higherRounds {
 		view.Round++
 	}
 
-	sub, cancelSub := ctx.MessageFeed().RoundChangeMessages(view, higherRounds)
+	sub, cancelSub := s.feed.SubscribeRoundChange(view, higherRounds)
 	defer cancelSub()
 
-	cache := newMsgCache(func(msg *types.MsgRoundChange) bool {
-		return s.isValidMsgRoundChange(msg, ctx.Quorum(), ctx.Keccak())
+	cache := store.NewMsgCache(func(msg *message.MsgRoundChange) bool {
+		return s.isValidMsgRoundChange(msg)
 	})
 
 	for {
@@ -56,10 +56,10 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.add(notification.Unwrap())
+			cache = cache.Add(notification.Unwrap())
 
-			roundChanges := cache.get()
-			if len(roundChanges) == 0 || !ctx.Quorum().HasQuorum(types.WrapMessages(roundChanges...)) {
+			roundChanges := cache.Get()
+			if len(roundChanges) == 0 || !s.validatorSet.HasQuorum(message.WrapMessages(roundChanges...)) {
 				continue
 			}
 
@@ -68,12 +68,8 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 	}
 }
 
-func (s *Sequencer) isValidMsgRoundChange(
-	msg *types.MsgRoundChange,
-	quorum ibft.Quorum,
-	keccak ibft.Keccak,
-) bool {
-	if !s.validatorSet.IsValidator(msg.Sender(), msg.Sequence()) {
+func (s *Sequencer) isValidMsgRoundChange(msg *message.MsgRoundChange) bool {
+	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.View.Sequence) {
 		return false
 	}
 
@@ -90,11 +86,11 @@ func (s *Sequencer) isValidMsgRoundChange(
 		return false
 	}
 
-	if !s.isValidPC(pc, msg, quorum) {
+	if !s.isValidPC(pc, msg) {
 		return false
 	}
 
-	if !bytes.Equal(pc.ProposalMessage.BlockHash, keccak.Hash(pb.Bytes())) {
+	if !bytes.Equal(pc.ProposalMessage.BlockHash, s.keccak.Hash(pb.Bytes())) {
 		return false
 	}
 
@@ -102,39 +98,38 @@ func (s *Sequencer) isValidMsgRoundChange(
 }
 
 func (s *Sequencer) isValidPC(
-	pc *types.PreparedCertificate,
-	msg *types.MsgRoundChange,
-	quorum ibft.Quorum,
+	pc *message.PreparedCertificate,
+	msg *message.MsgRoundChange,
 ) bool {
 	if pc.ProposalMessage == nil || pc.PrepareMessages == nil {
 		return false
 	}
 
-	if pc.ProposalMessage.Sequence() != msg.Sequence() {
+	if pc.ProposalMessage.Info.View.Sequence != msg.Info.View.Sequence {
 		return false
 	}
 
-	if pc.ProposalMessage.Round() >= msg.Round() {
+	if pc.ProposalMessage.Info.View.Round >= msg.Info.View.Round {
 		return false
 	}
 
 	var (
-		sequence = pc.ProposalMessage.Sequence()
-		round    = pc.ProposalMessage.Round()
+		sequence = pc.ProposalMessage.Info.View.Sequence
+		round    = pc.ProposalMessage.Info.View.Round
 	)
 
-	if !s.validatorSet.IsProposer(pc.ProposalMessage.Sender(), sequence, round) {
+	if !s.validatorSet.IsProposer(pc.ProposalMessage.Info.Sender, sequence, round) {
 		return false
 	}
 
-	senders := map[string]struct{}{string(pc.ProposalMessage.Sender()): {}}
+	senders := map[string]struct{}{string(pc.ProposalMessage.Info.Sender): {}}
 
 	for _, msg := range pc.PrepareMessages {
-		if msg.Sequence() != sequence {
+		if msg.Info.View.Sequence != sequence {
 			return false
 		}
 
-		if msg.Round() != round {
+		if msg.Info.View.Round != round {
 			return false
 		}
 
@@ -142,60 +137,60 @@ func (s *Sequencer) isValidPC(
 			return false
 		}
 
-		if !s.validatorSet.IsValidator(msg.Sender(), sequence) {
+		if !s.validatorSet.IsValidator(msg.Info.Sender, sequence) {
 			return false
 		}
 
-		senders[string(msg.Sender())] = struct{}{}
+		senders[string(msg.Info.Sender)] = struct{}{}
 	}
 
 	if len(senders) != 1+len(pc.PrepareMessages) {
 		return false
 	}
 
-	return quorum.HasQuorum(append(
-		types.WrapMessages(pc.ProposalMessage),
-		types.WrapMessages(pc.PrepareMessages...)...,
-	))
+	if !s.validatorSet.HasQuorum(append(message.WrapMessages(pc.PrepareMessages...), pc.ProposalMessage)) {
+		return false
+	}
+
+	return true
 }
 
 func (s *Sequencer) isValidRCC(
-	rcc *types.RoundChangeCertificate,
-	proposal *types.MsgProposal,
-	quorum ibft.Quorum,
+	rcc *message.RoundChangeCertificate,
+	proposal *message.MsgProposal,
 ) bool {
 	if rcc == nil || len(rcc.Messages) == 0 {
 		return false
 	}
 
 	var (
-		sequence = proposal.Sequence()
-		round    = proposal.Round()
+		sequence = proposal.Info.View.Sequence
+		round    = proposal.Info.View.Round
 	)
 
 	uniqueSenders := make(map[string]struct{})
 
 	for _, msg := range rcc.Messages {
-		if msg.Sequence() != sequence {
+		if msg.Info.View.Sequence != sequence {
 			return false
 		}
 
-		if msg.Round() != round {
+		if msg.Info.View.Round != round {
 			return false
 		}
 
-		if !s.validatorSet.IsValidator(msg.Sender(), sequence) {
+		if !s.validatorSet.IsValidator(msg.Info.Sender, sequence) {
 			return false
 		}
 
-		uniqueSenders[string(msg.Sender())] = struct{}{}
+		uniqueSenders[string(msg.Info.Sender)] = struct{}{}
 	}
 
 	if len(uniqueSenders) != len(rcc.Messages) {
 		return false
 	}
 
-	if !quorum.HasQuorum(types.WrapMessages(rcc.Messages...)) {
+	if !s.validatorSet.HasQuorum(message.WrapMessages(rcc.Messages...)) {
 		return false
 	}
 

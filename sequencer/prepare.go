@@ -2,25 +2,25 @@ package sequencer
 
 import (
 	"bytes"
-
-	"github.com/sig-0/go-ibft/message/types"
+	"context"
+	"github.com/sig-0/go-ibft/message"
+	"github.com/sig-0/go-ibft/message/store"
 )
 
-func (s *Sequencer) sendMsgPrepare(ctx Context) {
-	msg := &types.MsgPrepare{
-		BlockHash: s.state.getProposedBlockHash(),
-		Metadata: &types.MsgMetadata{
-			Sender: s.validator.ID(),
+func (s *Sequencer) sendMsgPrepare() {
+	msg := &message.MsgPrepare{
+		Info: &message.MsgInfo{
 			View:   s.state.getView(),
+			Sender: s.validator.Address(),
 		},
+		BlockHash: s.state.getProposedBlockHash(),
 	}
 
-	msg.Metadata.Signature = s.validator.Sign(ctx.Keccak().Hash(msg.Payload()))
-
-	ctx.Transport().MulticastPrepare(msg)
+	msg = message.SignMsg(msg, s.validator)
+	s.transport.MulticastPrepare(msg)
 }
 
-func (s *Sequencer) awaitPrepare(ctx Context) error {
+func (s *Sequencer) awaitPrepare(ctx context.Context) error {
 	messages, err := s.awaitQuorumPrepares(ctx)
 	if err != nil {
 		return err
@@ -31,11 +31,11 @@ func (s *Sequencer) awaitPrepare(ctx Context) error {
 	return nil
 }
 
-func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error) {
-	sub, cancelSub := ctx.MessageFeed().PrepareMessages(s.state.getView(), false)
+func (s *Sequencer) awaitQuorumPrepares(ctx context.Context) ([]*message.MsgPrepare, error) {
+	sub, cancelSub := s.feed.SubscribePrepare(s.state.getView(), false)
 	defer cancelSub()
 
-	cache := newMsgCache(func(msg *types.MsgPrepare) bool {
+	cache := store.NewMsgCache(func(msg *message.MsgPrepare) bool {
 		return s.isValidMsgPrepare(msg)
 	})
 
@@ -44,10 +44,10 @@ func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.add(notification.Unwrap())
+			cache = cache.Add(notification.Unwrap())
 
-			prepares := cache.get()
-			if !ctx.Quorum().HasQuorum(types.WrapMessages(prepares...)) {
+			prepares := cache.Get()
+			if !s.validatorSet.HasQuorum(message.WrapMessages(prepares...)) {
 				continue
 			}
 
@@ -56,8 +56,8 @@ func (s *Sequencer) awaitQuorumPrepares(ctx Context) ([]*types.MsgPrepare, error
 	}
 }
 
-func (s *Sequencer) isValidMsgPrepare(msg *types.MsgPrepare) bool {
-	if !s.validatorSet.IsValidator(msg.Sender(), msg.Sequence()) {
+func (s *Sequencer) isValidMsgPrepare(msg *message.MsgPrepare) bool {
+	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.View.Sequence) {
 		return false
 	}
 

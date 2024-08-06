@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "message/types";
+option go_package = "./message";
 
 // View indicates the (sequence, round) pair in which a message was gossiped
 message View {
@@ -9,7 +9,7 @@ message View {
 }
 
 // MsgMetadata contains common message details
-message MsgMetadata {
+message MsgInfo {
   // View in which the message was gossiped
   View view = 1;
 
@@ -37,7 +37,7 @@ message RoundChangeCertificate {
 // MsgProposal is the initial consensus message that starts the finalization process. It's gossiped by
 // a chosen proposer in a specific round and represents the proposal being voted on by the network
 message MsgProposal {
-  MsgMetadata metadata = 1;
+  MsgInfo info = 1;
 
   // Proposal being voted on
   ProposedBlock proposed_block = 2;
@@ -51,7 +51,7 @@ message MsgProposal {
 
 // MsgPrepare is sent when a validator accepts a proposal
 message MsgPrepare {
-  MsgMetadata metadata = 1;
+  MsgInfo info = 1;
 
   // Keccak hash of the proposal being voted on
   bytes block_hash = 2;
@@ -59,7 +59,7 @@ message MsgPrepare {
 
 // MsgCommit is a validator's commitment on a proposal that passed the PREPARE phase
 message MsgCommit {
-  MsgMetadata metadata = 1;
+  MsgInfo info = 1;
 
   // Keccak hash of the proposal being voted on
   bytes block_hash = 2;
@@ -79,7 +79,7 @@ message PreparedCertificate {
 
 // MsgRoundChange is sent when a validator's round timer expires
 message MsgRoundChange {
-  MsgMetadata metadata = 1;
+  MsgInfo info = 1;
 
   // Proposal from previous round
   ProposedBlock latest_prepared_proposed_block = 2;

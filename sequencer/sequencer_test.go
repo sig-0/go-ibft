@@ -105,7 +105,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("block"),
+//				proposal: []byte("block"),
 //				Round:    0,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -151,7 +151,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("block"),
+//				proposal: []byte("block"),
 //				Round:    0,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -213,7 +213,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("block"),
+//				proposal: []byte("block"),
 //				Round:    1,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -270,7 +270,7 @@ var (
 //										Round: 0,
 //									},
 //								},
-//								PrepareMessages: []*types.MsgPrepare{
+//								SubscribePrepare: []*types.MsgPrepare{
 //									{
 //										Metadata: &types.MsgMetadata{
 //											Sender: Alice,
@@ -306,7 +306,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("round 0 block"),
+//				proposal: []byte("round 0 block"),
 //				Round:    1,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -365,7 +365,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("round 1 block"),
+//				proposal: []byte("round 1 block"),
 //				Round:    1,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -412,7 +412,7 @@ var (
 //							ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
 //						},
 //
-//						PrepareMessages: []*types.MsgPrepare{
+//						SubscribePrepare: []*types.MsgPrepare{
 //							{
 //								Metadata: &types.MsgMetadata{
 //									Sender: Chris,
@@ -444,7 +444,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("round 0 block"),
+//				proposal: []byte("round 0 block"),
 //				Round:    1,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -509,7 +509,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("block"),
+//				proposal: []byte("block"),
 //				Round:    3,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -574,7 +574,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("round 5 block"),
+//				proposal: []byte("round 5 block"),
 //				Seals: []types.FinalizedSeal{
 //					{
 //						From:       Alice,
@@ -629,7 +629,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("round 1 block"),
+//				proposal: []byte("round 1 block"),
 //				Round:    1,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -706,7 +706,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("round 1 block"),
+//				proposal: []byte("round 1 block"),
 //				Round:    1,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -825,7 +825,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("round 1 block"),
+//				proposal: []byte("round 1 block"),
 //				Round:    1,
 //				Seals: []types.FinalizedSeal{
 //					{
@@ -926,7 +926,7 @@ var (
 //			}),
 //
 //			expected: &types.FinalizedProposal{
-//				Proposal: []byte("round 2 block"),
+//				proposal: []byte("round 2 block"),
 //				Round:    2,
 //				Seals: []types.FinalizedSeal{
 //					{

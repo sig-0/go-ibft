@@ -14,5 +14,5 @@ fixalign:
 
 .PHONY: protoc
 protoc:
-	protoc --go_out=./  message/types/proto/*.proto
+	protoc --go_out=./  ./proto/*.proto
 

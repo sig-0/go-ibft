@@ -2,45 +2,45 @@ package sequencer
 
 import (
 	"bytes"
-	"github.com/sig-0/go-ibft"
-
-	"github.com/sig-0/go-ibft/message/types"
+	"context"
+	"github.com/sig-0/go-ibft/message"
+	"github.com/sig-0/go-ibft/message/store"
 )
 
-func (s *Sequencer) sendMsgCommit(ctx Context) {
-	msg := &types.MsgCommit{
+func (s *Sequencer) sendMsgCommit() {
+	msg := &message.MsgCommit{
+		Info: &message.MsgInfo{
+			View:   s.state.getView(),
+			Sender: s.validator.Address(),
+		},
 		BlockHash:  s.state.getProposedBlockHash(),
 		CommitSeal: s.validator.Sign(s.state.getProposedBlockHash()),
-		Metadata: &types.MsgMetadata{
-			View:   s.state.getView(),
-			Sender: s.validator.ID(),
-		},
 	}
 
-	msg.Metadata.Signature = s.validator.Sign(ctx.Keccak().Hash(msg.Payload()))
+	msg = message.SignMsg(msg, s.validator)
 
-	ctx.Transport().MulticastCommit(msg)
+	s.transport.MulticastCommit(msg)
 }
 
-func (s *Sequencer) awaitCommit(ctx Context) error {
+func (s *Sequencer) awaitCommit(ctx context.Context) error {
 	commits, err := s.awaitQuorumCommits(ctx)
 	if err != nil {
 		return err
 	}
 
 	for _, commit := range commits {
-		s.state.acceptSeal(commit.Sender(), commit.CommitSeal)
+		s.state.acceptSeal(commit.Info.Sender, commit.CommitSeal)
 	}
 
 	return nil
 }
 
-func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) {
-	sub, cancelSub := ctx.MessageFeed().CommitMessages(s.state.getView(), false)
+func (s *Sequencer) awaitQuorumCommits(ctx context.Context) ([]*message.MsgCommit, error) {
+	sub, cancelSub := s.feed.SubscribeCommit(s.state.getView(), false)
 	defer cancelSub()
 
-	cache := newMsgCache(func(msg *types.MsgCommit) bool {
-		return s.isValidMsgCommit(msg, ctx.SigVerifier())
+	cache := store.NewMsgCache(func(msg *message.MsgCommit) bool {
+		return s.isValidMsgCommit(msg)
 	})
 
 	for {
@@ -48,10 +48,10 @@ func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) 
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.add(notification.Unwrap())
+			cache = cache.Add(notification.Unwrap())
 
-			commits := cache.get()
-			if len(commits) == 0 || !ctx.Quorum().HasQuorum(types.WrapMessages(commits...)) {
+			commits := cache.Get()
+			if len(commits) == 0 || !s.validatorSet.HasQuorum(message.WrapMessages(commits...)) {
 				continue
 			}
 
@@ -60,9 +60,9 @@ func (s *Sequencer) awaitQuorumCommits(ctx Context) ([]*types.MsgCommit, error) 
 	}
 }
 
-func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit, sigVerifier ibft.SigVerifier) bool {
+func (s *Sequencer) isValidMsgCommit(msg *message.MsgCommit) bool {
 	// sender is in the validator set
-	if !s.validatorSet.IsValidator(msg.Sender(), msg.Sequence()) {
+	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.View.Sequence) {
 		return false
 	}
 
@@ -72,7 +72,7 @@ func (s *Sequencer) isValidMsgCommit(msg *types.MsgCommit, sigVerifier ibft.SigV
 	}
 
 	// sender generated commit seal by signing over block hash
-	if err := sigVerifier.Verify(msg.Sender(), msg.BlockHash, msg.CommitSeal); err != nil {
+	if err := s.sig.Verify(msg.Info.Sender, msg.BlockHash, msg.CommitSeal); err != nil {
 		return false
 	}
 

@@ -1,25 +1,24 @@
 package store
 
 import (
+	"github.com/sig-0/go-ibft/message"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/sig-0/go-ibft/message/types"
 )
 
-type testTable[M types.IBFTMessage] struct {
+type testTable[M message.IBFTMessage] struct {
 	msg       M
 	runTestFn func(*MsgStore, M)
 	name      string
 }
 
 func Test_Collection_Clear(t *testing.T) {
-	c := NewMsgCollection[*types.MsgProposal]()
-	view := &types.View{Sequence: 101, Round: 5}
-	msg := &types.MsgProposal{
-		Metadata: &types.MsgMetadata{
+	c := NewMsgCollection[*message.MsgProposal]()
+	view := &message.View{Sequence: 101, Round: 5}
+	msg := &message.MsgProposal{
+		Info: &message.MsgInfo{
 			View:      view,
 			Sender:    []byte("someone"),
 			Signature: []byte("signature"),
@@ -36,18 +35,18 @@ func Test_Collection_Clear(t *testing.T) {
 func TestStore_MsgProposal(t *testing.T) {
 	t.Parallel()
 
-	table := []testTable[*types.MsgProposal]{
+	table := []testTable[*message.MsgProposal]{
 		{
 			name: "message added",
-			msg: &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
-					View:      &types.View{Sequence: 101, Round: 0},
+			msg: &message.MsgProposal{
+				Info: &message.MsgInfo{
+					View:      &message.View{Sequence: 101, Round: 0},
 					Sender:    []byte("from"),
 					Signature: []byte("signature"),
 				},
 			},
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				view := &types.View{Sequence: msg.Sequence(), Round: msg.Round()}
+			runTestFn: func(store *MsgStore, msg *message.MsgProposal) {
+				view := &message.View{Sequence: msg.Info.View.Sequence, Round: msg.Info.View.Round}
 				store.ProposalMessages.Add(msg)
 				assert.Len(t, store.ProposalMessages.Get(view), 1)
 			},
@@ -55,26 +54,26 @@ func TestStore_MsgProposal(t *testing.T) {
 
 		{
 			name: "message removed",
-			msg: &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
-					View:      &types.View{Sequence: 101, Round: 0},
+			msg: &message.MsgProposal{
+				Info: &message.MsgInfo{
+					View:      &message.View{Sequence: 101, Round: 0},
 					Sender:    []byte("from"),
 					Signature: []byte("signature"),
 				},
 			},
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				view := &types.View{
-					Sequence: msg.Sequence(),
-					Round:    msg.Round(),
+			runTestFn: func(store *MsgStore, msg *message.MsgProposal) {
+				view := &message.View{
+					Sequence: msg.Info.View.Sequence,
+					Round:    msg.Info.View.Round,
 				}
 				require.Len(t, store.ProposalMessages.Get(view), 0)
 				store.ProposalMessages.Add(msg)
 
-				vv := &types.View{Sequence: msg.Sequence() + 1}
+				vv := &message.View{Sequence: msg.Info.View.Sequence + 1}
 				store.ProposalMessages.Remove(vv)
 				require.Len(t, store.ProposalMessages.Get(view), 1)
 
-				vvv := &types.View{Sequence: msg.Sequence(), Round: view.Round + 1}
+				vvv := &message.View{Sequence: msg.Info.View.Sequence, Round: view.Round + 1}
 				store.ProposalMessages.Remove(vvv)
 				require.Len(t, store.ProposalMessages.Get(view), 1)
 
@@ -85,36 +84,36 @@ func TestStore_MsgProposal(t *testing.T) {
 
 		{
 			name: "no duplicate message when added twice",
-			msg: &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
-					View:      &types.View{Sequence: 101, Round: 0},
+			msg: &message.MsgProposal{
+				Info: &message.MsgInfo{
+					View:      &message.View{Sequence: 101, Round: 0},
 					Sender:    []byte("from"),
 					Signature: []byte("signature"),
 				},
 			},
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *message.MsgProposal) {
 				store.ProposalMessages.Add(msg)
 				store.ProposalMessages.Add(msg)
 
-				view := &types.View{Sequence: msg.Sequence(), Round: msg.Round()}
+				view := &message.View{Sequence: msg.Info.View.Sequence, Round: msg.Info.View.Round}
 				assert.Len(t, store.ProposalMessages.Get(view), 1)
 			},
 		},
 
 		{
 			name: "2 messages with different round",
-			msg: &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
-					View:      &types.View{Sequence: 101, Round: 0},
+			msg: &message.MsgProposal{
+				Info: &message.MsgInfo{
+					View:      &message.View{Sequence: 101, Round: 0},
 					Sender:    []byte("from"),
 					Signature: []byte("signature"),
 				},
 			},
 
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				msg2 := &types.MsgProposal{
-					Metadata: &types.MsgMetadata{
-						View:      &types.View{Sequence: 101, Round: 1},
+			runTestFn: func(store *MsgStore, msg *message.MsgProposal) {
+				msg2 := &message.MsgProposal{
+					Info: &message.MsgInfo{
+						View:      &message.View{Sequence: 101, Round: 1},
 						Sender:    []byte("other from"),
 						Signature: []byte("other signature"),
 					},
@@ -123,14 +122,14 @@ func TestStore_MsgProposal(t *testing.T) {
 				store.ProposalMessages.Add(msg)
 				store.ProposalMessages.Add(msg2)
 
-				view1 := &types.View{
-					Sequence: msg.Sequence(),
-					Round:    msg.Round(),
+				view1 := &message.View{
+					Sequence: msg.Info.View.Sequence,
+					Round:    msg.Info.View.Round,
 				}
 
-				view2 := &types.View{
-					Sequence: msg2.Sequence(),
-					Round:    msg2.Round(),
+				view2 := &message.View{
+					Sequence: msg2.Info.View.Sequence,
+					Round:    msg2.Info.View.Round,
 				}
 				assert.Len(t, store.ProposalMessages.Get(view1), 1)
 				assert.Len(t, store.ProposalMessages.Get(view2), 1)
@@ -139,18 +138,18 @@ func TestStore_MsgProposal(t *testing.T) {
 
 		{
 			name: "2 messages with different sequence",
-			msg: &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
-					View:      &types.View{Sequence: 101, Round: 0},
+			msg: &message.MsgProposal{
+				Info: &message.MsgInfo{
+					View:      &message.View{Sequence: 101, Round: 0},
 					Sender:    []byte("from"),
 					Signature: []byte("signature"),
 				},
 			},
 
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
-				msg2 := &types.MsgProposal{
-					Metadata: &types.MsgMetadata{
-						View:      &types.View{Sequence: 102, Round: 0},
+			runTestFn: func(store *MsgStore, msg *message.MsgProposal) {
+				msg2 := &message.MsgProposal{
+					Info: &message.MsgInfo{
+						View:      &message.View{Sequence: 102, Round: 0},
 						Sender:    []byte("other from"),
 						Signature: []byte("other signature"),
 					},
@@ -159,31 +158,31 @@ func TestStore_MsgProposal(t *testing.T) {
 				store.ProposalMessages.Add(msg)
 				store.ProposalMessages.Add(msg2)
 
-				assert.Len(t, store.ProposalMessages.Get(&types.View{Sequence: msg.Sequence(), Round: msg.Round()}), 1)
-				assert.Len(t, store.ProposalMessages.Get(&types.View{Sequence: msg2.Sequence(), Round: msg2.Round()}), 1)
+				assert.Len(t, store.ProposalMessages.Get(&message.View{Sequence: msg.Info.View.Sequence, Round: msg.Info.View.Round}), 1)
+				assert.Len(t, store.ProposalMessages.Get(&message.View{Sequence: msg2.Info.View.Sequence, Round: msg2.Info.View.Round}), 1)
 			},
 		},
 
 		{
 			name: "2 unique messages with same view",
-			msg: &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
-					View:      &types.View{Sequence: 101, Round: 0},
+			msg: &message.MsgProposal{
+				Info: &message.MsgInfo{
+					View:      &message.View{Sequence: 101, Round: 0},
 					Sender:    []byte("from"),
 					Signature: []byte("signature"),
 				},
 			},
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *message.MsgProposal) {
 				store.ProposalMessages.Add(msg)
-				store.ProposalMessages.Add(&types.MsgProposal{
-					Metadata: &types.MsgMetadata{
-						View:      &types.View{Sequence: 101, Round: 0},
+				store.ProposalMessages.Add(&message.MsgProposal{
+					Info: &message.MsgInfo{
+						View:      &message.View{Sequence: 101, Round: 0},
 						Sender:    []byte("other from"),
 						Signature: []byte("other signature"),
 					},
 				})
 
-				view := &types.View{Sequence: msg.Sequence(), Round: msg.Round()}
+				view := &message.View{Sequence: msg.Info.View.Sequence, Round: msg.Info.View.Round}
 				assert.Len(t, store.ProposalMessages.Get(view), 2)
 				assert.Len(t, store.ProposalMessages.Get(view), 2)
 			},
@@ -191,18 +190,18 @@ func TestStore_MsgProposal(t *testing.T) {
 
 		{
 			name: "no message for given round",
-			msg: &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
-					View:      &types.View{Sequence: 101, Round: 0},
+			msg: &message.MsgProposal{
+				Info: &message.MsgInfo{
+					View:      &message.View{Sequence: 101, Round: 0},
 					Sender:    []byte("from"),
 					Signature: []byte("signature"),
 				},
 			},
 
-			runTestFn: func(store *MsgStore, msg *types.MsgProposal) {
+			runTestFn: func(store *MsgStore, msg *message.MsgProposal) {
 				store.ProposalMessages.Add(msg)
 
-				view := &types.View{Sequence: msg.Sequence(), Round: msg.Round() + 1}
+				view := &message.View{Sequence: msg.Info.View.Sequence, Round: msg.Info.View.Round + 1}
 				assert.Len(t, store.ProposalMessages.Get(view), 0)
 			},
 		},
@@ -225,9 +224,9 @@ func TestFeed_MsgProposal(t *testing.T) {
 		t.Parallel()
 
 		var (
-			view = &types.View{Sequence: 101, Round: 0}
-			msg  = &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
+			view = &message.View{Sequence: 101, Round: 0}
+			msg  = &message.MsgProposal{
+				Info: &message.MsgInfo{
 					View:      view,
 					Signature: []byte("sig"),
 				},
@@ -239,7 +238,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 
 		store.ProposalMessages.Add(msg)
 
-		sub, cancelSub := feed.ProposalMessages(view, false)
+		sub, cancelSub := feed.SubscribeProposal(view, false)
 		defer cancelSub()
 
 		r := <-sub
@@ -252,17 +251,17 @@ func TestFeed_MsgProposal(t *testing.T) {
 		t.Parallel()
 
 		var (
-			view1 = &types.View{Sequence: 101, Round: 0}
-			msg1  = &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
+			view1 = &message.View{Sequence: 101, Round: 0}
+			msg1  = &message.MsgProposal{
+				Info: &message.MsgInfo{
 					View:      view1,
 					Signature: []byte("sig"),
 				},
 			}
 
-			view2 = &types.View{Sequence: 101, Round: 5}
-			msg2  = &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
+			view2 = &message.View{Sequence: 101, Round: 5}
+			msg2  = &message.MsgProposal{
+				Info: &message.MsgInfo{
 					View:      view2,
 					Signature: []byte("sig"),
 				},
@@ -275,7 +274,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		store.ProposalMessages.Add(msg1)
 		store.ProposalMessages.Add(msg2)
 
-		sub, cancelSub := feed.ProposalMessages(view1, false)
+		sub, cancelSub := feed.SubscribeProposal(view1, false)
 		defer cancelSub()
 
 		r := <-sub
@@ -288,9 +287,9 @@ func TestFeed_MsgProposal(t *testing.T) {
 		t.Parallel()
 
 		var (
-			view = &types.View{Sequence: 101, Round: 1}
-			msg  = &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
+			view = &message.View{Sequence: 101, Round: 1}
+			msg  = &message.MsgProposal{
+				Info: &message.MsgInfo{
 					View:      view,
 					Signature: []byte("signature 2"),
 				},
@@ -303,9 +302,9 @@ func TestFeed_MsgProposal(t *testing.T) {
 		store.ProposalMessages.Add(msg)
 		require.Len(t, store.ProposalMessages.Get(view), 1)
 
-		previousView := &types.View{Sequence: view.Sequence, Round: view.Round - 1}
+		previousView := &message.View{Sequence: view.Sequence, Round: view.Round - 1}
 
-		sub, cancelSub := feed.ProposalMessages(previousView, true)
+		sub, cancelSub := feed.SubscribeProposal(previousView, true)
 		defer cancelSub()
 
 		r := <-sub
@@ -320,7 +319,7 @@ func TestFeed_MsgProposal(t *testing.T) {
 		store := NewMsgStore()
 		feed := store.Feed()
 
-		sub, cancelSub := feed.ProposalMessages(&types.View{
+		sub, cancelSub := feed.SubscribeProposal(&message.View{
 			Sequence: 101,
 			Round:    6,
 		},
@@ -332,17 +331,17 @@ func TestFeed_MsgProposal(t *testing.T) {
 		assert.Len(t, r.Unwrap(), 0)
 
 		var (
-			view1 = &types.View{Sequence: 101, Round: 1}
-			msg1  = &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
+			view1 = &message.View{Sequence: 101, Round: 1}
+			msg1  = &message.MsgProposal{
+				Info: &message.MsgInfo{
 					View:      view1,
 					Signature: []byte("signature"),
 				},
 			}
 
-			view3 = &types.View{Sequence: 101, Round: 10}
-			msg3  = &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
+			view3 = &message.View{Sequence: 101, Round: 10}
+			msg3  = &message.MsgProposal{
+				Info: &message.MsgInfo{
 					View:      view3,
 					Signature: []byte("signature"),
 				},
@@ -365,17 +364,17 @@ func TestFeed_MsgProposal(t *testing.T) {
 		store := NewMsgStore()
 		feed := store.Feed()
 
-		view1 := &types.View{Sequence: 101, Round: 1}
-		view2 := &types.View{Sequence: 102, Round: 1}
+		view1 := &message.View{Sequence: 101, Round: 1}
+		view2 := &message.View{Sequence: 102, Round: 1}
 
 		// two subscriptions, same view
-		sub, cancelSub := feed.ProposalMessages(view1, true)
+		sub, cancelSub := feed.SubscribeProposal(view1, true)
 
 		r := <-sub
 		require.Len(t, r.Unwrap(), 0)
 
-		msg := &types.MsgProposal{
-			Metadata: &types.MsgMetadata{
+		msg := &message.MsgProposal{
+			Info: &message.MsgInfo{
 				View:      view2,
 				Signature: []byte("signature"),
 			},
@@ -395,23 +394,23 @@ func TestFeed_MsgProposal(t *testing.T) {
 		store := NewMsgStore()
 		feed := store.Feed()
 
-		view1 := &types.View{Sequence: 101, Round: 1}
-		view2 := &types.View{Sequence: 101, Round: 2}
+		view1 := &message.View{Sequence: 101, Round: 1}
+		view2 := &message.View{Sequence: 101, Round: 2}
 
 		// two subscriptions, same view
-		sub, cancelSub := feed.ProposalMessages(view1, true)
+		sub, cancelSub := feed.SubscribeProposal(view1, true)
 		defer cancelSub()
 
 		var (
-			msg1 = &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
+			msg1 = &message.MsgProposal{
+				Info: &message.MsgInfo{
 					View:      view1,
 					Signature: []byte("signature"),
 				},
 			}
 
-			msg2 = &types.MsgProposal{
-				Metadata: &types.MsgMetadata{
+			msg2 = &message.MsgProposal{
+				Info: &message.MsgInfo{
 					View:      view2,
 					Signature: []byte("signature"),
 				},
