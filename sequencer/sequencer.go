@@ -132,13 +132,13 @@ func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
 	s.wg.Add(1)
 
 	c := make(chan struct{}, 1)
-	go func(view *message.View) {
+	go func() {
 		defer func() {
 			close(c)
 			s.wg.Done()
 		}()
 
-		roundTimer := s.getRoundTimer(view.Round)
+		roundTimer := s.getRoundTimer(s.state.round)
 
 		select {
 		case <-ctx.Done():
@@ -146,7 +146,7 @@ func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
 		case <-roundTimer.C:
 			c <- struct{}{}
 		}
-	}(s.state.getView())
+	}()
 
 	return c
 }
@@ -156,19 +156,19 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context) <-chan *messag
 	s.wg.Add(1)
 
 	c := make(chan *message.MsgProposal, 1)
-	go func(view *message.View) {
+	go func() {
 		defer func() {
 			close(c)
 			s.wg.Done()
 		}()
 
-		proposal, err := s.awaitProposal(ctx, view, true)
+		proposal, err := s.awaitProposal(ctx, true)
 		if err != nil {
 			return
 		}
 
 		c <- proposal
-	}(s.state.getView())
+	}()
 
 	return c
 }
@@ -178,19 +178,19 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx context.Context) <-chan *message.Rou
 	s.wg.Add(1)
 
 	c := make(chan *message.RoundChangeCertificate, 1)
-	go func(view *message.View) {
+	go func() {
 		defer func() {
 			close(c)
 			s.wg.Done()
 		}()
 
-		rcc, err := s.awaitRCC(ctx, view, true)
+		rcc, err := s.awaitRCC(ctx, true)
 		if err != nil {
 			return
 		}
 
 		c <- rcc
-	}(s.state.getView())
+	}()
 
 	return c
 }
@@ -260,7 +260,7 @@ func (s *Sequencer) buildProposal(ctx context.Context) ([]byte, error) {
 
 	if s.state.rcc == nil {
 		// round jump triggered by round timer -> justify proposal with round change certificate
-		RCC, err := s.awaitRCC(ctx, s.state.getView(), false)
+		RCC, err := s.awaitRCC(ctx, false)
 		if err != nil {
 			return nil, err
 		}

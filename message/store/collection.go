@@ -7,9 +7,9 @@ import (
 
 type MsgCollection[M message.IBFTMessage] interface {
 	Add(msg M)
-	Get(view *message.View) []M
-	Remove(view *message.View)
-	Subscribe(view *message.View, higherRounds bool) (message.Subscription[M], func())
+	Get(sequence uint64, round uint64) []M
+	Remove(sequence uint64, round uint64)
+	Subscribe(sequence, round uint64, higherRounds bool) (message.Subscription[M], func())
 	Clear()
 }
 
@@ -34,11 +34,11 @@ func (c *syncCollection[M]) Clear() {
 	clear(c.msgCollection)
 }
 
-func (c *syncCollection[M]) Subscribe(view *message.View, higherRounds bool) (message.Subscription[M], func()) {
-	sub := newSubscription[M](view, higherRounds)
+func (c *syncCollection[M]) Subscribe(sequence, round uint64, higherRounds bool) (message.Subscription[M], func()) {
+	sub := newSubscription[M](sequence, round, higherRounds)
 	unregister := c.registerSubscription(sub)
 
-	sub.Notify(c.getNotificationFn(view, higherRounds))
+	sub.Notify(c.getNotificationFn(sequence, round, higherRounds))
 
 	return sub.Channel, unregister
 }
@@ -67,48 +67,48 @@ func (c *syncCollection[M]) Add(msg M) {
 	defer c.subscriptionMux.RUnlock()
 
 	info := message.Message(msg).GetInfo()
-	seq, round := info.View.Sequence, info.View.Round
+	seq, round := info.Sequence, info.Round
 
 	c.subscriptions.Notify(func(sub subscription[M]) {
 		// match the sequence
-		if seq != sub.View.Sequence {
+		if seq != sub.Sequence {
 			return
 		}
 
 		// exclude lower rounds
-		if round < sub.View.Round {
+		if round < sub.Round {
 			return
 		}
 
-		sub.Notify(c.getNotificationFn(sub.View, sub.HigherRounds))
+		sub.Notify(c.getNotificationFn(sub.Sequence, sub.Round, sub.HigherRounds))
 	})
 }
 
-func (c *syncCollection[M]) Get(view *message.View) []M {
+func (c *syncCollection[M]) Get(sequence, round uint64) []M {
 	c.collectionMux.RLock()
 	defer c.collectionMux.RUnlock()
 
-	return c.msgCollection.loadSet(view).Messages()
+	return c.msgCollection.loadSet(sequence, round).Messages()
 }
 
-func (c *syncCollection[M]) getNotificationFn(view *message.View, higherRounds bool) message.MsgNotificationFn[M] {
+func (c *syncCollection[M]) getNotificationFn(sequence, round uint64, higherRounds bool) message.MsgNotificationFn[M] {
 	return func() []M {
 		c.collectionMux.RLock()
 		defer c.collectionMux.RUnlock()
 
 		if !higherRounds {
-			return c.msgCollection.get(view)
+			return c.msgCollection.get(sequence, round)
 		}
 
-		return c.msgCollection.getMessagesWithHighestRoundNumber(view)
+		return c.msgCollection.getMessagesWithHighestRoundNumber(sequence, round)
 	}
 }
 
-func (c *syncCollection[M]) Remove(view *message.View) {
+func (c *syncCollection[M]) Remove(sequence, round uint64) {
 	c.collectionMux.Lock()
 	defer c.collectionMux.Unlock()
 
-	c.msgCollection.remove(view)
+	c.msgCollection.remove(sequence, round)
 }
 
 type msgCollection[M message.IBFTMessage] map[uint64]map[uint64]msgSet[M]
@@ -116,8 +116,8 @@ type msgCollection[M message.IBFTMessage] map[uint64]map[uint64]msgSet[M]
 func (c *msgCollection[M]) add(msg M) {
 	var (
 		info     = message.Message(msg).GetInfo()
-		sequence = info.View.Sequence
-		round    = info.View.Round
+		sequence = info.Sequence
+		round    = info.Round
 		sender   = string(info.Sender)
 	)
 
@@ -140,17 +140,17 @@ func (c *msgCollection[M]) loadOrStoreSet(sequence, round uint64) msgSet[M] {
 	return set
 }
 
-func (c *msgCollection[M]) get(view *message.View) []M {
-	return c.loadSet(view).Messages()
+func (c *msgCollection[M]) get(sequence, round uint64) []M {
+	return c.loadSet(sequence, round).Messages()
 }
 
-func (c *msgCollection[M]) loadSet(view *message.View) msgSet[M] {
-	sameSequenceMessages, ok := (*c)[view.Sequence]
+func (c *msgCollection[M]) loadSet(sequence, round uint64) msgSet[M] {
+	sameSequenceMessages, ok := (*c)[sequence]
 	if !ok {
 		return nil
 	}
 
-	set, ok := sameSequenceMessages[view.Round]
+	set, ok := sameSequenceMessages[round]
 	if !ok {
 		return nil
 	}
@@ -158,9 +158,9 @@ func (c *msgCollection[M]) loadSet(view *message.View) msgSet[M] {
 	return set
 }
 
-func (c *msgCollection[M]) getMessagesWithHighestRoundNumber(view *message.View) []M {
-	maxRound := view.Round
-	for round := range (*c)[view.Sequence] {
+func (c *msgCollection[M]) getMessagesWithHighestRoundNumber(sequence, round uint64) []M {
+	maxRound := round
+	for round := range (*c)[sequence] {
 		if maxRound >= round {
 			continue
 		}
@@ -168,21 +168,21 @@ func (c *msgCollection[M]) getMessagesWithHighestRoundNumber(view *message.View)
 		maxRound = round
 	}
 
-	return c.get(&message.View{Sequence: view.Sequence, Round: maxRound})
+	return c.get(sequence, maxRound)
 }
 
-func (c *msgCollection[M]) remove(view *message.View) {
-	_, ok := (*c)[view.Sequence]
+func (c *msgCollection[M]) remove(sequence, round uint64) {
+	_, ok := (*c)[sequence]
 	if !ok {
 		return
 	}
 
-	_, ok = (*c)[view.Sequence][view.Round]
+	_, ok = (*c)[sequence][round]
 	if !ok {
 		return
 	}
 
-	delete((*c)[view.Sequence], view.Round)
+	delete((*c)[sequence], round)
 }
 
 type msgSet[M message.IBFTMessage] map[string]M

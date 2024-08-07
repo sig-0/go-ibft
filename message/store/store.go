@@ -35,10 +35,6 @@ func (s *MsgStore) Add(m message.Message) error {
 		return fmt.Errorf("%w: nil info field", ErrInvalidMessage)
 	}
 
-	if info.View == nil {
-		return fmt.Errorf("%w: nil view field", ErrInvalidMessage)
-	}
-
 	if info.Sender == nil {
 		return fmt.Errorf("%w: nil sender field", ErrInvalidMessage)
 	}

@@ -32,8 +32,9 @@ func Test_SignMsg(t *testing.T) {
 		}
 
 		m := &MsgProposal{Info: &MsgInfo{
-			View:   &View{Sequence: 101, Round: 3},
-			Sender: signer.Address(),
+			Sequence: 101,
+			Round:    3,
+			Sender:   signer.Address(),
 		}}
 
 		signedMsg := SignMsg(m, signer)
@@ -51,8 +52,9 @@ func Test_SignMsg(t *testing.T) {
 		}
 
 		m := &MsgPrepare{Info: &MsgInfo{
-			View:   &View{Sequence: 101, Round: 3},
-			Sender: signer.Address(),
+			Sequence: 101,
+			Round:    3,
+			Sender:   signer.Address(),
 		}}
 
 		signedMsg := SignMsg(m, signer)
@@ -70,8 +72,9 @@ func Test_SignMsg(t *testing.T) {
 		}
 
 		m := &MsgCommit{Info: &MsgInfo{
-			View:   &View{Sequence: 101, Round: 3},
-			Sender: signer.Address(),
+			Sequence: 101,
+			Round:    3,
+			Sender:   signer.Address(),
 		}}
 
 		signedMsg := SignMsg(m, signer)
@@ -89,8 +92,9 @@ func Test_SignMsg(t *testing.T) {
 		}
 
 		m := &MsgRoundChange{Info: &MsgInfo{
-			View:   &View{Sequence: 101, Round: 3},
-			Sender: signer.Address(),
+			Sequence: 101,
+			Round:    3,
+			Sender:   signer.Address(),
 		}}
 
 		signedMsg := SignMsg(m, signer)
@@ -127,7 +131,7 @@ func Test_RCC_HighestRoundBlock(t *testing.T) {
 			rcc: &RoundChangeCertificate{Messages: []*MsgRoundChange{
 				{
 					LatestPreparedCertificate: &PreparedCertificate{ProposalMessage: &MsgProposal{
-						Info: &MsgInfo{View: &View{Round: 0}},
+						Info: &MsgInfo{Round: 0},
 					}},
 					LatestPreparedProposedBlock: &ProposedBlock{
 						Block: []byte("block 0"),
@@ -141,7 +145,7 @@ func Test_RCC_HighestRoundBlock(t *testing.T) {
 			rcc: &RoundChangeCertificate{Messages: []*MsgRoundChange{
 				{
 					LatestPreparedCertificate: &PreparedCertificate{ProposalMessage: &MsgProposal{
-						Info: &MsgInfo{View: &View{Round: 0}},
+						Info: &MsgInfo{Round: 0},
 					}},
 					LatestPreparedProposedBlock: &ProposedBlock{
 						Block: []byte("block 0"),
@@ -149,7 +153,7 @@ func Test_RCC_HighestRoundBlock(t *testing.T) {
 				},
 				{
 					LatestPreparedCertificate: &PreparedCertificate{ProposalMessage: &MsgProposal{
-						Info: &MsgInfo{View: &View{Round: 1}},
+						Info: &MsgInfo{Round: 1},
 					}},
 					LatestPreparedProposedBlock: &ProposedBlock{
 						Block: []byte("block 1"),
@@ -203,7 +207,7 @@ func Test_RCC_HighestRoundBlockHash(t *testing.T) {
 			rcc: &RoundChangeCertificate{Messages: []*MsgRoundChange{
 				{
 					LatestPreparedCertificate: &PreparedCertificate{ProposalMessage: &MsgProposal{
-						Info:      &MsgInfo{View: &View{Round: 0}},
+						Info:      &MsgInfo{Round: 0},
 						BlockHash: []byte("block hash 0"),
 					}},
 				},
@@ -216,14 +220,14 @@ func Test_RCC_HighestRoundBlockHash(t *testing.T) {
 			rcc: &RoundChangeCertificate{Messages: []*MsgRoundChange{
 				{
 					LatestPreparedCertificate: &PreparedCertificate{ProposalMessage: &MsgProposal{
-						Info:      &MsgInfo{View: &View{Round: 0}},
+						Info:      &MsgInfo{Round: 0},
 						BlockHash: []byte("block hash 0"),
 					}},
 				},
 
 				{
 					LatestPreparedCertificate: &PreparedCertificate{ProposalMessage: &MsgProposal{
-						Info:      &MsgInfo{View: &View{Round: 1}},
+						Info:      &MsgInfo{Round: 1},
 						BlockHash: []byte("block hash 1"),
 					}},
 				},

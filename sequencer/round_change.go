@@ -11,8 +11,9 @@ import (
 func (s *Sequencer) sendMsgRoundChange() {
 	msg := &message.MsgRoundChange{
 		Info: &message.MsgInfo{
-			View:   s.state.getView(),
-			Sender: s.validator.Address(),
+			Sequence: s.state.getSequence(),
+			Round:    s.state.getRound(),
+			Sender:   s.validator.Address(),
 		},
 		LatestPreparedProposedBlock: s.state.latestPB,
 		LatestPreparedCertificate:   s.state.latestPC,
@@ -24,10 +25,9 @@ func (s *Sequencer) sendMsgRoundChange() {
 
 func (s *Sequencer) awaitRCC(
 	ctx context.Context,
-	view *message.View,
 	higherRounds bool,
 ) (*message.RoundChangeCertificate, error) {
-	messages, err := s.awaitQuorumRoundChanges(ctx, view, higherRounds)
+	messages, err := s.awaitQuorumRoundChanges(ctx, higherRounds)
 	if err != nil {
 		return nil, err
 	}
@@ -35,16 +35,13 @@ func (s *Sequencer) awaitRCC(
 	return &message.RoundChangeCertificate{Messages: messages}, nil
 }
 
-func (s *Sequencer) awaitQuorumRoundChanges(
-	ctx context.Context,
-	view *message.View,
-	higherRounds bool,
-) ([]*message.MsgRoundChange, error) {
+func (s *Sequencer) awaitQuorumRoundChanges(ctx context.Context, higherRounds bool) ([]*message.MsgRoundChange, error) {
+	round := s.state.getRound()
 	if higherRounds {
-		view.Round++
+		round++
 	}
 
-	sub, cancelSub := s.feed.SubscribeRoundChange(view, higherRounds)
+	sub, cancelSub := s.feed.SubscribeRoundChange(s.state.sequence, round, higherRounds)
 	defer cancelSub()
 
 	cache := store.NewMsgCache(func(msg *message.MsgRoundChange) bool {
@@ -69,7 +66,7 @@ func (s *Sequencer) awaitQuorumRoundChanges(
 }
 
 func (s *Sequencer) isValidMsgRoundChange(msg *message.MsgRoundChange) bool {
-	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.View.Sequence) {
+	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.Sequence) {
 		return false
 	}
 
@@ -105,17 +102,17 @@ func (s *Sequencer) isValidPC(
 		return false
 	}
 
-	if pc.ProposalMessage.Info.View.Sequence != msg.Info.View.Sequence {
+	if pc.ProposalMessage.Info.Sequence != msg.Info.Sequence {
 		return false
 	}
 
-	if pc.ProposalMessage.Info.View.Round >= msg.Info.View.Round {
+	if pc.ProposalMessage.Info.Round >= msg.Info.Round {
 		return false
 	}
 
 	var (
-		sequence = pc.ProposalMessage.Info.View.Sequence
-		round    = pc.ProposalMessage.Info.View.Round
+		sequence = pc.ProposalMessage.Info.Sequence
+		round    = pc.ProposalMessage.Info.Round
 	)
 
 	if !s.validatorSet.IsProposer(pc.ProposalMessage.Info.Sender, sequence, round) {
@@ -125,11 +122,11 @@ func (s *Sequencer) isValidPC(
 	senders := map[string]struct{}{string(pc.ProposalMessage.Info.Sender): {}}
 
 	for _, msg := range pc.PrepareMessages {
-		if msg.Info.View.Sequence != sequence {
+		if msg.Info.Sequence != sequence {
 			return false
 		}
 
-		if msg.Info.View.Round != round {
+		if msg.Info.Round != round {
 			return false
 		}
 
@@ -164,18 +161,18 @@ func (s *Sequencer) isValidRCC(
 	}
 
 	var (
-		sequence = proposal.Info.View.Sequence
-		round    = proposal.Info.View.Round
+		sequence = proposal.Info.Sequence
+		round    = proposal.Info.Round
 	)
 
 	uniqueSenders := make(map[string]struct{})
 
 	for _, msg := range rcc.Messages {
-		if msg.Info.View.Sequence != sequence {
+		if msg.Info.Sequence != sequence {
 			return false
 		}
 
-		if msg.Info.View.Round != round {
+		if msg.Info.Round != round {
 			return false
 		}
 

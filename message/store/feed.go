@@ -11,29 +11,29 @@ type Feed struct {
 }
 
 func (f Feed) SubscribeProposal(
-	view *message.View,
+	sequence, round uint64,
 	futureRounds bool,
 ) (message.Subscription[*message.MsgProposal], func()) {
-	return f.MsgStore.ProposalMessages.Subscribe(view, futureRounds)
+	return f.MsgStore.ProposalMessages.Subscribe(sequence, round, futureRounds)
 }
 
 func (f Feed) SubscribePrepare(
-	view *message.View,
+	sequence, round uint64,
 	futureRounds bool,
 ) (message.Subscription[*message.MsgPrepare], func()) {
-	return f.MsgStore.PrepareMessages.Subscribe(view, futureRounds)
+	return f.MsgStore.PrepareMessages.Subscribe(sequence, round, futureRounds)
 }
 
 func (f Feed) SubscribeCommit(
-	view *message.View,
+	sequence, round uint64,
 	futureRounds bool,
 ) (message.Subscription[*message.MsgCommit], func()) {
-	return f.MsgStore.CommitMessages.Subscribe(view, futureRounds)
+	return f.MsgStore.CommitMessages.Subscribe(sequence, round, futureRounds)
 }
 
 func (f Feed) SubscribeRoundChange(
-	view *message.View,
+	sequence, round uint64,
 	futureRounds bool,
 ) (message.Subscription[*message.MsgRoundChange], func()) {
-	return f.MsgStore.RoundChangeMessages.Subscribe(view, futureRounds)
+	return f.MsgStore.RoundChangeMessages.Subscribe(sequence, round, futureRounds)
 }

@@ -6,14 +6,16 @@ import (
 )
 
 type subscription[M message.IBFTMessage] struct {
-	View         *message.View
+	Sequence     uint64
+	Round        uint64
 	Channel      message.Subscription[M]
 	HigherRounds bool
 }
 
-func newSubscription[M message.IBFTMessage](view *message.View, higherRounds bool) subscription[M] {
+func newSubscription[M message.IBFTMessage](sequence, round uint64, higherRounds bool) subscription[M] {
 	return subscription[M]{
-		View:         view,
+		Sequence:     sequence,
+		Round:        round,
 		HigherRounds: higherRounds,
 		Channel:      make(message.Subscription[M], 1),
 	}

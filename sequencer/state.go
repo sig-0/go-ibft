@@ -7,7 +7,9 @@ import (
 // state is a collection of consensus artifacts obtained by Sequencer during Finalize
 type state struct {
 	// the active sequence and round of this validator
-	view *message.View
+	sequence uint64
+
+	round uint64
 
 	// proposal that's being voted on
 	proposal *message.MsgProposal
@@ -26,19 +28,15 @@ type state struct {
 }
 
 func (s *state) init(sequence uint64) {
-	*s = state{view: &message.View{Sequence: sequence, Round: 0}}
-}
-
-func (s *state) getView() *message.View {
-	return &message.View{Sequence: s.view.Sequence, Round: s.view.Round}
+	*s = state{sequence: sequence}
 }
 
 func (s *state) getSequence() uint64 {
-	return s.view.Sequence
+	return s.sequence
 }
 
 func (s *state) getRound() uint64 {
-	return s.view.Round
+	return s.round
 }
 
 func (s *state) isProposalAccepted() bool {
@@ -54,17 +52,18 @@ func (s *state) getProposedBlockHash() []byte {
 }
 
 func (s *state) moveToNextRound() {
-	s.view.Round, s.proposal = s.view.Round+1, nil
+	s.round++
+	s.proposal = nil
 	clear(s.seals)
 }
 
 func (s *state) acceptProposal(proposal *message.MsgProposal) {
-	s.proposal, s.view.Round = proposal, proposal.Info.View.Round
+	s.proposal, s.round = proposal, proposal.Info.Round
 	clear(s.seals)
 }
 
 func (s *state) acceptRCC(rcc *message.RoundChangeCertificate) {
-	s.rcc, s.view.Round, s.proposal = rcc, rcc.Messages[0].Info.View.Round, nil
+	s.rcc, s.round, s.proposal = rcc, rcc.Messages[0].Info.Round, nil
 	clear(s.seals)
 }
 

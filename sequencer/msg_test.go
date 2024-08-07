@@ -29,7 +29,7 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			name:      "proposed block round and current round do not match",
 			sequencer: &Sequencer{validator: MockValidator{address: alice}},
 			msg: &message.MsgProposal{
-				Info:          &message.MsgInfo{View: &message.View{Round: 0}},
+				Info:          &message.MsgInfo{Round: 0},
 				ProposedBlock: &message.ProposedBlock{Round: 5},
 			},
 		},
@@ -39,8 +39,9 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			sequencer: &Sequencer{validator: MockValidator{address: alice}},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: alice,
-					View:   &message.View{Sequence: 101, Round: 0},
+					Sender:   alice,
+					Sequence: 101,
+					Round:    0,
 				},
 				ProposedBlock: &message.ProposedBlock{Round: 0},
 			},
@@ -56,7 +57,7 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 0},
+					Sequence: 101, Round: 0,
 					Sender: []byte("definitely not bob"),
 				},
 				ProposedBlock: &message.ProposedBlock{
@@ -77,7 +78,7 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 0},
+					Sequence: 101, Round: 0,
 					Sender: bob,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("block"), Round: 0},
@@ -96,7 +97,7 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 0},
+					Sequence: 101, Round: 0,
 					Sender: bob,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("invalid block"), Round: 0},
@@ -121,8 +122,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 0},
+					Sender:   bob,
+					Sequence: 101, Round: 0,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("block"), Round: 0},
 				BlockHash:     []byte("keccak"),
@@ -145,8 +146,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sender:   bob,
+					Sequence: 101, Round: 1,
 				},
 				ProposedBlock:          &message.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:              []byte("keccak"),
@@ -170,15 +171,15 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sender:   bob,
+					Sequence: 101, Round: 1,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &message.RoundChangeCertificate{
 					Messages: []*message.MsgRoundChange{
 						{
-							Info: &message.MsgInfo{View: &message.View{Sequence: 99}},
+							Info: &message.MsgInfo{Sequence: 99},
 						},
 					},
 				},
@@ -201,15 +202,15 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sender:   bob,
+					Sequence: 101, Round: 1,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
 				RoundChangeCertificate: &message.RoundChangeCertificate{
 					Messages: []*message.MsgRoundChange{
 						{
-							Info: &message.MsgInfo{View: &message.View{Sequence: 101, Round: 0}},
+							Info: &message.MsgInfo{Sequence: 101, Round: 0},
 						},
 					},
 				},
@@ -237,8 +238,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sender:   bob,
+					Sequence: 101, Round: 1,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
@@ -246,8 +247,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 					Messages: []*message.MsgRoundChange{
 						{
 							Info: &message.MsgInfo{
-								Sender: []byte("definitely not a validator"),
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   []byte("definitely not a validator"),
+								Sequence: 101, Round: 1,
 							},
 						},
 					},
@@ -276,8 +277,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sender:   bob,
+					Sequence: 101, Round: 1,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
@@ -285,15 +286,15 @@ func Test_IsValidMsgProposal(t *testing.T) {
 					Messages: []*message.MsgRoundChange{
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 						},
 
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 						},
 					},
@@ -322,8 +323,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sender:   bob,
+					Sequence: 101, Round: 1,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
@@ -331,8 +332,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 					Messages: []*message.MsgRoundChange{
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 						},
 					},
@@ -362,8 +363,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sender:   bob,
+					Sequence: 101, Round: 1,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("invalid block"), Round: 1},
 				BlockHash:     []byte("keccak"),
@@ -372,8 +373,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 						{
 
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 						},
 					},
@@ -412,8 +413,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 			},
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sender:   bob,
+					Sequence: 101, Round: 1,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
@@ -421,21 +422,21 @@ func Test_IsValidMsgProposal(t *testing.T) {
 					Messages: []*message.MsgRoundChange{
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 							LatestPreparedCertificate: &message.PreparedCertificate{
 								ProposalMessage: &message.MsgProposal{
 									Info: &message.MsgInfo{
-										Sender: []byte(alice),
-										View:   &message.View{Sequence: 101, Round: 0},
+										Sender:   []byte(alice),
+										Sequence: 101, Round: 0,
 									},
 									BlockHash: []byte("invalid keccak"),
 								},
 								PrepareMessages: []*message.MsgPrepare{
 									{
 										Info: &message.MsgInfo{
-											View:   &message.View{Sequence: 101, Round: 0},
+											Sequence: 101, Round: 0,
 											Sender: chris,
 										},
 										BlockHash: []byte("invalid keccak"),
@@ -481,8 +482,8 @@ func Test_IsValidMsgProposal(t *testing.T) {
 
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
-					Sender: bob,
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sender:   bob,
+					Sequence: 101, Round: 1,
 				},
 				ProposedBlock: &message.ProposedBlock{Block: []byte("block"), Round: 1},
 				BlockHash:     []byte("keccak"),
@@ -490,15 +491,15 @@ func Test_IsValidMsgProposal(t *testing.T) {
 					Messages: []*message.MsgRoundChange{
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 							LatestPreparedProposedBlock: &message.ProposedBlock{},
 							LatestPreparedCertificate: &message.PreparedCertificate{
 								ProposalMessage: &message.MsgProposal{
 									Info: &message.MsgInfo{
-										Sender: []byte(alice),
-										View:   &message.View{Sequence: 101, Round: 0},
+										Sender:   []byte(alice),
+										Sequence: 101, Round: 0,
 									},
 
 									BlockHash: []byte("keccak"),
@@ -506,7 +507,7 @@ func Test_IsValidMsgProposal(t *testing.T) {
 								PrepareMessages: []*message.MsgPrepare{
 									{
 										Info: &message.MsgInfo{
-											View:   &message.View{Sequence: 101, Round: 0},
+											Sequence: 101, Round: 0,
 											Sender: chris,
 										},
 
@@ -547,8 +548,8 @@ func Test_IsValidMsgPrepare(t *testing.T) {
 			}}},
 			msg: &message.MsgPrepare{
 				Info: &message.MsgInfo{
-					Sender: []byte("definitely not a validator"),
-					View:   &message.View{Sequence: 101},
+					Sender:   []byte("definitely not a validator"),
+					Sequence: 101,
 				},
 			},
 		},
@@ -565,8 +566,8 @@ func Test_IsValidMsgPrepare(t *testing.T) {
 			},
 			msg: &message.MsgPrepare{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 				BlockHash: []byte("definitely not keccak"),
 			},
@@ -583,8 +584,8 @@ func Test_IsValidMsgPrepare(t *testing.T) {
 			},
 			msg: &message.MsgPrepare{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 
 				BlockHash: []byte("keccak"),
@@ -618,8 +619,8 @@ func Test_IsValidMsgCommit(t *testing.T) {
 			}}},
 			msg: &message.MsgCommit{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: []byte("definitely not a validator"),
+					Sequence: 101,
+					Sender:   []byte("definitely not a validator"),
 				},
 			},
 		},
@@ -634,8 +635,8 @@ func Test_IsValidMsgCommit(t *testing.T) {
 			},
 			msg: &message.MsgCommit{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 				BlockHash: []byte("definitely not keccak"),
 			},
@@ -654,8 +655,8 @@ func Test_IsValidMsgCommit(t *testing.T) {
 			},
 			msg: &message.MsgCommit{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 
 				BlockHash:  []byte("keccak"),
@@ -677,8 +678,8 @@ func Test_IsValidMsgCommit(t *testing.T) {
 			},
 			msg: &message.MsgCommit{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 
 				BlockHash:  []byte("keccak"),
@@ -716,8 +717,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					Sender: []byte("definitely not a validator"),
-					View:   &message.View{Sequence: 101},
+					Sender:   []byte("definitely not a validator"),
+					Sequence: 101,
 				},
 			},
 		},
@@ -730,8 +731,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 			},
 		},
@@ -743,8 +744,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 				LatestPreparedCertificate: &message.PreparedCertificate{},
 			},
@@ -757,8 +758,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
@@ -774,15 +775,15 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							View: &message.View{Sequence: 100},
+							Sequence: 100,
 						},
 					},
 					PrepareMessages: []*message.MsgPrepare{},
@@ -797,15 +798,15 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101},
-					Sender: chris,
+					Sequence: 101,
+					Sender:   chris,
 				},
 
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							View: &message.View{Sequence: 101, Round: 5},
+							Sequence: 101, Round: 5,
 						},
 					},
 					PrepareMessages: []*message.MsgPrepare{},
@@ -825,7 +826,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 1},
+					Sequence: 101, Round: 1,
 					Sender: chris,
 				},
 
@@ -833,8 +834,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							Sender: []byte("doesn't matter"),
-							View:   &message.View{Sequence: 101, Round: 0},
+							Sender:   []byte("doesn't matter"),
+							Sequence: 101, Round: 0,
 						},
 					},
 					PrepareMessages: []*message.MsgPrepare{},
@@ -850,7 +851,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 2},
+					Sequence: 101, Round: 2,
 					Sender: chris,
 				},
 
@@ -858,14 +859,14 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							Sender: bob,
-							View:   &message.View{Sequence: 101, Round: 1},
+							Sender:   bob,
+							Sequence: 101, Round: 1,
 						},
 					},
 					PrepareMessages: []*message.MsgPrepare{
 						{
 							Info: &message.MsgInfo{
-								View: &message.View{Sequence: 99},
+								Sequence: 99,
 							},
 						},
 					},
@@ -881,7 +882,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 2},
+					Sequence: 101, Round: 2,
 					Sender: chris,
 				},
 
@@ -889,14 +890,14 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							Sender: bob,
-							View:   &message.View{Sequence: 101, Round: 1},
+							Sender:   bob,
+							Sequence: 101, Round: 1,
 						},
 					},
 					PrepareMessages: []*message.MsgPrepare{
 						{
 							Info: &message.MsgInfo{
-								View: &message.View{Sequence: 101, Round: 0},
+								Sequence: 101, Round: 0,
 							},
 						},
 					},
@@ -912,7 +913,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 2},
+					Sequence: 101, Round: 2,
 					Sender: chris,
 				},
 
@@ -920,8 +921,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							Sender: bob,
-							View:   &message.View{Sequence: 101, Round: 1},
+							Sender:   bob,
+							Sequence: 101, Round: 1,
 						},
 
 						BlockHash: []byte("keccak"),
@@ -929,7 +930,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					PrepareMessages: []*message.MsgPrepare{
 						{
 							Info: &message.MsgInfo{
-								View: &message.View{Sequence: 101, Round: 1},
+								Sequence: 101, Round: 1,
 							},
 
 							BlockHash: []byte("some other keccak"),
@@ -949,7 +950,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 2},
+					Sequence: 101, Round: 2,
 					Sender: chris,
 				},
 
@@ -957,8 +958,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							Sender: bob,
-							View:   &message.View{Sequence: 101, Round: 1},
+							Sender:   bob,
+							Sequence: 101, Round: 1,
 						},
 
 						BlockHash: []byte("keccak"),
@@ -966,8 +967,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					PrepareMessages: []*message.MsgPrepare{
 						{
 							Info: &message.MsgInfo{
-								Sender: []byte("definitely not a validator"),
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   []byte("definitely not a validator"),
+								Sequence: 101, Round: 1,
 							},
 							BlockHash: []byte("keccak"),
 						},
@@ -984,7 +985,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 2},
+					Sequence: 101, Round: 2,
 					Sender: chris,
 				},
 
@@ -992,8 +993,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							Sender: bob,
-							View:   &message.View{Sequence: 101, Round: 1},
+							Sender:   bob,
+							Sequence: 101, Round: 1,
 						},
 
 						BlockHash: []byte("keccak"),
@@ -1001,8 +1002,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					PrepareMessages: []*message.MsgPrepare{
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 
 							BlockHash: []byte("keccak"),
@@ -1010,8 +1011,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 
 							BlockHash: []byte("keccak"),
@@ -1032,7 +1033,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			}},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 2},
+					Sequence: 101, Round: 2,
 					Sender: chris,
 				},
 
@@ -1040,8 +1041,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							Sender: bob,
-							View:   &message.View{Sequence: 101, Round: 1},
+							Sender:   bob,
+							Sequence: 101, Round: 1,
 						},
 
 						BlockHash: []byte("keccak"),
@@ -1049,8 +1050,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					PrepareMessages: []*message.MsgPrepare{
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 
 							BlockHash: []byte("keccak"),
@@ -1076,7 +1077,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 2},
+					Sequence: 101, Round: 2,
 					Sender: chris,
 				},
 
@@ -1084,8 +1085,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							Sender: bob,
-							View:   &message.View{Sequence: 101, Round: 1},
+							Sender:   bob,
+							Sequence: 101, Round: 1,
 						},
 
 						BlockHash: []byte("some other keccak"),
@@ -1093,8 +1094,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					PrepareMessages: []*message.MsgPrepare{
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 
 							BlockHash: []byte("some other keccak"),
@@ -1119,7 +1120,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			},
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
-					View:   &message.View{Sequence: 101, Round: 2},
+					Sequence: 101, Round: 2,
 					Sender: chris,
 				},
 
@@ -1127,8 +1128,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: &message.MsgProposal{
 						Info: &message.MsgInfo{
-							Sender: bob,
-							View:   &message.View{Sequence: 101, Round: 1},
+							Sender:   bob,
+							Sequence: 101, Round: 1,
 						},
 
 						BlockHash: []byte("keccak"),
@@ -1136,8 +1137,8 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					PrepareMessages: []*message.MsgPrepare{
 						{
 							Info: &message.MsgInfo{
-								Sender: chris,
-								View:   &message.View{Sequence: 101, Round: 1},
+								Sender:   chris,
+								Sequence: 101, Round: 1,
 							},
 
 							BlockHash: []byte("keccak"),

@@ -10,8 +10,9 @@ import (
 func (s *Sequencer) sendMsgPrepare() {
 	msg := &message.MsgPrepare{
 		Info: &message.MsgInfo{
-			View:   s.state.getView(),
-			Sender: s.validator.Address(),
+			Sequence: s.state.sequence,
+			Round:    s.state.round,
+			Sender:   s.validator.Address(),
 		},
 		BlockHash: s.state.getProposedBlockHash(),
 	}
@@ -32,7 +33,7 @@ func (s *Sequencer) awaitPrepare(ctx context.Context) error {
 }
 
 func (s *Sequencer) awaitQuorumPrepares(ctx context.Context) ([]*message.MsgPrepare, error) {
-	sub, cancelSub := s.feed.SubscribePrepare(s.state.getView(), false)
+	sub, cancelSub := s.feed.SubscribePrepare(0, 0, false)
 	defer cancelSub()
 
 	cache := store.NewMsgCache(func(msg *message.MsgPrepare) bool {
@@ -57,7 +58,7 @@ func (s *Sequencer) awaitQuorumPrepares(ctx context.Context) ([]*message.MsgPrep
 }
 
 func (s *Sequencer) isValidMsgPrepare(msg *message.MsgPrepare) bool {
-	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.View.Sequence) {
+	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.Sequence) {
 		return false
 	}
 

@@ -16,8 +16,9 @@ func (s *Sequencer) sendMsgProposal(block []byte) {
 
 	msg := &message.MsgProposal{
 		Info: &message.MsgInfo{
-			View:   s.state.getView(),
-			Sender: s.validator.Address(),
+			Sequence: s.state.sequence,
+			Round:    s.state.round,
+			Sender:   s.validator.Address(),
 		},
 		ProposedBlock:          pb,
 		BlockHash:              s.keccak.Hash(pb.Bytes()),
@@ -29,7 +30,7 @@ func (s *Sequencer) sendMsgProposal(block []byte) {
 }
 
 func (s *Sequencer) awaitCurrentRoundProposal(ctx context.Context) error {
-	proposal, err := s.awaitProposal(ctx, s.state.getView(), false)
+	proposal, err := s.awaitProposal(ctx, false)
 	if err != nil {
 		return err
 	}
@@ -39,12 +40,13 @@ func (s *Sequencer) awaitCurrentRoundProposal(ctx context.Context) error {
 	return nil
 }
 
-func (s *Sequencer) awaitProposal(ctx context.Context, view *message.View, higherRounds bool) (*message.MsgProposal, error) {
+func (s *Sequencer) awaitProposal(ctx context.Context, higherRounds bool) (*message.MsgProposal, error) {
+	round := s.state.getRound()
 	if higherRounds {
-		view.Round++
+		round++
 	}
 
-	sub, cancelSub := s.feed.SubscribeProposal(view, higherRounds)
+	sub, cancelSub := s.feed.SubscribeProposal(s.state.sequence, round, higherRounds)
 	defer cancelSub()
 
 	cache := store.NewMsgCache(s.isValidMsgProposal)
@@ -67,7 +69,7 @@ func (s *Sequencer) awaitProposal(ctx context.Context, view *message.View, highe
 }
 
 func (s *Sequencer) isValidMsgProposal(msg *message.MsgProposal) bool {
-	if msg.ProposedBlock.Round != msg.Info.View.Round {
+	if msg.ProposedBlock.Round != msg.Info.Round {
 		return false
 	}
 
@@ -75,7 +77,7 @@ func (s *Sequencer) isValidMsgProposal(msg *message.MsgProposal) bool {
 		return false
 	}
 
-	if !s.validatorSet.IsProposer(msg.Info.Sender, msg.Info.View.Sequence, msg.Info.View.Round) {
+	if !s.validatorSet.IsProposer(msg.Info.Sender, msg.Info.Sequence, msg.Info.Round) {
 		return false
 	}
 
@@ -83,8 +85,8 @@ func (s *Sequencer) isValidMsgProposal(msg *message.MsgProposal) bool {
 		return false
 	}
 
-	if msg.Info.View.Round == 0 {
-		return s.validator.IsValidProposal(msg.ProposedBlock.Block, msg.Info.View.Sequence)
+	if msg.Info.Round == 0 {
+		return s.validator.IsValidProposal(msg.ProposedBlock.Block, msg.Info.Sequence)
 	}
 
 	rcc := msg.RoundChangeCertificate
@@ -109,7 +111,7 @@ func (s *Sequencer) isValidMsgProposal(msg *message.MsgProposal) bool {
 
 	blockHash, round := trimmedRCC.HighestRoundBlockHash()
 	if blockHash == nil {
-		return s.validator.IsValidProposal(msg.ProposedBlock.Block, msg.Info.View.Sequence)
+		return s.validator.IsValidProposal(msg.ProposedBlock.Block, msg.Info.Sequence)
 	}
 
 	pb := &message.ProposedBlock{

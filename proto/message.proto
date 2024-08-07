@@ -2,22 +2,17 @@ syntax = "proto3";
 
 option go_package = "./message";
 
-// View indicates the (sequence, round) pair in which a message was gossiped
-message View {
-  uint64 sequence = 1;
-  uint64 round = 2;
-}
-
 // MsgMetadata contains common message details
 message MsgInfo {
-  // View in which the message was gossiped
-  View view = 1;
+  uint64 sequence = 1;
+
+  uint64 round = 2;
 
   // ID of the validator who sent the message
-  bytes sender = 2;
+  bytes sender = 3;
 
   // Validator's signature over the message
-  bytes signature = 3;
+  bytes signature = 4;
 }
 
 // ProposedBlock is the proposer's block

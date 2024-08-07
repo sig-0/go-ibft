@@ -53,16 +53,16 @@ type Transport interface {
 // 2. all messages are considered unique (there cannot be 2 or more messages from the same sender)
 type Feed interface {
 	// SubscribeProposal returns the MsgProposal subscription for given view(s)
-	SubscribeProposal(view *View, higherRounds bool) (Subscription[*MsgProposal], func())
+	SubscribeProposal(sequence, round uint64, higherRounds bool) (Subscription[*MsgProposal], func())
 
 	// SubscribePrepare returns the MsgPrepare subscription for given view(s)
-	SubscribePrepare(view *View, higherRounds bool) (Subscription[*MsgPrepare], func())
+	SubscribePrepare(sequence, round uint64, higherRounds bool) (Subscription[*MsgPrepare], func())
 
 	// SubscribeCommit returns the MsgCommit subscription for given view(s)
-	SubscribeCommit(view *View, higherRounds bool) (Subscription[*MsgCommit], func())
+	SubscribeCommit(sequence, round uint64, higherRounds bool) (Subscription[*MsgCommit], func())
 
 	// SubscribeRoundChange returns the MsgRoundChange subscription for given view(s)
-	SubscribeRoundChange(view *View, higherRounds bool) (Subscription[*MsgRoundChange], func())
+	SubscribeRoundChange(sequence, round uint64, higherRounds bool) (Subscription[*MsgRoundChange], func())
 }
 
 type (
@@ -129,7 +129,7 @@ func (rcc *RoundChangeCertificate) HighestRoundBlock() ([]byte, uint64) {
 			continue
 		}
 
-		roundsAndPreparedBlocks[pc.ProposalMessage.Info.View.Round] = pb.Block
+		roundsAndPreparedBlocks[pc.ProposalMessage.Info.Round] = pb.Block
 	}
 
 	if len(roundsAndPreparedBlocks) == 0 {
@@ -159,7 +159,7 @@ func (rcc *RoundChangeCertificate) HighestRoundBlockHash() ([]byte, uint64) {
 			continue
 		}
 
-		roundsAndPreparedBlockHashes[pc.ProposalMessage.Info.View.Round] = pc.ProposalMessage.BlockHash
+		roundsAndPreparedBlockHashes[pc.ProposalMessage.Info.Round] = pc.ProposalMessage.BlockHash
 	}
 
 	if len(roundsAndPreparedBlockHashes) == 0 {

@@ -10,8 +10,9 @@ import (
 func (s *Sequencer) sendMsgCommit() {
 	msg := &message.MsgCommit{
 		Info: &message.MsgInfo{
-			View:   s.state.getView(),
-			Sender: s.validator.Address(),
+			Sequence: s.state.sequence,
+			Round:    s.state.round,
+			Sender:   s.validator.Address(),
 		},
 		BlockHash:  s.state.getProposedBlockHash(),
 		CommitSeal: s.validator.Sign(s.state.getProposedBlockHash()),
@@ -36,7 +37,7 @@ func (s *Sequencer) awaitCommit(ctx context.Context) error {
 }
 
 func (s *Sequencer) awaitQuorumCommits(ctx context.Context) ([]*message.MsgCommit, error) {
-	sub, cancelSub := s.feed.SubscribeCommit(s.state.getView(), false)
+	sub, cancelSub := s.feed.SubscribeCommit(0, 0, false)
 	defer cancelSub()
 
 	cache := store.NewMsgCache(func(msg *message.MsgCommit) bool {
@@ -62,7 +63,7 @@ func (s *Sequencer) awaitQuorumCommits(ctx context.Context) ([]*message.MsgCommi
 
 func (s *Sequencer) isValidMsgCommit(msg *message.MsgCommit) bool {
 	// sender is in the validator set
-	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.View.Sequence) {
+	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.Sequence) {
 		return false
 	}
 
