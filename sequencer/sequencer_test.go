@@ -1,7 +1,5 @@
 package sequencer
 
-import "github.com/sig-0/go-ibft/test/mock"
-
 //
 //import (
 //	"context"
@@ -15,15 +13,6 @@ import "github.com/sig-0/go-ibft/test/mock"
 //	"github.com/sig-0/go-ibft/message/types"
 //	"github.com/sig-0/go-ibft/test/mock"
 //)
-
-var (
-	Alice = mock.NewValidatorID("alice")
-	Bob   = mock.NewValidatorID("bob")
-	Chris = mock.NewValidatorID("chris")
-	Dani  = mock.NewValidatorID("dani")
-
-	//ValidatorSet = mock.NewValidatorSet(Alice, Bob, Chris, Dani)
-)
 
 //func TestSequencerFinalizeCancelled(t *testing.T) {
 //	t.Parallel()
