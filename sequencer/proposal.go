@@ -26,6 +26,9 @@ func (s *Sequencer) sendMsgProposal(block []byte) {
 	}
 
 	msg = message.SignMsg(msg, s.validator)
+
+	s.state.proposal = msg
+
 	s.transport.MulticastProposal(msg)
 }
 

@@ -72,7 +72,6 @@ func (s *Sequencer) Finalize(ctx context.Context, sequence uint64) *SequenceResu
 	select {
 	case <-ctx.Done():
 		<-c // wait for finalize to return
-
 		return nil
 	case fb := <-c:
 		return fb

@@ -1,949 +1,1131 @@
 package sequencer
 
-//
-//import (
-//	"context"
-//	"reflect"
-//	"testing"
-//	"time"
-//
-//	"github.com/stretchr/testify/assert"
-//
-//	"github.com/sig-0/go-ibft"
-//	"github.com/sig-0/go-ibft/message/types"
-//	"github.com/sig-0/go-ibft/test/mock"
-//)
+import (
+	"bytes"
+	"context"
+	"github.com/sig-0/go-ibft/message"
+	"reflect"
+	"testing"
+	"time"
 
-//func TestSequencerFinalizeCancelled(t *testing.T) {
-//	t.Parallel()
-//
-//	v := mock.Validator{
-//		IDFn:        Alice.ID,
-//		SigVerifier: mock.SigVerifier{IsProposerFn: func(_ []byte, _, _ uint64) bool { return false }},
-//	}
-//
-//	seq := NewSequencer(v, 10*time.Millisecond)
-//	c, cancel := context.WithCancel(context.Background())
-//	ch := make(chan *types.FinalizedProposal)
-//
-//	go func(c context.Context) {
-//		defer close(ch)
-//
-//		ctx := NewContext(c)
-//		ctx = ctx.WithMsgFeed(mock.NewSingleRoundFeed(nil))
-//		ch <- seq.Finalize(ctx, 101)
-//	}(c)
-//
-//	cancel()
-//
-//	assert.Nil(t, <-ch)
-//}
-//
-//func TestSequencerFinalize(t *testing.T) {
-//	t.Parallel()
-//
-//	testTable := []struct {
-//		validator ibft.Validator
-//		quorum    ibft.Quorum
-//		feed      MsgFeed
-//		expected  *types.FinalizedProposal
-//		name      string
-//	}{
-//		{
-//			name:   "validator is not the proposer",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:   Alice.ID,
-//				Signer: Alice.Signer(),
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Bob, Round: 0}),
-//				},
-//			},
-//
-//			feed: mock.NewMessageFeed([]types.Message{
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 0},
-//					},
-//					BlockHash:     []byte("block hash"),
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 0},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 0},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 0},
-//					},
-//
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("block"),
-//				Round:    0,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Alice,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "validator is the proposer",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:            Alice.ID,
-//				Signer:          Alice.Signer(),
-//				BuildProposalFn: func(_ uint64) []byte { return []byte("block") },
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Alice, Round: 0}),
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//				},
-//			},
-//
-//			feed: mock.NewMessageFeed([]types.Message{
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 0},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 0},
-//					},
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("block"),
-//				Round:    0,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Bob,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "round 1 proposal is valid with empty PB and PC",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:   Alice.ID,
-//				Signer: Alice.Signer(),
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Bob, Round: 1}),
-//				},
-//			},
-//
-//			feed: mock.NewMessageFeed([]types.Message{
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//					BlockHash:     []byte("block hash"),
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 1},
-//					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-//						{
-//							Metadata: &types.MsgMetadata{
-//								View:   &types.View{Sequence: 101, Round: 1},
-//								Sender: Alice,
-//							},
-//						},
-//					}},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("block"),
-//				Round:    1,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Alice,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "round 1 proposal is valid with non-nil PB and PC",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:   Alice.ID,
-//				Signer: Alice.Signer(),
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn: mock.ProposersInRounds(
-//						mock.Proposer{ID: Chris, Round: 0},
-//						mock.Proposer{ID: Bob, Round: 1},
-//					),
-//				},
-//			},
-//
-//			feed: mock.NewMessageFeed([]types.Message{
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash:     []byte("block hash"),
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 1},
-//					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-//						{
-//							Metadata: &types.MsgMetadata{
-//								Sender: Chris,
-//								View:   &types.View{Sequence: 101, Round: 1},
-//							},
-//
-//							LatestPreparedCertificate: &types.PreparedCertificate{
-//								ProposalMessage: &types.MsgProposal{
-//									Metadata: &types.MsgMetadata{
-//										Sender: Chris,
-//										View:   &types.View{Sequence: 101, Round: 0},
-//									},
-//
-//									BlockHash: []byte("block hash"),
-//									ProposedBlock: &types.ProposedBlock{
-//										Block: []byte("round 0 block"),
-//										Round: 0,
-//									},
-//								},
-//								SubscribePrepare: []*types.MsgPrepare{
-//									{
-//										Metadata: &types.MsgMetadata{
-//											Sender: Alice,
-//											View:   &types.View{Sequence: 101, Round: 0},
-//										},
-//
-//										BlockHash: []byte("block hash"),
-//									},
-//								},
-//							},
-//						},
-//					}},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("round 0 block"),
-//				Round:    1,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Alice,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "block proposed in round 1",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:            Alice.ID,
-//				Signer:          Alice.Signer(),
-//				BuildProposalFn: func(_ uint64) []byte { return []byte("round 1 block") },
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn: mock.ProposersInRounds(
-//						mock.Proposer{ID: Bob, Round: 0},
-//						mock.Proposer{ID: Alice, Round: 1},
-//					),
-//				},
-//			},
-//
-//			feed: mock.NewMessageFeed([]types.Message{
-//				// need to justify Alice's proposal for round 1
-//				&types.MsgRoundChange{
-//					Metadata: &types.MsgMetadata{
-//						View:   &types.View{Sequence: 101, Round: 1},
-//						Sender: Alice,
-//					},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						View:   &types.View{Sequence: 101, Round: 1},
-//						Sender: Bob,
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						View:   &types.View{Sequence: 101, Round: 1},
-//						Sender: Bob,
-//					},
-//
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("round 1 block"),
-//				Round:    1,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Bob,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "old block proposed in round 1",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:   Alice.ID,
-//				Signer: Alice.Signer(),
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn: mock.ProposersInRounds(
-//						mock.Proposer{ID: Bob, Round: 0},
-//						mock.Proposer{ID: Alice, Round: 1},
-//					),
-//				},
-//			},
-//
-//			feed: mock.NewMessageFeed([]types.Message{
-//				&types.MsgRoundChange{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Chris,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					LatestPreparedProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
-//					LatestPreparedCertificate: &types.PreparedCertificate{
-//						ProposalMessage: &types.MsgProposal{
-//							Metadata: &types.MsgMetadata{
-//								Sender: Bob,
-//								View:   &types.View{Sequence: 101, Round: 0},
-//							},
-//
-//							BlockHash:     []byte("block hash"),
-//							ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
-//						},
-//
-//						SubscribePrepare: []*types.MsgPrepare{
-//							{
-//								Metadata: &types.MsgMetadata{
-//									Sender: Chris,
-//									View:   &types.View{Sequence: 101, Round: 0},
-//								},
-//								BlockHash: []byte("block hash"),
-//							},
-//						},
-//					},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("round 0 block"),
-//				Round:    1,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Alice,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "future rcc triggers round jump",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:   Alice.ID,
-//				Signer: Alice.Signer(),
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Chris, Round: 3}),
-//				},
-//			},
-//
-//			feed: mock.NewMessageFeed([]types.Message{
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Chris,
-//						View:   &types.View{Sequence: 101, Round: 3},
-//					},
-//
-//					BlockHash:     []byte("block hash"),
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("block"), Round: 3},
-//					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-//						{
-//							Metadata: &types.MsgMetadata{
-//								Sender: Bob,
-//								View:   &types.View{Sequence: 101, Round: 3},
-//							},
-//						},
-//					}},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 3},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 3},
-//					},
-//
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("block"),
-//				Round:    3,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Alice,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "future proposal triggers round jump",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:   Alice.ID,
-//				Signer: Alice.Signer(),
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Dani, Round: 5}),
-//				},
-//			},
-//
-//			feed: mock.NewMessageFeed([]types.Message{
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Dani,
-//						View:   &types.View{Sequence: 101, Round: 5},
-//					},
-//
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("round 5 block"), Round: 5},
-//					BlockHash:     []byte("block hash"),
-//					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-//						{
-//							Metadata: &types.MsgMetadata{
-//								View:   &types.View{Sequence: 101, Round: 5},
-//								Sender: Chris,
-//							},
-//						},
-//					}},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 5},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 5},
-//					},
-//
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("round 5 block"),
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Alice,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//				Round: 5,
-//			},
-//		},
-//
-//		{
-//			name:   "round timer triggers round jump",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:            Alice.ID,
-//				Signer:          Alice.Signer(),
-//				BuildProposalFn: func(_ uint64) []byte { return []byte("round 1 block") },
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn:       mock.ProposersInRounds(mock.Proposer{ID: Alice, Round: 1}),
-//				},
-//			},
-//
-//			feed: mock.NewSingleRoundFeed([]types.Message{
-//				&types.MsgRoundChange{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("round 1 block"),
-//				Round:    1,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Bob,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "no prepare messages in round 0",
-//			quorum: mock.NonZeroQuorum,
-//			validator: mock.Validator{
-//				IDFn:   Alice.ID,
-//				Signer: Alice.Signer(),
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn: mock.ProposersInRounds(
-//						mock.Proposer{ID: Bob, Round: 0},
-//						mock.Proposer{ID: Chris, Round: 1},
-//					),
-//				},
-//			},
-//
-//			feed: mock.NewSingleRoundFeed([]types.Message{
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 0},
-//					},
-//
-//					BlockHash:     []byte("block hash"),
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
-//				},
-//
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Chris,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash:     []byte("block hash"),
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
-//					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-//						{
-//							Metadata: &types.MsgMetadata{
-//								View:   &types.View{Sequence: 101, Round: 1},
-//								Sender: Alice,
-//							},
-//						},
-//					}},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("round 1 block"),
-//				Round:    1,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Alice,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "no commit messages in round 0",
-//			quorum: mock.QuorumOf(2),
-//			validator: mock.Validator{
-//				IDFn:   Alice.ID,
-//				Signer: Alice.Signer(),
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn: mock.ProposersInRounds(
-//						mock.Proposer{ID: Bob, Round: 0},
-//						mock.Proposer{ID: Chris, Round: 1},
-//					),
-//				},
-//			},
-//
-//			feed: mock.NewSingleRoundFeed([]types.Message{
-//				/* round 0 */
-//
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 0},
-//					},
-//
-//					BlockHash:     []byte("block hash"),
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 0},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 0},
-//					},
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				/* round 1 */
-//
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Chris,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash:     []byte("block hash"),
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
-//					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-//						{
-//							Metadata: &types.MsgMetadata{
-//								Sender: Alice,
-//								View:   &types.View{Sequence: 101, Round: 1},
-//							},
-//						},
-//						{
-//							Metadata: &types.MsgMetadata{
-//								Sender: Bob,
-//								View:   &types.View{Sequence: 101, Round: 1},
-//							},
-//						},
-//					}},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("other commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("round 1 block"),
-//				Round:    1,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Alice,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//					{
-//						From:       Bob,
-//						CommitSeal: []byte("other commit seal"),
-//					},
-//				},
-//			},
-//		},
-//
-//		{
-//			name:   "round 0 proposer fails to build block",
-//			quorum: mock.QuorumOf(2),
-//			validator: mock.Validator{
-//				IDFn:   Alice.ID,
-//				Signer: Alice.Signer(),
-//				SigVerifier: mock.SigVerifier{
-//					IsValidSignatureFn: mock.OkSignature,
-//					IsValidProposalFn:  mock.OkBlock,
-//					IsValidatorFn:      ValidatorSet.IsValidator,
-//					IsProposerFn: mock.ProposersInRounds(
-//						mock.Proposer{ID: Bob, Round: 0},
-//						mock.Proposer{ID: Alice, Round: 1},
-//						mock.Proposer{ID: Chris, Round: 2},
-//					),
-//				},
-//			},
-//
-//			feed: mock.NewSingleRoundFeed([]types.Message{
-//				&types.MsgRoundChange{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Chris,
-//						View:   &types.View{Sequence: 101, Round: 1},
-//					},
-//				},
-//
-//				&types.MsgProposal{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Chris,
-//						View:   &types.View{Sequence: 101, Round: 2},
-//					},
-//
-//					ProposedBlock: &types.ProposedBlock{Block: []byte("round 2 block"), Round: 2},
-//					BlockHash:     []byte("block hash"),
-//					RoundChangeCertificate: &types.RoundChangeCertificate{Messages: []*types.MsgRoundChange{
-//						{
-//							Metadata: &types.MsgMetadata{
-//								Sender: Bob,
-//								View:   &types.View{Sequence: 101, Round: 2},
-//							},
-//						},
-//						{
-//							Metadata: &types.MsgMetadata{
-//								Sender: Chris,
-//								View:   &types.View{Sequence: 101, Round: 2},
-//							},
-//						},
-//					}},
-//				},
-//
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 2},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//				&types.MsgPrepare{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 2},
-//					},
-//
-//					BlockHash: []byte("block hash"),
-//				},
-//
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Bob,
-//						View:   &types.View{Sequence: 101, Round: 2},
-//					},
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("commit seal"),
-//				},
-//				&types.MsgCommit{
-//					Metadata: &types.MsgMetadata{
-//						Sender: Alice,
-//						View:   &types.View{Sequence: 101, Round: 2},
-//					},
-//					BlockHash:  []byte("block hash"),
-//					CommitSeal: []byte("other commit seal"),
-//				},
-//			}),
-//
-//			expected: &types.FinalizedProposal{
-//				proposal: []byte("round 2 block"),
-//				Round:    2,
-//				Seals: []types.FinalizedSeal{
-//					{
-//						From:       Bob,
-//						CommitSeal: []byte("commit seal"),
-//					},
-//					{
-//						From:       Alice,
-//						CommitSeal: []byte("other commit seal"),
-//					},
-//				},
-//			},
-//		},
-//	}
-//
-//	for _, tt := range testTable {
-//		tt := tt
-//		t.Run(tt.name, func(t *testing.T) {
-//			t.Parallel()
-//
-//			ctx := NewContext(context.Background())
-//			ctx = ctx.WithQuorum(tt.quorum)
-//			ctx = ctx.WithMsgFeed(tt.feed)
-//			ctx = ctx.WithKeccak(mock.DummyKeccak("block hash"))
-//			ctx = ctx.WithTransport(mock.DummyTransport())
-//
-//			s := NewSequencer(tt.validator, time.Millisecond*10)
-//			assert.True(t, reflect.DeepEqual(tt.expected, s.Finalize(ctx, 101)))
-//		})
-//	}
-//}
+	"github.com/stretchr/testify/assert"
+)
+
+var (
+	alice = []byte("alice")
+	bob   = []byte("bob")
+	chris = []byte("chris")
+	nina  = []byte("nina")
+)
+
+func Test_SequencerFinalizeCancelled(t *testing.T) {
+	t.Parallel()
+
+	s := NewSequencer(NewConfig(
+		WithValidator(MockValidator{address: alice}),
+		WithValidatorSet(MockValidatorSet{isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
+			return false
+		}}),
+		WithRound0Duration(10*time.Millisecond),
+		WithFeed(NewSingleRoundMockFeed(nil)),
+	))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := make(chan *SequenceResult)
+
+	go func(ctx context.Context) {
+		defer close(ch)
+
+		ch <- s.Finalize(ctx, 101)
+	}(ctx)
+
+	cancel()
+
+	assert.Nil(t, <-ch)
+}
+
+func Test_SequencerFinalize(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		name     string
+		cfg      Config
+		expected *SequenceResult
+	}{
+		{
+			name: "alice and chris accept bob's proposal in round 0",
+			expected: &SequenceResult{
+				Round:    0,
+				Proposal: []byte("bob's proposal"),
+				Seals: []CommitSeal{
+					{
+						From: alice,
+						Seal: []byte("alice seal"),
+					},
+					{
+						From: chris,
+						Seal: []byte("chris seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, bob) && round == 0
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					&message.MsgProposal{
+						Info:          &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+						ProposedBlock: &message.ProposedBlock{Block: []byte("bob's proposal"), Round: 0},
+						BlockHash:     []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: alice, Sequence: 101, Round: 0},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 0},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: alice, Sequence: 101, Round: 0},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("alice seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: chris, Sequence: 101, Round: 0},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("chris seal"),
+					},
+				})),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithTransport(DummyTransport()),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithRound0Duration(10*time.Millisecond),
+			),
+		},
+
+		{
+			name: "bob and chris accept alice's proposal in round 0",
+			expected: &SequenceResult{
+				Round:    0,
+				Proposal: []byte("alice's proposal"),
+				Seals: []CommitSeal{
+					{
+						From: bob,
+						Seal: []byte("bob seal"),
+					},
+					{
+						From: chris,
+						Seal: []byte("chris seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address: alice,
+					signFn:  func(_ []byte) []byte { return nil },
+					buildProposalFn: func(_ uint64) []byte {
+						return []byte("alice's proposal")
+					},
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, alice) && round == 0
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 0},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("bob seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: chris, Sequence: 101, Round: 0},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("chris seal"),
+					},
+				})),
+			),
+		},
+		{
+			name: "alice and chris accept bob's proposal in round 1 due to round change",
+			expected: &SequenceResult{
+				Round:    1,
+				Proposal: []byte("bob's round 1 proposal"),
+				Seals: []CommitSeal{
+					{
+						From: alice,
+						Seal: []byte("alice seal"),
+					},
+					{
+						From: chris,
+						Seal: []byte("chris seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, bob) && round == 1
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					&message.MsgProposal{
+						Info:          &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+						BlockHash:     []byte("block hash"),
+						ProposedBlock: &message.ProposedBlock{Block: []byte("bob's round 1 proposal"), Round: 1},
+						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+							{
+								Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: alice},
+							},
+
+							{
+								Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: chris},
+							},
+						}},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: alice, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: alice, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("alice seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("chris seal"),
+					},
+				})),
+			),
+		},
+
+		{
+			name: "alice jumps to round 1 proposal and accepts it",
+			expected: &SequenceResult{
+				Round:    1,
+				Proposal: []byte("chris' proposal"),
+				Seals: []CommitSeal{
+					{
+						From: alice,
+						Seal: []byte("alice seal"),
+					},
+					{
+						From: chris,
+						Seal: []byte("chris seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, chris) && round == 0 || bytes.Equal(v, bob) && round == 1
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					&message.MsgProposal{
+						Info:          &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+						BlockHash:     []byte("block hash"),
+						ProposedBlock: &message.ProposedBlock{Block: []byte("chris' proposal"), Round: 1},
+						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+							{
+								Info: &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+								LatestPreparedCertificate: &message.PreparedCertificate{
+									ProposalMessage: &message.MsgProposal{
+										Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 0},
+										BlockHash: []byte("block hash"),
+										ProposedBlock: &message.ProposedBlock{
+											Block: []byte("chris' proposal"),
+											Round: 0,
+										},
+									},
+									PrepareMessages: []*message.MsgPrepare{
+										{
+											Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+											BlockHash: []byte("block hash"),
+										},
+										{
+											Info:      &message.MsgInfo{Sender: nina, Sequence: 101, Round: 0},
+											BlockHash: []byte("block hash"),
+										},
+									},
+								},
+							},
+							{
+								Info: &message.MsgInfo{Sender: nina, Sequence: 101, Round: 1},
+								LatestPreparedCertificate: &message.PreparedCertificate{
+									ProposalMessage: &message.MsgProposal{
+										Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 0},
+										BlockHash: []byte("block hash"),
+										ProposedBlock: &message.ProposedBlock{
+											Block: []byte("chris' proposal"),
+											Round: 0,
+										},
+									},
+									PrepareMessages: []*message.MsgPrepare{
+										{
+											Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+											BlockHash: []byte("block hash"),
+										},
+										{
+											Info:      &message.MsgInfo{Sender: nina, Sequence: 101, Round: 0},
+											BlockHash: []byte("block hash"),
+										},
+									},
+								},
+							},
+						}},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: alice, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: alice, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("alice seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("chris seal"),
+					},
+				})),
+			),
+		},
+
+		{
+			name: "block proposed in round 1",
+			expected: &SequenceResult{
+				Round:    1,
+				Proposal: []byte("alice's round 1 proposal"),
+				Seals: []CommitSeal{
+					{
+						From: bob,
+						Seal: []byte("bob seal"),
+					},
+
+					{
+						From: nina,
+						Seal: []byte("nina seal"),
+					},
+				},
+			},
+
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+					buildProposalFn: func(_ uint64) []byte {
+						return []byte("alice's round 1 proposal")
+					},
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, bob) && round == 0 || bytes.Equal(v, alice) && round == 1
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					// need to justify alice's proposal for round 1
+					&message.MsgRoundChange{
+						Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: alice},
+					},
+
+					&message.MsgRoundChange{
+						Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: nina},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sequence: 101, Round: 1, Sender: bob},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sequence: 101, Round: 1, Sender: nina},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sequence: 101, Round: 1, Sender: bob},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("bob seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sequence: 101, Round: 1, Sender: nina},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("nina seal"),
+					},
+				})),
+			),
+		},
+
+		{
+			name: "old block proposed in round 1",
+			expected: &SequenceResult{
+				Round:    1,
+				Proposal: []byte("bob's round 0 proposal"),
+				Seals: []CommitSeal{
+					{
+						From: bob,
+						Seal: []byte("bob seal"),
+					},
+					{
+						From: chris,
+						Seal: []byte("chris seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, bob) && round == 0 || bytes.Equal(v, alice) && round == 1
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					&message.MsgRoundChange{
+						Info: &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						LatestPreparedProposedBlock: &message.ProposedBlock{
+							Block: []byte("bob's round 0 proposal"),
+							Round: 0,
+						},
+						LatestPreparedCertificate: &message.PreparedCertificate{
+							ProposalMessage: &message.MsgProposal{
+								Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &message.ProposedBlock{
+									Block: []byte("bob's round 0 proposal"),
+									Round: 0,
+								},
+							},
+
+							PrepareMessages: []*message.MsgPrepare{
+								{
+									Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 0},
+									BlockHash: []byte("block hash"),
+								},
+								{
+									Info:      &message.MsgInfo{Sender: nina, Sequence: 101, Round: 0},
+									BlockHash: []byte("block hash"),
+								},
+							},
+						},
+					},
+
+					&message.MsgRoundChange{
+						Info: &message.MsgInfo{Sender: nina, Sequence: 101, Round: 1},
+						LatestPreparedProposedBlock: &message.ProposedBlock{
+							Block: []byte("bob's round 0 proposal"),
+							Round: 0,
+						},
+						LatestPreparedCertificate: &message.PreparedCertificate{
+							ProposalMessage: &message.MsgProposal{
+								Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+								BlockHash: []byte("block hash"),
+								ProposedBlock: &message.ProposedBlock{
+									Block: []byte("bob's round 0 proposal"),
+									Round: 0,
+								},
+							},
+
+							PrepareMessages: []*message.MsgPrepare{
+								{
+									Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 0},
+									BlockHash: []byte("block hash"),
+								},
+								{
+									Info:      &message.MsgInfo{Sender: nina, Sequence: 101, Round: 0},
+									BlockHash: []byte("block hash"),
+								},
+							},
+						},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("bob seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("chris seal"),
+					},
+				})),
+			),
+		},
+
+		{
+			name: "future rcc triggers round jump",
+			expected: &SequenceResult{
+				Round:    3,
+				Proposal: []byte("chris' round 3 proposal"),
+				Seals: []CommitSeal{
+					{
+						From: alice,
+						Seal: []byte("alice seal"),
+					},
+					{
+						From: bob,
+						Seal: []byte("bob seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, chris) && round == 3
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					&message.MsgProposal{
+						Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 3},
+						BlockHash: []byte("block hash"),
+						ProposedBlock: &message.ProposedBlock{
+							Block: []byte("chris' round 3 proposal"),
+							Round: 3,
+						},
+						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+							{
+								Info: &message.MsgInfo{Sender: bob, Sequence: 101, Round: 3},
+							},
+							{
+								Info: &message.MsgInfo{Sender: chris, Sequence: 101, Round: 3},
+							},
+						}},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: alice, Sequence: 101, Round: 3},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 3},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: alice, Sequence: 101, Round: 3},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("alice seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: bob, Sequence: 101, Round: 3},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("bob seal"),
+					},
+				})),
+			),
+		},
+
+		{
+			name: "future proposal triggers round jump",
+			expected: &SequenceResult{
+				Round:    5,
+				Proposal: []byte("round 5 block"),
+				Seals: []CommitSeal{
+					{
+						From: alice,
+						Seal: []byte("alice seal"),
+					},
+					{
+						From: nina,
+						Seal: []byte("nina seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, nina) && round == 5
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					&message.MsgProposal{
+						Info:          &message.MsgInfo{Sender: nina, Sequence: 101, Round: 5},
+						ProposedBlock: &message.ProposedBlock{Block: []byte("round 5 block"), Round: 5},
+						BlockHash:     []byte("block hash"),
+						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+							{
+								Info: &message.MsgInfo{Sequence: 101, Round: 5, Sender: chris},
+							},
+
+							{
+								Info: &message.MsgInfo{Sequence: 101, Round: 5, Sender: bob},
+							},
+						}},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: alice, Sequence: 101, Round: 5},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: nina, Sequence: 101, Round: 5},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: alice, Sequence: 101, Round: 5},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("alice seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: nina, Sequence: 101, Round: 5},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("nina seal"),
+					},
+				})),
+			),
+		},
+
+		{
+			name: "round timer triggers round jump",
+			expected: &SequenceResult{
+				Round:    1,
+				Proposal: []byte("alice round 1 proposal"),
+				Seals: []CommitSeal{
+					{
+						From: bob,
+						Seal: []byte("bob seal"),
+					},
+					{
+						From: chris,
+						Seal: []byte("chris seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+					buildProposalFn: func(_ uint64) []byte {
+						return []byte("alice round 1 proposal")
+					},
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, alice) && round == 1
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					&message.MsgRoundChange{
+						Info: &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+					},
+
+					&message.MsgRoundChange{
+						Info: &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("bob seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("chris seal"),
+					},
+				})),
+			),
+		},
+
+		{
+			name: "no prepare messages in round 0",
+			expected: &SequenceResult{
+				Round:    1,
+				Proposal: []byte("round 1 block"),
+				Seals: []CommitSeal{
+					{
+						From: alice,
+						Seal: []byte("alice seal"),
+					},
+
+					{
+						From: nina,
+						Seal: []byte("nina seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, bob) && round == 0 || bytes.Equal(v, chris) && round == 1
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewMockFeed([]message.Message{
+					&message.MsgProposal{
+						Info:          &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+						BlockHash:     []byte("block hash"),
+						ProposedBlock: &message.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
+					},
+
+					&message.MsgProposal{
+						Info:          &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash:     []byte("block hash"),
+						ProposedBlock: &message.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
+						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+							{
+								Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: alice},
+							},
+
+							{
+								Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: chris},
+							},
+						}},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: alice, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: nina, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: alice, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("alice seal"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: nina, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("nina seal"),
+					},
+				})),
+			),
+		},
+
+		{
+			name: "no commit messages in round 0",
+			expected: &SequenceResult{
+				Round:    1,
+				Proposal: []byte("round 1 block"),
+				Seals: []CommitSeal{
+					{
+						From: alice,
+						Seal: []byte("alice seal"),
+					},
+					{
+						From: bob,
+						Seal: []byte("bob seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, bob) && round == 0 || bytes.Equal(v, chris) && round == 1
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewSingleRoundMockFeed([]message.Message{
+					/* round 0 */
+					&message.MsgProposal{
+						Info:          &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+						BlockHash:     []byte("block hash"),
+						ProposedBlock: &message.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: alice, Sequence: 101, Round: 0},
+						BlockHash: []byte("block hash"),
+					},
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 0},
+						BlockHash: []byte("block hash"),
+					},
+
+					/* round 1 */
+
+					&message.MsgProposal{
+						Info:          &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+						BlockHash:     []byte("block hash"),
+						ProposedBlock: &message.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
+						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+							{
+								Info: &message.MsgInfo{Sender: alice, Sequence: 101, Round: 1},
+							},
+							{
+								Info: &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+							},
+						}},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: alice, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: alice, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("alice seal"),
+					},
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: bob, Sequence: 101, Round: 1},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("bob seal"),
+					},
+				})),
+			),
+		},
+
+		{
+			name: "round 0 proposer fails to build block",
+			expected: &SequenceResult{
+				Round:    2,
+				Proposal: []byte("round 2 block"),
+				Seals: []CommitSeal{
+					{
+						From: bob,
+						Seal: []byte("bob seal"),
+					},
+					{
+						From: alice,
+						Seal: []byte("alice seal"),
+					},
+				},
+			},
+			cfg: NewConfig(
+				WithRound0Duration(10*time.Millisecond),
+				WithTransport(DummyTransport()),
+				WithKeccak(MockKeccak(func(_ []byte) []byte {
+					return []byte("block hash")
+				})),
+				WithSignatureVerifier(MockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
+					return nil
+				})),
+				WithValidator(MockValidator{
+					address:           alice,
+					signFn:            func(_ []byte) []byte { return nil },
+					isValidProposalFn: func(_ uint64, _ []byte) bool { return true },
+				}),
+				WithValidatorSet(MockValidatorSet{
+					isValidatorFn: func(v []byte, _ uint64) bool {
+						return true
+					},
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, bob) && round == 0 ||
+							bytes.Equal(v, alice) && round == 1 ||
+							bytes.Equal(v, chris) && round == 2
+					},
+					hasQuorumFn: func(messages []message.Message) bool {
+						return len(messages) >= 2
+					},
+				}),
+				WithFeed(NewSingleRoundMockFeed([]message.Message{
+					&message.MsgRoundChange{
+						Info: &message.MsgInfo{Sender: chris, Sequence: 101, Round: 1},
+					},
+
+					&message.MsgProposal{
+						Info:          &message.MsgInfo{Sender: chris, Sequence: 101, Round: 2},
+						ProposedBlock: &message.ProposedBlock{Block: []byte("round 2 block"), Round: 2},
+						BlockHash:     []byte("block hash"),
+						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+							{
+								Info: &message.MsgInfo{Sender: bob, Sequence: 101, Round: 2},
+							},
+							{
+								Info: &message.MsgInfo{Sender: chris, Sequence: 101, Round: 2},
+							},
+						}},
+					},
+
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: bob, Sequence: 101, Round: 2},
+						BlockHash: []byte("block hash"),
+					},
+					&message.MsgPrepare{
+						Info:      &message.MsgInfo{Sender: alice, Sequence: 101, Round: 2},
+						BlockHash: []byte("block hash"),
+					},
+
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: bob, Sequence: 101, Round: 2},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("bob seal"),
+					},
+					&message.MsgCommit{
+						Info:       &message.MsgInfo{Sender: alice, Sequence: 101, Round: 2},
+						BlockHash:  []byte("block hash"),
+						CommitSeal: []byte("alice seal"),
+					},
+				})),
+			),
+		},
+	}
+
+	for _, tt := range testTable {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			res := NewSequencer(tt.cfg).Finalize(context.Background(), 101)
+			assert.True(t, reflect.DeepEqual(tt.expected, res))
+		})
+	}
+}

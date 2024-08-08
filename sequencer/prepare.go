@@ -33,12 +33,10 @@ func (s *Sequencer) awaitPrepare(ctx context.Context) error {
 }
 
 func (s *Sequencer) awaitQuorumPrepares(ctx context.Context) ([]*message.MsgPrepare, error) {
-	sub, cancelSub := s.feed.SubscribePrepare(0, 0, false)
+	sub, cancelSub := s.feed.SubscribePrepare(s.state.sequence, s.state.round, false)
 	defer cancelSub()
 
-	cache := store.NewMsgCache(func(msg *message.MsgPrepare) bool {
-		return s.isValidMsgPrepare(msg)
-	})
+	cache := store.NewMsgCache(s.isValidMsgPrepare)
 
 	for {
 		select {

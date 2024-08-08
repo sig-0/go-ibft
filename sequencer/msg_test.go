@@ -10,12 +10,6 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-var (
-	alice = []byte("alice")
-	bob   = []byte("bob")
-	chris = []byte("chris")
-)
-
 func Test_IsValidMsgProposal(t *testing.T) {
 	t.Parallel()
 

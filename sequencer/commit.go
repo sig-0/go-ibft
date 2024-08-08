@@ -37,12 +37,10 @@ func (s *Sequencer) awaitCommit(ctx context.Context) error {
 }
 
 func (s *Sequencer) awaitQuorumCommits(ctx context.Context) ([]*message.MsgCommit, error) {
-	sub, cancelSub := s.feed.SubscribeCommit(0, 0, false)
+	sub, cancelSub := s.feed.SubscribeCommit(s.state.sequence, s.state.round, false)
 	defer cancelSub()
 
-	cache := store.NewMsgCache(func(msg *message.MsgCommit) bool {
-		return s.isValidMsgCommit(msg)
-	})
+	cache := store.NewMsgCache(s.isValidMsgCommit)
 
 	for {
 		select {

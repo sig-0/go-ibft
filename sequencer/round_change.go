@@ -44,9 +44,7 @@ func (s *Sequencer) awaitQuorumRoundChanges(ctx context.Context, higherRounds bo
 	sub, cancelSub := s.feed.SubscribeRoundChange(s.state.sequence, round, higherRounds)
 	defer cancelSub()
 
-	cache := store.NewMsgCache(func(msg *message.MsgRoundChange) bool {
-		return s.isValidMsgRoundChange(msg)
-	})
+	cache := store.NewMsgCache(s.isValidMsgRoundChange)
 
 	for {
 		select {
