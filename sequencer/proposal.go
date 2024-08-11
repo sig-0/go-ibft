@@ -11,7 +11,7 @@ import (
 func (s *Sequencer) sendMsgProposal(block []byte) {
 	pb := &message.ProposedBlock{
 		Block: block,
-		Round: s.state.getRound(),
+		Round: s.state.round,
 	}
 
 	msg := &message.MsgProposal{
@@ -26,25 +26,12 @@ func (s *Sequencer) sendMsgProposal(block []byte) {
 	}
 
 	msg = message.SignMsg(msg, s.validator)
-
 	s.state.proposal = msg
-
 	s.transport.MulticastProposal(msg)
 }
 
-func (s *Sequencer) awaitCurrentRoundProposal(ctx context.Context) error {
-	proposal, err := s.awaitProposal(ctx, false)
-	if err != nil {
-		return err
-	}
-
-	s.state.acceptProposal(proposal)
-
-	return nil
-}
-
 func (s *Sequencer) awaitProposal(ctx context.Context, higherRounds bool) (*message.MsgProposal, error) {
-	round := s.state.getRound()
+	round := s.state.round
 	if higherRounds {
 		round++
 	}
@@ -72,18 +59,22 @@ func (s *Sequencer) awaitProposal(ctx context.Context, higherRounds bool) (*mess
 }
 
 func (s *Sequencer) isValidMsgProposal(msg *message.MsgProposal) bool {
+	// msg round and proposed block round match
 	if msg.ProposedBlock.Round != msg.Info.Round {
 		return false
 	}
 
+	// sender is part of the validator set
 	if bytes.Equal(msg.Info.Sender, s.validator.Address()) {
 		return false
 	}
 
+	// sender is the selected proposer
 	if !s.validatorSet.IsProposer(msg.Info.Sender, msg.Info.Sequence, msg.Info.Round) {
 		return false
 	}
 
+	// block hash and keccak hash of proposed block match
 	if !bytes.Equal(msg.BlockHash, s.keccak.Hash(msg.ProposedBlock.Bytes())) {
 		return false
 	}
@@ -92,35 +83,42 @@ func (s *Sequencer) isValidMsgProposal(msg *message.MsgProposal) bool {
 		return s.validator.IsValidProposal(msg.ProposedBlock.Block, msg.Info.Sequence)
 	}
 
+	/* non zero round proposals */
+
 	rcc := msg.RoundChangeCertificate
 	if !s.isValidRCC(rcc, msg) {
 		return false
 	}
 
-	valid := make([]*message.MsgRoundChange, 0, len(rcc.Messages))
-
+	trimmedRCC := &message.RoundChangeCertificate{}
 	for _, msg := range rcc.Messages {
 		pc := msg.LatestPreparedCertificate
 		if pc == nil {
 			continue
 		}
 
+		// any included prepared certificate must be valid
 		if s.isValidPC(pc, msg) {
-			valid = append(valid, msg)
+			trimmedRCC.Messages = append(trimmedRCC.Messages, msg)
 		}
 	}
 
-	trimmedRCC := &message.RoundChangeCertificate{Messages: valid}
-
 	blockHash, round := trimmedRCC.HighestRoundBlockHash()
 	if blockHash == nil {
+		// there is no previously agreed upon block hash, build a new proposal
 		return s.validator.IsValidProposal(msg.ProposedBlock.Block, msg.Info.Sequence)
 	}
 
+	// reuse the proposed block from previous (highest) round
 	pb := &message.ProposedBlock{
 		Block: msg.ProposedBlock.Block,
 		Round: round,
 	}
 
-	return bytes.Equal(blockHash, s.keccak.Hash(pb.Bytes()))
+	// block hash and a keccak hash of proposed block match
+	if !bytes.Equal(blockHash, s.keccak.Hash(pb.Bytes())) {
+		return false
+	}
+
+	return true
 }

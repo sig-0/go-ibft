@@ -31,23 +31,11 @@ func (s *state) init(sequence uint64) {
 	*s = state{sequence: sequence}
 }
 
-func (s *state) getSequence() uint64 {
-	return s.sequence
-}
-
-func (s *state) getRound() uint64 {
-	return s.round
-}
-
 func (s *state) isProposalAccepted() bool {
 	return s.proposal != nil
 }
 
-func (s *state) getProposedBlock() *message.ProposedBlock {
-	return s.proposal.ProposedBlock
-}
-
-func (s *state) getProposedBlockHash() []byte {
+func (s *state) acceptedBlockHash() []byte {
 	return s.proposal.BlockHash
 }
 
@@ -68,7 +56,7 @@ func (s *state) acceptRCC(rcc *message.RoundChangeCertificate) {
 }
 
 func (s *state) prepareCertificate(prepares []*message.MsgPrepare) {
-	s.latestPB, s.latestPC = s.getProposedBlock(), &message.PreparedCertificate{
+	s.latestPB, s.latestPC = s.proposal.ProposedBlock, &message.PreparedCertificate{
 		ProposalMessage: s.proposal,
 		PrepareMessages: prepares,
 	}

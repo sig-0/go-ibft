@@ -6,39 +6,39 @@ import (
 )
 
 type subscription[M message.IBFTMessage] struct {
-	Sequence     uint64
-	Round        uint64
-	Channel      message.Subscription[M]
-	HigherRounds bool
+	sequence     uint64
+	round        uint64
+	sub          message.Subscription[M]
+	higherRounds bool
 }
 
 func newSubscription[M message.IBFTMessage](sequence, round uint64, higherRounds bool) subscription[M] {
 	return subscription[M]{
-		Sequence:     sequence,
-		Round:        round,
-		HigherRounds: higherRounds,
-		Channel:      make(message.Subscription[M], 1),
+		sequence:     sequence,
+		round:        round,
+		higherRounds: higherRounds,
+		sub:          make(message.Subscription[M], 1),
 	}
 }
 
-func (s *subscription[M]) Notify(receiver message.MsgNotificationFn[M]) {
+func (s *subscription[M]) notify(receiver message.MsgNotificationFn[M]) {
 	select {
-	case s.Channel <- receiver:
-	default: // consumer hasn't used the callback
+	case s.sub <- receiver:
+	default: // subscriber hasn't consumed the callback
 	}
 }
 
 type subscriptions[M message.IBFTMessage] map[string]subscription[M]
 
-func (s *subscriptions[M]) Add(sub subscription[M]) string {
+func (s *subscriptions[M]) add(sub subscription[M]) string {
 	id := xid.New()
 	(*s)[id.String()] = sub
 
 	return id.String()
 }
 
-func (s *subscriptions[M]) Remove(id string) {
-	close((*s)[id].Channel)
+func (s *subscriptions[M]) remove(id string) {
+	close((*s)[id].sub)
 	delete(*s, id)
 }
 

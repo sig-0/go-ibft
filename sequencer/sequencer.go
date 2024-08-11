@@ -205,40 +205,15 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx context.Context) <-cha
 			s.wg.Done()
 		}()
 
-		if s.shouldPropose() {
-			p, err := s.buildProposal(ctx)
-			if err != nil {
-				return
-			}
-
-			s.sendMsgProposal(p)
-		}
-
-		if !s.state.isProposalAccepted() {
-			if err := s.awaitCurrentRoundProposal(ctx); err != nil {
-				return
-			}
-
-			s.sendMsgPrepare()
-		}
-
-		if err := s.awaitPrepare(ctx); err != nil {
+		if err := s.runRound(ctx); err != nil {
 			return
 		}
 
-		s.sendMsgCommit()
-
-		if err := s.awaitCommit(ctx); err != nil {
-			return
-		}
-
-		res := &SequenceResult{
-			Round:    s.state.getRound(),
-			Proposal: s.state.getProposedBlock().Block,
+		c <- &SequenceResult{
+			Round:    s.state.round,
+			Proposal: s.state.proposal.ProposedBlock.Block,
 			Seals:    s.state.seals,
 		}
-
-		c <- res
 	}()
 
 	return c
@@ -249,12 +224,12 @@ func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
 }
 
 func (s *Sequencer) shouldPropose() bool {
-	return s.validatorSet.IsProposer(s.validator.Address(), s.state.getSequence(), s.state.getRound())
+	return s.validatorSet.IsProposer(s.validator.Address(), s.state.sequence, s.state.round)
 }
 
 func (s *Sequencer) buildProposal(ctx context.Context) ([]byte, error) {
-	if s.state.getRound() == 0 {
-		return s.validator.BuildProposal(s.state.getSequence()), nil
+	if s.state.round == 0 {
+		return s.validator.BuildProposal(s.state.sequence), nil
 	}
 
 	if s.state.rcc == nil {
@@ -269,8 +244,47 @@ func (s *Sequencer) buildProposal(ctx context.Context) ([]byte, error) {
 
 	block, _ := s.state.rcc.HighestRoundBlock()
 	if block == nil {
-		return s.validator.BuildProposal(s.state.getSequence()), nil
+		return s.validator.BuildProposal(s.state.sequence), nil
 	}
 
 	return block, nil
+}
+func (s *Sequencer) runRound(ctx context.Context) error {
+	if s.shouldPropose() {
+		proposal, err := s.buildProposal(ctx)
+		if err != nil {
+			return err
+		}
+
+		s.sendMsgProposal(proposal)
+	}
+
+	if !s.state.isProposalAccepted() {
+		proposal, err := s.awaitProposal(ctx, false)
+		if err != nil {
+			return err
+		}
+
+		s.state.acceptProposal(proposal)
+		s.sendMsgPrepare()
+	}
+
+	prepares, err := s.awaitPrepareQuorum(ctx)
+	if err != nil {
+		return err
+	}
+
+	s.state.prepareCertificate(prepares)
+	s.sendMsgCommit()
+
+	commits, err := s.awaitCommitQuorum(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, commit := range commits {
+		s.state.acceptSeal(commit.Info.Sender, commit.CommitSeal)
+	}
+
+	return nil
 }

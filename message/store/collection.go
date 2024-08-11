@@ -38,22 +38,22 @@ func (c *syncCollection[M]) Subscribe(sequence, round uint64, higherRounds bool)
 	sub := newSubscription[M](sequence, round, higherRounds)
 	unregister := c.registerSubscription(sub)
 
-	sub.Notify(c.getNotificationFn(sequence, round, higherRounds))
+	sub.notify(c.getNotificationFn(sequence, round, higherRounds))
 
-	return sub.Channel, unregister
+	return sub.sub, unregister
 }
 
 func (c *syncCollection[M]) registerSubscription(sub subscription[M]) func() {
 	c.subscriptionMux.Lock()
 	defer c.subscriptionMux.Unlock()
 
-	id := c.subscriptions.Add(sub)
+	id := c.subscriptions.add(sub)
 
 	return func() {
 		c.subscriptionMux.Lock()
 		defer c.subscriptionMux.Unlock()
 
-		c.subscriptions.Remove(id)
+		c.subscriptions.remove(id)
 	}
 }
 
@@ -71,16 +71,16 @@ func (c *syncCollection[M]) Add(msg M) {
 
 	c.subscriptions.Notify(func(sub subscription[M]) {
 		// match the sequence
-		if seq != sub.Sequence {
+		if seq != sub.sequence {
 			return
 		}
 
 		// exclude lower rounds
-		if round < sub.Round {
+		if round < sub.round {
 			return
 		}
 
-		sub.Notify(c.getNotificationFn(sub.Sequence, sub.Round, sub.HigherRounds))
+		sub.notify(c.getNotificationFn(sub.sequence, sub.round, sub.higherRounds))
 	})
 }
 

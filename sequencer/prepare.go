@@ -3,6 +3,7 @@ package sequencer
 import (
 	"bytes"
 	"context"
+
 	"github.com/sig-0/go-ibft/message"
 	"github.com/sig-0/go-ibft/message/store"
 )
@@ -14,25 +15,13 @@ func (s *Sequencer) sendMsgPrepare() {
 			Round:    s.state.round,
 			Sender:   s.validator.Address(),
 		},
-		BlockHash: s.state.getProposedBlockHash(),
+		BlockHash: s.state.acceptedBlockHash(),
 	}
 
-	msg = message.SignMsg(msg, s.validator)
-	s.transport.MulticastPrepare(msg)
+	s.transport.MulticastPrepare(message.SignMsg(msg, s.validator))
 }
 
-func (s *Sequencer) awaitPrepare(ctx context.Context) error {
-	messages, err := s.awaitQuorumPrepares(ctx)
-	if err != nil {
-		return err
-	}
-
-	s.state.prepareCertificate(messages)
-
-	return nil
-}
-
-func (s *Sequencer) awaitQuorumPrepares(ctx context.Context) ([]*message.MsgPrepare, error) {
+func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.MsgPrepare, error) {
 	sub, cancelSub := s.feed.SubscribePrepare(s.state.sequence, s.state.round, false)
 	defer cancelSub()
 
@@ -56,11 +45,13 @@ func (s *Sequencer) awaitQuorumPrepares(ctx context.Context) ([]*message.MsgPrep
 }
 
 func (s *Sequencer) isValidMsgPrepare(msg *message.MsgPrepare) bool {
+	// sender is part of the validator set
 	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.Sequence) {
 		return false
 	}
 
-	if !bytes.Equal(msg.BlockHash, s.state.getProposedBlockHash()) {
+	// block hash and accepted block hash match
+	if !bytes.Equal(msg.BlockHash, s.state.acceptedBlockHash()) {
 		return false
 	}
 
