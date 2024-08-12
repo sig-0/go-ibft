@@ -8,7 +8,6 @@ import (
 type MsgCollection[M message.IBFTMessage] interface {
 	Add(msg M)
 	Get(sequence uint64, round uint64) []M
-	Remove(sequence uint64, round uint64)
 	Subscribe(sequence, round uint64, higherRounds bool) (message.Subscription[M], func())
 	Clear()
 }
@@ -102,13 +101,6 @@ func (c *syncCollection[M]) getNotificationFn(sequence, round uint64, higherRoun
 
 		return c.msgCollection.getMessagesWithHighestRoundNumber(sequence, round)
 	}
-}
-
-func (c *syncCollection[M]) Remove(sequence, round uint64) {
-	c.collectionMux.Lock()
-	defer c.collectionMux.Unlock()
-
-	c.msgCollection.remove(sequence, round)
 }
 
 type msgCollection[M message.IBFTMessage] map[uint64]map[uint64]msgSet[M]

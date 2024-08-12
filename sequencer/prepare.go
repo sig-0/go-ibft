@@ -32,7 +32,7 @@ func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.MsgPrepa
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.Add(notification.Unwrap())
+			cache.Add(notification.Unwrap()...)
 
 			prepares := cache.Get()
 			if !s.validatorSet.HasQuorum(message.WrapMessages(prepares...)) {

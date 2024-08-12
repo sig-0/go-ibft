@@ -32,41 +32,41 @@ func NewMsgStore() *MsgStore {
 func (s *MsgStore) Add(m message.Message) error {
 	info := m.GetInfo()
 	if info == nil {
-		return fmt.Errorf("%w: nil info field", ErrInvalidMessage)
+		return fmt.Errorf("%w: missing info field", ErrInvalidMessage)
 	}
 
 	if info.Sender == nil {
-		return fmt.Errorf("%w: nil sender field", ErrInvalidMessage)
+		return fmt.Errorf("%w: missing sender field", ErrInvalidMessage)
 	}
 
 	if info.Signature == nil {
-		return fmt.Errorf("%w: nil signature field", ErrInvalidMessage)
+		return fmt.Errorf("%w: missing signature field", ErrInvalidMessage)
 	}
 
 	switch m := m.(type) {
 	case *message.MsgProposal:
 		if m.BlockHash == nil {
-			return fmt.Errorf("%w: nil block_hash field", ErrInvalidMessage)
+			return fmt.Errorf("%w: missing block_hash field", ErrInvalidMessage)
 		}
 
 		if m.ProposedBlock == nil {
-			return fmt.Errorf("%w: nil proposed_block field", ErrInvalidMessage)
+			return fmt.Errorf("%w: missing proposed_block field", ErrInvalidMessage)
 		}
 
 		s.ProposalMessages.Add(m)
 	case *message.MsgPrepare:
 		if m.BlockHash == nil {
-			return fmt.Errorf("%w: nil block_hash field", ErrInvalidMessage)
+			return fmt.Errorf("%w: missing block_hash field", ErrInvalidMessage)
 		}
 
 		s.PrepareMessages.Add(m)
 	case *message.MsgCommit:
 		if m.BlockHash == nil {
-			return fmt.Errorf("%w: nil block_hash field", ErrInvalidMessage)
+			return fmt.Errorf("%w: missing block_hash field", ErrInvalidMessage)
 		}
 
 		if m.CommitSeal == nil {
-			return fmt.Errorf("%w: nil commit_seal field", ErrInvalidMessage)
+			return fmt.Errorf("%w: missing commit_seal field", ErrInvalidMessage)
 		}
 
 		s.CommitMessages.Add(m)

@@ -33,7 +33,7 @@ func (s *Sequencer) awaitCommitQuorum(ctx context.Context) ([]*message.MsgCommit
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.Add(notification.Unwrap())
+			cache.Add(notification.Unwrap()...)
 
 			commits := cache.Get()
 			if len(commits) == 0 || !s.validatorSet.HasQuorum(message.WrapMessages(commits...)) {

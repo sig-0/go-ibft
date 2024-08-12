@@ -46,7 +46,7 @@ func (s *Sequencer) awaitProposal(ctx context.Context, higherRounds bool) (*mess
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.Add(notification.Unwrap())
+			cache.Add(notification.Unwrap()...)
 
 			proposals := cache.Get()
 			if len(proposals) == 0 {

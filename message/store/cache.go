@@ -8,22 +8,22 @@ type MsgCache[M message.IBFTMessage] struct {
 	messages []M
 }
 
-func NewMsgCache[M message.IBFTMessage](filterFn func(M) bool) MsgCache[M] {
-	return MsgCache[M]{
+func NewMsgCache[M message.IBFTMessage](filterFn func(M) bool) *MsgCache[M] {
+	return &MsgCache[M]{
 		filterFn: filterFn,
 		messages: make([]M, 0),
 		seen:     make(map[string]struct{}),
 	}
 }
 
-func (c MsgCache[M]) Add(messages []M) MsgCache[M] {
+func (c *MsgCache[M]) Add(messages ...M) {
 	for _, msg := range messages {
-		sender := message.Message(msg).GetInfo().Sender
-		if _, ok := c.seen[string(sender)]; ok {
+		sender := string(message.Message(msg).GetInfo().Sender)
+		if _, ok := c.seen[sender]; ok {
 			continue
 		}
 
-		c.seen[string(sender)] = struct{}{}
+		c.seen[sender] = struct{}{}
 
 		if !c.filterFn(msg) {
 			continue
@@ -31,10 +31,8 @@ func (c MsgCache[M]) Add(messages []M) MsgCache[M] {
 
 		c.messages = append(c.messages, msg)
 	}
-
-	return c
 }
 
-func (c MsgCache[M]) Get() []M {
+func (c *MsgCache[M]) Get() []M {
 	return c.messages
 }

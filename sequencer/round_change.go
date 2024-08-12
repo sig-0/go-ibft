@@ -38,7 +38,7 @@ func (s *Sequencer) awaitRCC(ctx context.Context, higherRounds bool) (*message.R
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache = cache.Add(notification.Unwrap())
+			cache.Add(notification.Unwrap()...)
 
 			roundChanges := cache.Get()
 			if len(roundChanges) == 0 || !s.validatorSet.HasQuorum(message.WrapMessages(roundChanges...)) {
