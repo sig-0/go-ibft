@@ -14,14 +14,12 @@ type CommitSeal struct {
 }
 
 type SequenceResult struct {
-	Round uint64
-
 	Proposal []byte
-
-	Seals []CommitSeal
+	Seals    []CommitSeal
+	Round    uint64
 }
 
-// Sequencer is the consensus actor's (ibft.Validator) block finalization process. Whenever the network moves to a
+// Sequencer is the consensus actor's (Validator) block finalization process. Whenever the network moves to a
 // new sequence, all actors run their Sequencer processes to reach consensus on some proposal. Sequences consist of
 // rounds in which a chosen actor (Proposer) suggests their own proposal to the network. The Sequencer makes sure
 // that consensus is (eventually) reached, moving to higher rounds in case the network cannot agree on some proposal.
@@ -33,10 +31,9 @@ type Sequencer struct {
 	feed           message.Feed
 	keccak         message.Keccak
 	sig            message.SignatureVerifier
+	state          state
+	wg             sync.WaitGroup
 	round0Duration time.Duration
-
-	state state
-	wg    sync.WaitGroup
 }
 
 // NewSequencer returns a Sequencer object for the provided validator
@@ -249,6 +246,7 @@ func (s *Sequencer) buildProposal(ctx context.Context) ([]byte, error) {
 
 	return block, nil
 }
+
 func (s *Sequencer) runRound(ctx context.Context) error {
 	if s.shouldPropose() {
 		proposal, err := s.buildProposal(ctx)

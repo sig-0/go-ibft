@@ -1,10 +1,11 @@
 package store
 
 import (
+	"testing"
+
 	"github.com/sig-0/go-ibft/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func Test_Store_Add(t *testing.T) {

@@ -14,9 +14,9 @@ func Test_IsValidMsgProposal_Round0(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		name      string
 		sequencer *Sequencer
 		msg       *message.MsgProposal
+		name      string
 		expected  bool
 	}{
 		{
@@ -155,9 +155,9 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		name      string
 		sequencer *Sequencer
 		msg       *message.MsgProposal
+		name      string
 		expected  bool
 	}{
 		{
@@ -582,8 +582,10 @@ func Test_IsValidMsgPrepare(t *testing.T) {
 				validatorSet: mockValidatorSet{isValidatorFn: func(_ []byte, _ uint64) bool {
 					return true
 				}},
-				state: state{proposal: &message.MsgProposal{
-					BlockHash: []byte("keccak")},
+				state: state{
+					proposal: &message.MsgProposal{
+						BlockHash: []byte("keccak"),
+					},
 				},
 			},
 			msg: &message.MsgPrepare{
@@ -911,7 +913,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				isValidatorFn: func(v []byte, _ uint64) bool {
 					return bytes.Equal(v, Bob) || bytes.Equal(v, Chris)
 				},
-				isProposerFn: func(v []byte, _ uint64, _ uint64) bool {
+				isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
 					return true
 				},
 			}},
@@ -950,7 +952,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				isValidatorFn: func(v []byte, _ uint64) bool {
 					return bytes.Equal(v, Bob) || bytes.Equal(v, Chris)
 				},
-				isProposerFn: func(v []byte, _ uint64, _ uint64) bool {
+				isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
 					return true
 				},
 			}},
@@ -995,7 +997,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "(invalid pc) no quorum messages in pc",
 			sequencer: &Sequencer{validatorSet: mockValidatorSet{
 				isValidatorFn: AlwaysAValidator,
-				isProposerFn: func(v []byte, _ uint64, _ uint64) bool {
+				isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
 					return true
 				},
 				hasQuorumFn: func(_ []message.Message) bool {
@@ -1046,7 +1048,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				keccak: DummyKeccak,
 				validatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
-					isProposerFn:  func(v []byte, _ uint64, _ uint64) bool { return true },
+					isProposerFn:  func(_ []byte, _ uint64, _ uint64) bool { return true },
 					hasQuorumFn:   func(_ []message.Message) bool { return true },
 				},
 			},
@@ -1095,7 +1097,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 				keccak: DummyKeccak,
 				validatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
-					isProposerFn:  func(v []byte, _ uint64, _ uint64) bool { return true },
+					isProposerFn:  func(_ []byte, _ uint64, _ uint64) bool { return true },
 					hasQuorumFn:   func(_ []message.Message) bool { return true },
 				},
 			},

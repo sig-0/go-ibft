@@ -6,9 +6,9 @@ import (
 )
 
 type subscription[M message.IBFTMessage] struct {
+	sub          message.Subscription[M]
 	sequence     uint64
 	round        uint64
-	sub          message.Subscription[M]
 	higherRounds bool
 }
 

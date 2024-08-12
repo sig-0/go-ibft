@@ -6,11 +6,6 @@ import (
 
 // state is a collection of consensus artifacts obtained by Sequencer during Finalize
 type state struct {
-	// the active sequence and round of this validator
-	sequence uint64
-
-	round uint64
-
 	// proposal that's being voted on
 	proposal *message.MsgProposal
 
@@ -25,6 +20,12 @@ type state struct {
 
 	// proof that the proposal passed COMMIT phase
 	seals []CommitSeal
+
+	// currently running sequence
+	sequence uint64
+
+	// currently running round
+	round uint64
 }
 
 func (s *state) init(sequence uint64) {

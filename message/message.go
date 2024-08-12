@@ -108,19 +108,19 @@ func SignMsg[M IBFTMessage](msg M, signer Signer) M {
 	switch m := Message(msg).(type) {
 	case *MsgProposal:
 		m.Info.Signature = nil
-		payload, _ := proto.Marshal(m)
+		payload, _ := proto.Marshal(m) //nolint:errcheck //proto
 		m.Info.Signature = signer.Sign(payload)
 	case *MsgPrepare:
 		m.Info.Signature = nil
-		payload, _ := proto.Marshal(m)
+		payload, _ := proto.Marshal(m) //nolint:errcheck //proto
 		m.Info.Signature = signer.Sign(payload)
 	case *MsgCommit:
 		m.Info.Signature = nil
-		payload, _ := proto.Marshal(m)
+		payload, _ := proto.Marshal(m) //nolint:errcheck //proto
 		m.Info.Signature = signer.Sign(payload)
 	case *MsgRoundChange:
 		m.Info.Signature = nil
-		payload, _ := proto.Marshal(m)
+		payload, _ := proto.Marshal(m) //nolint:errcheck //proto
 		m.Info.Signature = signer.Sign(payload)
 	}
 
@@ -128,7 +128,7 @@ func SignMsg[M IBFTMessage](msg M, signer Signer) M {
 }
 
 func (x *ProposedBlock) Bytes() []byte {
-	bz, _ := proto.Marshal(x)
+	bz, _ := proto.Marshal(x) //nolint:errcheck //proto
 	return bz
 }
 

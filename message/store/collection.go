@@ -1,8 +1,9 @@
 package store
 
 import (
-	"github.com/sig-0/go-ibft/message"
 	"sync"
+
+	"github.com/sig-0/go-ibft/message"
 )
 
 type MsgCollection[M message.IBFTMessage] interface {
@@ -161,20 +162,6 @@ func (c *msgCollection[M]) getMessagesWithHighestRoundNumber(sequence, round uin
 	}
 
 	return c.get(sequence, maxRound)
-}
-
-func (c *msgCollection[M]) remove(sequence, round uint64) {
-	_, ok := (*c)[sequence]
-	if !ok {
-		return
-	}
-
-	_, ok = (*c)[sequence][round]
-	if !ok {
-		return
-	}
-
-	delete((*c)[sequence], round)
 }
 
 type msgSet[M message.IBFTMessage] map[string]M

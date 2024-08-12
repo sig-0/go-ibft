@@ -14,7 +14,7 @@ func Test_Cache(t *testing.T) {
 		t.Parallel()
 
 		msg := &message.MsgProposal{Info: &message.MsgInfo{Sender: []byte("sender")}}
-		cache := NewMsgCache(func(m *message.MsgProposal) bool {
+		cache := NewMsgCache(func(_ *message.MsgProposal) bool {
 			return true
 		})
 
@@ -26,7 +26,7 @@ func Test_Cache(t *testing.T) {
 		t.Parallel()
 
 		msg := &message.MsgProposal{Info: &message.MsgInfo{Sender: []byte("sender")}}
-		cache := NewMsgCache(func(m *message.MsgProposal) bool {
+		cache := NewMsgCache(func(_ *message.MsgProposal) bool {
 			return false
 		})
 
@@ -38,7 +38,7 @@ func Test_Cache(t *testing.T) {
 		t.Parallel()
 
 		msg := &message.MsgProposal{Info: &message.MsgInfo{Sender: []byte("sender")}}
-		cache := NewMsgCache(func(m *message.MsgProposal) bool {
+		cache := NewMsgCache(func(_ *message.MsgProposal) bool {
 			return true
 		})
 

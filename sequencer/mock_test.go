@@ -1,3 +1,4 @@
+//nolint:dupl //because
 package sequencer
 
 import (
@@ -29,10 +30,10 @@ func DummyTransport() message.Transport {
 }
 
 type mockValidator struct {
-	address           []byte
 	signFn            func([]byte) []byte
 	buildProposalFn   func(uint64) []byte
 	isValidProposalFn func(uint64, []byte) bool
+	address           []byte
 }
 
 func (v mockValidator) Address() []byte {
@@ -77,7 +78,7 @@ func (k mockKeccak) Hash(digest []byte) []byte {
 
 type mockSignatureVerifier func([]byte, []byte, []byte) error
 
-func (s mockSignatureVerifier) Verify(signature, digest []byte, msg []byte) error {
+func (s mockSignatureVerifier) Verify(signature, digest, msg []byte) error {
 	return s(signature, digest, msg)
 }
 
@@ -88,7 +89,7 @@ type mockFeed struct {
 	roundChange map[uint64]map[uint64][]*message.MsgRoundChange
 }
 
-func NewMockFeed(messages []message.Message) mockFeed {
+func newMockFeed(messages []message.Message) mockFeed {
 	f := mockFeed{
 		proposal:    map[uint64]map[uint64][]*message.MsgProposal{},
 		prepare:     map[uint64]map[uint64][]*message.MsgPrepare{},
@@ -155,7 +156,11 @@ func NewMockFeed(messages []message.Message) mockFeed {
 	return f
 }
 
-func (f mockFeed) SubscribeProposal(sequence, round uint64, higherRounds bool) (message.Subscription[*message.MsgProposal], func()) {
+func (f mockFeed) SubscribeProposal(
+	sequence,
+	round uint64,
+	higherRounds bool,
+) (message.Subscription[*message.MsgProposal], func()) {
 	sub := make(message.Subscription[*message.MsgProposal], 1)
 	var notification message.MsgNotificationFn[*message.MsgProposal]
 	if !higherRounds {
@@ -164,7 +169,7 @@ func (f mockFeed) SubscribeProposal(sequence, round uint64, higherRounds bool) (
 		}
 	} else {
 		var highestRound uint64
-		for round, _ := range f.proposal[sequence] {
+		for round := range f.proposal[sequence] {
 			if round >= highestRound {
 				highestRound = round
 			}
@@ -184,7 +189,11 @@ func (f mockFeed) SubscribeProposal(sequence, round uint64, higherRounds bool) (
 	return sub, func() { close(sub) }
 }
 
-func (f mockFeed) SubscribePrepare(sequence, round uint64, higherRounds bool) (message.Subscription[*message.MsgPrepare], func()) {
+func (f mockFeed) SubscribePrepare(
+	sequence,
+	round uint64,
+	higherRounds bool,
+) (message.Subscription[*message.MsgPrepare], func()) {
 	sub := make(message.Subscription[*message.MsgPrepare], 1)
 	var notification message.MsgNotificationFn[*message.MsgPrepare]
 	if !higherRounds {
@@ -193,7 +202,7 @@ func (f mockFeed) SubscribePrepare(sequence, round uint64, higherRounds bool) (m
 		}
 	} else {
 		var highestRound uint64
-		for round, _ := range f.prepare[sequence] {
+		for round := range f.prepare[sequence] {
 			if round >= highestRound {
 				highestRound = round
 			}
@@ -213,7 +222,11 @@ func (f mockFeed) SubscribePrepare(sequence, round uint64, higherRounds bool) (m
 	return sub, func() { close(sub) }
 }
 
-func (f mockFeed) SubscribeCommit(sequence, round uint64, higherRounds bool) (message.Subscription[*message.MsgCommit], func()) {
+func (f mockFeed) SubscribeCommit(
+	sequence,
+	round uint64,
+	higherRounds bool,
+) (message.Subscription[*message.MsgCommit], func()) {
 	sub := make(message.Subscription[*message.MsgCommit], 1)
 	var notification message.MsgNotificationFn[*message.MsgCommit]
 	if !higherRounds {
@@ -222,7 +235,7 @@ func (f mockFeed) SubscribeCommit(sequence, round uint64, higherRounds bool) (me
 		}
 	} else {
 		var highestRound uint64
-		for round, _ := range f.commit[sequence] {
+		for round := range f.commit[sequence] {
 			if round >= highestRound {
 				highestRound = round
 			}
@@ -241,7 +254,11 @@ func (f mockFeed) SubscribeCommit(sequence, round uint64, higherRounds bool) (me
 	return sub, func() { close(sub) }
 }
 
-func (f mockFeed) SubscribeRoundChange(sequence, round uint64, higherRounds bool) (message.Subscription[*message.MsgRoundChange], func()) {
+func (f mockFeed) SubscribeRoundChange(
+	sequence,
+	round uint64,
+	higherRounds bool,
+) (message.Subscription[*message.MsgRoundChange], func()) {
 	sub := make(message.Subscription[*message.MsgRoundChange], 1)
 	var notification message.MsgNotificationFn[*message.MsgRoundChange]
 	if !higherRounds {
@@ -250,7 +267,7 @@ func (f mockFeed) SubscribeRoundChange(sequence, round uint64, higherRounds bool
 		}
 	} else {
 		var highestRound uint64
-		for round, _ := range f.roundChange[sequence] {
+		for round := range f.roundChange[sequence] {
 			if round >= highestRound {
 				highestRound = round
 			}
@@ -273,10 +290,14 @@ func (f mockFeed) SubscribeRoundChange(sequence, round uint64, higherRounds bool
 type SingeRoundMockFeed mockFeed
 
 func NewSingleRoundMockFeed(messages []message.Message) SingeRoundMockFeed {
-	return SingeRoundMockFeed(NewMockFeed(messages))
+	return SingeRoundMockFeed(newMockFeed(messages))
 }
 
-func (f SingeRoundMockFeed) SubscribeProposal(sequence, round uint64, higherRounds bool) (message.Subscription[*message.MsgProposal], func()) {
+func (f SingeRoundMockFeed) SubscribeProposal(
+	sequence,
+	round uint64,
+	higherRounds bool,
+) (message.Subscription[*message.MsgProposal], func()) {
 	sub := make(message.Subscription[*message.MsgProposal], 1)
 	if !higherRounds {
 		notification := func() []*message.MsgProposal {
@@ -295,7 +316,11 @@ func (f SingeRoundMockFeed) SubscribeProposal(sequence, round uint64, higherRoun
 	return sub, func() { close(sub) }
 }
 
-func (f SingeRoundMockFeed) SubscribePrepare(sequence, round uint64, higherRounds bool) (message.Subscription[*message.MsgPrepare], func()) {
+func (f SingeRoundMockFeed) SubscribePrepare(
+	sequence,
+	round uint64,
+	higherRounds bool,
+) (message.Subscription[*message.MsgPrepare], func()) {
 	sub := make(message.Subscription[*message.MsgPrepare], 1)
 	if !higherRounds {
 		notification := func() []*message.MsgPrepare {
@@ -314,7 +339,11 @@ func (f SingeRoundMockFeed) SubscribePrepare(sequence, round uint64, higherRound
 	return sub, func() { close(sub) }
 }
 
-func (f SingeRoundMockFeed) SubscribeCommit(sequence, round uint64, higherRounds bool) (message.Subscription[*message.MsgCommit], func()) {
+func (f SingeRoundMockFeed) SubscribeCommit(
+	sequence,
+	round uint64,
+	higherRounds bool,
+) (message.Subscription[*message.MsgCommit], func()) {
 	sub := make(message.Subscription[*message.MsgCommit], 1)
 	if !higherRounds {
 		notification := func() []*message.MsgCommit {
@@ -333,7 +362,11 @@ func (f SingeRoundMockFeed) SubscribeCommit(sequence, round uint64, higherRounds
 	return sub, func() { close(sub) }
 }
 
-func (f SingeRoundMockFeed) SubscribeRoundChange(sequence, round uint64, higherRounds bool) (message.Subscription[*message.MsgRoundChange], func()) {
+func (f SingeRoundMockFeed) SubscribeRoundChange(
+	sequence,
+	round uint64,
+	higherRounds bool,
+) (message.Subscription[*message.MsgRoundChange], func()) {
 	sub := make(message.Subscription[*message.MsgRoundChange], 1)
 	if !higherRounds {
 		notification := func() []*message.MsgRoundChange {

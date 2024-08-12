@@ -1,12 +1,14 @@
+//nolint:dupl // test cases not identical
 package sequencer
 
 import (
 	"bytes"
 	"context"
-	"github.com/sig-0/go-ibft/message"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/sig-0/go-ibft/message"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -41,9 +43,9 @@ func Test_SequencerFinalize(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		name     string
-		cfg      Config
 		expected *SequenceResult
+		cfg      Config
+		name     string
 	}{
 		{
 			name: "Alice and Chris accept Bob's proposal in round 0",
@@ -76,7 +78,7 @@ func Test_SequencerFinalize(t *testing.T) {
 						return len(messages) >= 2
 					},
 				}),
-				WithFeed(NewMockFeed([]message.Message{
+				WithFeed(newMockFeed([]message.Message{
 					&message.MsgProposal{
 						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
 						ProposedBlock: &message.ProposedBlock{Block: []byte("Bob's proposal"), Round: 0},
@@ -150,7 +152,7 @@ func Test_SequencerFinalize(t *testing.T) {
 						return len(messages) >= 2
 					},
 				}),
-				WithFeed(NewMockFeed([]message.Message{
+				WithFeed(newMockFeed([]message.Message{
 					&message.MsgPrepare{
 						Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
 						BlockHash: DummyKeccakValue,
@@ -210,7 +212,7 @@ func Test_SequencerFinalize(t *testing.T) {
 						return len(messages) >= 2
 					},
 				}),
-				WithFeed(NewMockFeed([]message.Message{
+				WithFeed(newMockFeed([]message.Message{
 					&message.MsgProposal{
 						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
 						BlockHash:     DummyKeccakValue,
@@ -286,7 +288,7 @@ func Test_SequencerFinalize(t *testing.T) {
 						return len(messages) >= 2
 					},
 				}),
-				WithFeed(NewMockFeed([]message.Message{
+				WithFeed(newMockFeed([]message.Message{
 					&message.MsgProposal{
 						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
 						BlockHash:     DummyKeccakValue,
@@ -406,7 +408,7 @@ func Test_SequencerFinalize(t *testing.T) {
 						return len(messages) >= 2
 					},
 				}),
-				WithFeed(NewMockFeed([]message.Message{
+				WithFeed(newMockFeed([]message.Message{
 					// need to justify Alice's proposal for round 1
 					&message.MsgRoundChange{
 						Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: Alice},
@@ -476,7 +478,7 @@ func Test_SequencerFinalize(t *testing.T) {
 						return len(messages) >= 2
 					},
 				}),
-				WithFeed(NewMockFeed([]message.Message{
+				WithFeed(newMockFeed([]message.Message{
 					&message.MsgRoundChange{
 						Info: &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
 						LatestPreparedProposedBlock: &message.ProposedBlock{
@@ -598,7 +600,7 @@ func Test_SequencerFinalize(t *testing.T) {
 						return len(messages) >= 2
 					},
 				}),
-				WithFeed(NewMockFeed([]message.Message{
+				WithFeed(newMockFeed([]message.Message{
 					&message.MsgRoundChange{Info: &message.MsgInfo{
 						Sender:   Bob,
 						Sequence: 101,
@@ -679,9 +681,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidProposalFn: AlwaysValidProposal,
 				}),
 				WithValidatorSet(mockValidatorSet{
-					isValidatorFn: func(v []byte, _ uint64) bool {
-						return true
-					},
+					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Nina) && round == 5
 					},
@@ -689,7 +689,7 @@ func Test_SequencerFinalize(t *testing.T) {
 						return len(messages) >= 2
 					},
 				}),
-				WithFeed(NewMockFeed([]message.Message{
+				WithFeed(newMockFeed([]message.Message{
 					&message.MsgProposal{
 						Info:          &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 5},
 						ProposedBlock: &message.ProposedBlock{Block: []byte("round 5 block"), Round: 5},
@@ -760,9 +760,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				}),
 				WithValidatorSet(mockValidatorSet{
-					isValidatorFn: func(v []byte, _ uint64) bool {
-						return true
-					},
+					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Alice) && round == 1
 					},

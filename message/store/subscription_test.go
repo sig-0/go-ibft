@@ -42,7 +42,7 @@ func Test_Subscribe_Proposal(t *testing.T) {
 		assert.Equal(t, mm, m)
 	})
 
-	t.Run("highest availble round", func(t *testing.T) {
+	t.Run("highest available round", func(t *testing.T) {
 		t.Parallel()
 
 		s := NewMsgStore()

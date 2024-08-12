@@ -3,12 +3,11 @@ package store
 import (
 	"errors"
 	"fmt"
+
 	"github.com/sig-0/go-ibft/message"
 )
 
-var (
-	ErrInvalidMessage = errors.New("invalid consensus message")
-)
+var ErrInvalidMessage = errors.New("invalid consensus message")
 
 // MsgStore is a thread-safe storage for consensus messages with a built-in sequencer.Feed mechanism
 type MsgStore struct {

@@ -116,9 +116,5 @@ func (s *Sequencer) isValidMsgProposal(msg *message.MsgProposal) bool {
 	}
 
 	// block hash and a keccak hash of proposed block match
-	if !bytes.Equal(blockHash, s.keccak.Hash(pb.Bytes())) {
-		return false
-	}
-
-	return true
+	return bytes.Equal(blockHash, s.keccak.Hash(pb.Bytes()))
 }
