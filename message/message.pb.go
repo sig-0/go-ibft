@@ -20,14 +20,16 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// MsgMetadata contains common message details
+// MsgInfo contains common message details
 type MsgInfo struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// Sequence in which the message was created
 	Sequence uint64 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	Round    uint64 `protobuf:"varint,2,opt,name=round,proto3" json:"round,omitempty"`
+	// Round in which the message was created
+	Round uint64 `protobuf:"varint,2,opt,name=round,proto3" json:"round,omitempty"`
 	// ID of the validator who sent the message
 	Sender []byte `protobuf:"bytes,3,opt,name=sender,proto3" json:"sender,omitempty"`
 	// Validator's signature over the message
@@ -466,7 +468,7 @@ type MsgRoundChange struct {
 	Info *MsgInfo `protobuf:"bytes,1,opt,name=info,proto3" json:"info,omitempty"`
 	// Proposal from previous round
 	LatestPreparedProposedBlock *ProposedBlock `protobuf:"bytes,2,opt,name=latest_prepared_proposed_block,json=latestPreparedProposedBlock,proto3" json:"latest_prepared_proposed_block,omitempty"`
-	// Certificate that proposal passed the PREPARE phase
+	// Certificate proving network accepted the ProposedBlock but did not commit
 	LatestPreparedCertificate *PreparedCertificate `protobuf:"bytes,3,opt,name=latest_prepared_certificate,json=latestPreparedCertificate,proto3" json:"latest_prepared_certificate,omitempty"`
 }
 

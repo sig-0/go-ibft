@@ -15,6 +15,7 @@ type transport struct {
 	roundChange MulticastFn[*message.MsgRoundChange]
 }
 
+// NewTransport returns a message.Transport object based on the provided message callbacks
 func NewTransport(
 	proposal MulticastFn[*message.MsgProposal],
 	prepare MulticastFn[*message.MsgPrepare],

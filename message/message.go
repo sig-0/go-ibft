@@ -15,28 +15,39 @@ type Message interface {
 	GetInfo() *MsgInfo
 }
 
+// Signer is identified by its Address and used to generate signature for arbitrary payload
 type Signer interface {
+	// Address returns the public ID of Signer
 	Address() []byte
 
-	// Sign computes the signature of given digest
-	Sign(digest []byte) []byte
+	// Sign returns the signature generated from data
+	Sign(data []byte) []byte
 }
 
+// SignatureVerifier validates Signer signatures
 type SignatureVerifier interface {
 	// Verify checks if the signature of the message is valid
 	Verify(signer, digest, signature []byte) error
 }
 
+// Keccak hash engine for arbitrary input
 type Keccak interface {
-	// Hash returns the Keccak encoding of given input
+	// Hash returns the Keccak encoding of given data
 	Hash(data []byte) []byte
 }
 
 // Transport is used to gossip consensus messages to the network
 type Transport interface {
+	// MulticastProposal gossips MsgProposal to other consensus peers
 	MulticastProposal(msg *MsgProposal)
+
+	// MulticastPrepare gossips MsgPrepare to other consensus peers
 	MulticastPrepare(msg *MsgPrepare)
+
+	// MulticastCommit gossips MsgCommit to other consensus peers
 	MulticastCommit(msg *MsgCommit)
+
+	// MulticastRoundChange gossips MsgRoundChange to other consensus peers
 	MulticastRoundChange(msg *MsgRoundChange)
 }
 
@@ -74,6 +85,7 @@ type (
 
 	MsgNotificationFn[M IBFTMessage] func() []M
 
+	// Subscription is a channel for IBFT message types
 	Subscription[M IBFTMessage] chan MsgNotification[M]
 )
 
@@ -91,6 +103,7 @@ func WrapMessages[M IBFTMessage](messages ...M) []Message {
 	return wrapped
 }
 
+// SignMsg returns msg with updated Signature field
 func SignMsg[M IBFTMessage](msg M, signer Signer) M {
 	switch m := Message(msg).(type) {
 	case *MsgProposal:

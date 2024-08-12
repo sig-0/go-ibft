@@ -2,10 +2,12 @@ syntax = "proto3";
 
 option go_package = "./message";
 
-// MsgMetadata contains common message details
+// MsgInfo contains common message details
 message MsgInfo {
+  // Sequence in which the message was created
   uint64 sequence = 1;
 
+  // Round in which the message was created
   uint64 round = 2;
 
   // ID of the validator who sent the message
@@ -79,7 +81,7 @@ message MsgRoundChange {
   // Proposal from previous round
   ProposedBlock latest_prepared_proposed_block = 2;
 
-  // Certificate that proposal passed the PREPARE phase
+  // Certificate proving network accepted the ProposedBlock but did not commit
   PreparedCertificate latest_prepared_certificate = 3;
 }
 
