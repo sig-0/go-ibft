@@ -5,7 +5,7 @@ https://github.com/0xPolygon/go-ibft
 
 The original and sole authors of this source code ([@zivkovicmilos](https://github.com/zivkovicmilos)
 and [@dbrajovic](https://github.com/dbrajovic)) have decided to
-continue maintaining this project under the [madz-lab](https://github.com/madz-lab) organization and have continued
+continue maintaining this project under the [sig-0](https://github.com/sig-0) organization and have continued
 licensing this work under the Apache 2 license.
 
 The work contained in this repository is a continuation of work from commit

@@ -22,8 +22,8 @@ issues:
     - path: (.+)_test.go
       linters:
         - nilnil
-        - unused
-        - errcheck
+        - gosec
+        - lll
 
 linters:
   fast: false
@@ -34,7 +34,7 @@ linters:
     - bidichk # Checks for dangerous unicode character sequences
     - durationcheck # Check for two durations multiplied together
     - errcheck # Forces to not skip error check
-    - exportloopref # Checks for pointers to enclosing loop variables
+    - copyloopvar # Checks for pointers to enclosing loop variables
     - gocritic # Bundles different linting checks
     - godot # Checks for periods at the end of comments
     - gomoddirectives # Allow or ban replace directives in go.mod
@@ -75,7 +75,6 @@ linters:
     - gofumpt # Stricter gofmt
     - goimports # Unused imports
     - goconst # Repeated strings that could be replaced by a constant
-    - forcetypeassert # Finds forced type assertions
     - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
     - dupl # Code clone detection
     - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
@@ -97,7 +96,7 @@ linters-settings:
       - importShadow
       - unnamedResult
   errcheck:
-    check-type-assertions: true
+    check-type-assertions: false
     check-blank: true
     exclude-functions:
       - io/ioutil.ReadFile

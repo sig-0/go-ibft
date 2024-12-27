@@ -140,7 +140,6 @@ func Test_Store_Add(t *testing.T) {
 	}
 
 	for _, tt := range testTable {
-		tt := tt
 		t.Run(tt.expectedErrStr, func(t *testing.T) {
 			t.Parallel()
 

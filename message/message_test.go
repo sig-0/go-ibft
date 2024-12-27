@@ -166,8 +166,6 @@ func Test_RCC_HighestRoundBlock(t *testing.T) {
 	}
 
 	for i, tt := range table {
-		tt := tt
-
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			t.Parallel()
 
@@ -236,8 +234,6 @@ func Test_RCC_HighestRoundBlockHash(t *testing.T) {
 	}
 
 	for i, tt := range table {
-		tt := tt
-
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			t.Parallel()
 

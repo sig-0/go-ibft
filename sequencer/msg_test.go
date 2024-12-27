@@ -142,7 +142,6 @@ func Test_IsValidMsgProposal_Round0(t *testing.T) {
 	}
 
 	for _, tt := range testTable {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -545,7 +544,6 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 	}
 
 	for _, tt := range testTable {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -617,7 +615,6 @@ func Test_IsValidMsgPrepare(t *testing.T) {
 	}
 
 	for _, tt := range testTable {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -704,7 +701,6 @@ func Test_IsValidMsgCommit(t *testing.T) {
 	}
 
 	for _, tt := range testTable {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1141,7 +1137,6 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 	}
 
 	for _, tt := range testTable {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
