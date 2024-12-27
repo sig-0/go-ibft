@@ -48,7 +48,7 @@ func ExtractCommitHash(commitMessage *proto.Message) []byte {
 }
 
 // ExtractProposal extracts the proposal from the passed in message
-func ExtractProposal(proposalMessage *proto.Message) []byte {
+func ExtractProposal(proposalMessage *proto.Message) *proto.Proposal {
 	if proposalMessage.Type != proto.MessageType_PREPREPARE {
 		return nil
 	}
@@ -103,7 +103,7 @@ func ExtractLatestPC(roundChangeMessage *proto.Message) *proto.PreparedCertifica
 }
 
 // ExtractLastPreparedProposedBlock extracts the latest prepared proposed block from the passed in message
-func ExtractLastPreparedProposedBlock(roundChangeMessage *proto.Message) []byte {
+func ExtractLastPreparedProposedBlock(roundChangeMessage *proto.Message) *proto.Proposal {
 	if roundChangeMessage.Type != proto.MessageType_ROUND_CHANGE {
 		return nil
 	}
@@ -168,14 +168,31 @@ func HaveSameProposalHash(messages []*proto.Message) bool {
 	return true
 }
 
-// AllHaveLowerRound checks if all messages have the same round
+// AllHaveLowerRound checks if all messages have lower round than provided
 func AllHaveLowerRound(messages []*proto.Message, round uint64) bool {
-	if len(messages) < 1 {
+	if len(messages) == 0 {
 		return false
 	}
 
-	for _, message := range messages {
-		if message.View.Round >= round {
+	for _, msg := range messages {
+		if msg.View.Round >= round {
+			return false
+		}
+	}
+
+	return true
+}
+
+// AllHaveSameRound checks if all messages have the same round
+func AllHaveSameRound(messages []*proto.Message) bool {
+	if len(messages) == 0 {
+		return false
+	}
+
+	round := messages[0].View.Round
+
+	for _, msg := range messages {
+		if msg.View.Round != round {
 			return false
 		}
 	}
@@ -185,12 +202,12 @@ func AllHaveLowerRound(messages []*proto.Message, round uint64) bool {
 
 // AllHaveSameHeight checks if all messages have the same height
 func AllHaveSameHeight(messages []*proto.Message, height uint64) bool {
-	if len(messages) < 1 {
+	if len(messages) == 0 {
 		return false
 	}
 
-	for _, message := range messages {
-		if message.View.Height != height {
+	for _, msg := range messages {
+		if msg.View.Height != height {
 			return false
 		}
 	}

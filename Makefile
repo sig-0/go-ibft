@@ -11,3 +11,7 @@ gofumpt:
 fixalign:
 	go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@latest
 	fieldalignment -fix $(filter-out $@,$(MAKECMDGOALS)) # the full package name (not path!)
+
+.PHONY: protoc
+protoc:
+	protoc --go_out=./ --go-grpc_out=./ messages/proto/*.proto
