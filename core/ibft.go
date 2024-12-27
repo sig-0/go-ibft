@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/madz-lab/go-ibft/messages"
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages"
+	"github.com/sig-0/go-ibft/messages/proto"
 )
 
 type Logger interface {
@@ -409,7 +409,7 @@ func (i *IBFT) waitForRCC(
 			messages.SubscriptionDetails{
 				MessageType:    proto.MessageType_ROUND_CHANGE,
 				View:           view,
-				MinNumMessages: int(quorum),
+				MinNumMessages: int(quorum), //nolint:gosec // Quorum cannot exceed int limits
 			},
 		)
 	)
@@ -461,7 +461,7 @@ func (i *IBFT) handleRoundChangeMessage(view *proto.View, quorum uint64) *proto.
 		isValidFn,
 	)
 
-	if len(msgs) < int(quorum) {
+	if len(msgs) < int(quorum) { //nolint:gosec // Quorum cannot exceed int limits
 		return nil
 	}
 
@@ -696,10 +696,11 @@ func (i *IBFT) validateRoundChangeCertificate(
 	}
 
 	// Make sure there are Quorum RCC
+	//nolint:gosec // Quorum cannot exceed int limits
 	if len(certificate.RoundChangeMessages) < int(i.backend.Quorum(view.Height)) {
 		return fmt.Errorf("no quorum round change messages in certificate: expected=%d actual=%d",
 			len(certificate.RoundChangeMessages),
-			int(i.backend.Quorum(view.Height)),
+			int(i.backend.Quorum(view.Height)), //nolint:gosec // Quorum cannot exceed int limits
 		)
 	}
 
@@ -796,7 +797,7 @@ func (i *IBFT) runPrepare(ctx context.Context) error {
 			messages.SubscriptionDetails{
 				MessageType:    proto.MessageType_PREPARE,
 				View:           view,
-				MinNumMessages: int(quorum) - 1,
+				MinNumMessages: int(quorum) - 1, //nolint:gosec // Quorum cannot exceed int limits
 			},
 		)
 	)
@@ -838,7 +839,7 @@ func (i *IBFT) handlePrepare(view *proto.View, quorum uint64) bool {
 		isValidPrepare,
 	)
 
-	if len(prepareMessages) < int(quorum)-1 {
+	if len(prepareMessages) < int(quorum)-1 { //nolint:gosec // Quorum cannot exceed int limits
 		//	quorum not reached, keep polling
 		return false
 	}
@@ -876,7 +877,7 @@ func (i *IBFT) runCommit(ctx context.Context) error {
 			messages.SubscriptionDetails{
 				MessageType:    proto.MessageType_COMMIT,
 				View:           view,
-				MinNumMessages: int(quorum),
+				MinNumMessages: int(quorum), //nolint:gosec // Quorum cannot exceed int limits
 			},
 		)
 	)
@@ -919,7 +920,7 @@ func (i *IBFT) handleCommit(view *proto.View, quorum uint64) bool {
 	}
 
 	commitMessages := i.messages.GetValidMessages(view, proto.MessageType_COMMIT, isValidCommit)
-	if len(commitMessages) < int(quorum) {
+	if len(commitMessages) < int(quorum) { //nolint:gosec // Quorum cannot exceed int limits
 		//	quorum not reached, keep polling
 		return false
 	}
@@ -1118,7 +1119,7 @@ func (i *IBFT) validPC(
 	)
 
 	// Make sure there are at least Quorum (PP + P) messages
-	if len(allMessages) < int(i.backend.Quorum(i.state.getHeight())) {
+	if len(allMessages) < int(i.backend.Quorum(i.state.getHeight())) { //nolint:gosec // Quorum cannot exceed int limits
 		return false
 	}
 

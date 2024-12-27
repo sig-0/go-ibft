@@ -4,8 +4,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/google/uuid"
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/rs/xid"
+	"github.com/sig-0/go-ibft/messages/proto"
 )
 
 type eventManager struct {
@@ -21,7 +21,7 @@ func newEventManager() *eventManager {
 	}
 }
 
-type SubscriptionID int32
+type SubscriptionID xid.ID
 
 // Subscription is the subscription
 // returned to the user
@@ -59,7 +59,7 @@ func (em *eventManager) subscribe(details SubscriptionDetails) *Subscription {
 	em.subscriptionsLock.Lock()
 	defer em.subscriptionsLock.Unlock()
 
-	id := uuid.New().ID()
+	id := xid.New()
 	subscription := &eventSubscription{
 		details:  details,
 		outputCh: make(chan uint64, 1),

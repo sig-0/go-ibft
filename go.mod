@@ -1,12 +1,12 @@
-module github.com/madz-lab/go-ibft
+module github.com/sig-0/go-ibft
 
-go 1.21
+go 1.22
 
 require (
-	github.com/google/uuid v1.3.0
-	github.com/stretchr/testify v1.8.4
-	google.golang.org/protobuf v1.31.0
-	pgregory.net/rapid v1.0.0
+	github.com/rs/xid v1.5.0
+	github.com/stretchr/testify v1.9.0
+	google.golang.org/protobuf v1.34.2
+	pgregory.net/rapid v1.1.0
 )
 
 require (

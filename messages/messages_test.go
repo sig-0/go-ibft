@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -212,7 +212,6 @@ func TestMessages_GetValidMessagesMessage(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			// Add the initial message set

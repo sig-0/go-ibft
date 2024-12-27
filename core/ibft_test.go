@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/madz-lab/go-ibft/messages"
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/rs/xid"
+	"github.com/sig-0/go-ibft/messages"
+	"github.com/sig-0/go-ibft/messages/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -265,7 +266,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 					cancelFn()
 
 					return &messages.Subscription{
-						ID:    messages.SubscriptionID(1),
+						ID:    messages.SubscriptionID(xid.New()),
 						SubCh: make(chan uint64),
 					}
 				},
@@ -301,13 +302,12 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 1)
 
 		for _, msg := range roundChangeMessages {
-			//nolint:forcetypeassert // msg type known at setup
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.Proposal{
 				Block: []byte("previous block"),
 				Round: 0,
 			}
 
-			//nolint:forcetypeassert,dupl // msg type known at setup, special Extract method in assert
+			//nolint:dupl // msg type known at setup, special Extract method in assert
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View:      &proto.View{Round: 0},
@@ -421,7 +421,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 			messages = mockMessages{
 				subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 					return &messages.Subscription{
-						ID:    messages.SubscriptionID(1),
+						ID:    messages.SubscriptionID(xid.New()),
 						SubCh: notifyCh,
 					}
 				},
@@ -495,13 +495,12 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 1)
 
 		for _, msg := range roundChangeMessages {
-			//nolint:forcetypeassert // msg type known at setup
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.Proposal{
 				Block: lastPreparedProposedBlock,
 				Round: 0,
 			}
 
-			//nolint:forcetypeassert,dupl // msg type known at setup, special Extract method in assert
+			//nolint:dupl // msg type known at setup, special Extract method in assert
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View:      &proto.View{Round: 0},
@@ -649,7 +648,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 			messages = mockMessages{
 				subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 					return &messages.Subscription{
-						ID:    messages.SubscriptionID(1),
+						ID:    messages.SubscriptionID(xid.New()),
 						SubCh: notifyCh,
 					}
 				},
@@ -723,13 +722,11 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		setRoundForMessages(roundChangeMessages, 2)
 
 		for _, msg := range roundChangeMessages {
-			//nolint:forcetypeassert // msg type known at setup
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.Proposal{
 				Block: round1PreparedProposedBlock,
 				Round: 1,
 			}
 
-			//nolint:forcetypeassert // msg type known at setup
 			msg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 				ProposalMessage: &proto.Message{
 					View: &proto.View{Round: 1},
@@ -785,13 +782,11 @@ func TestRunNewRound_Proposer(t *testing.T) {
 		// some msg has older block and round
 		someRCMsg := roundChangeMessages[1]
 
-		//nolint:forcetypeassert // msg type known at setup
 		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LastPreparedProposedBlock = &proto.Proposal{
 			Block: round1PreparedProposedBlock,
 			Round: 1,
 		}
 
-		//nolint:forcetypeassert,lll // msg type known at setup
 		someRCMsg.Payload.(*proto.Message_RoundChangeData).RoundChangeData.LatestPreparedCertificate = &proto.PreparedCertificate{
 			ProposalMessage: &proto.Message{
 				View: &proto.View{Round: 0},
@@ -907,7 +902,7 @@ func TestRunNewRound_Proposer(t *testing.T) {
 			messages = mockMessages{
 				subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 					return &messages.Subscription{
-						ID:    messages.SubscriptionID(1),
+						ID:    messages.SubscriptionID(xid.New()),
 						SubCh: notifyCh,
 					}
 				},
@@ -1005,7 +1000,7 @@ func TestRunNewRound_Validator_Zero(t *testing.T) {
 		messages = mockMessages{
 			subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 				return &messages.Subscription{
-					ID:    messages.SubscriptionID(1),
+					ID:    messages.SubscriptionID(xid.New()),
 					SubCh: notifyCh,
 				}
 			},
@@ -1134,8 +1129,6 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1182,7 +1175,7 @@ func TestRunNewRound_Validator_NonZero(t *testing.T) {
 				messages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
@@ -1405,7 +1398,7 @@ func TestRunPrepare(t *testing.T) {
 				messages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
@@ -1515,7 +1508,7 @@ func TestRunCommit(t *testing.T) {
 				messages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
@@ -1666,7 +1659,6 @@ func TestIBFT_IsAcceptableMessage(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1864,8 +1856,6 @@ func TestIBFT_FutureProposal(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1913,7 +1903,7 @@ func TestIBFT_FutureProposal(t *testing.T) {
 				mMessages = mockMessages{
 					subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 						return &messages.Subscription{
-							ID:    messages.SubscriptionID(1),
+							ID:    messages.SubscriptionID(xid.New()),
 							SubCh: notifyCh,
 						}
 					},
@@ -3131,7 +3121,7 @@ func TestIBFT_WatchForFutureRCC(t *testing.T) {
 		messages = mockMessages{
 			subscribeFn: func(_ messages.SubscriptionDetails) *messages.Subscription {
 				return &messages.Subscription{
-					ID:    messages.SubscriptionID(1),
+					ID:    messages.SubscriptionID(xid.New()),
 					SubCh: notifyCh,
 				}
 			},

@@ -3,7 +3,7 @@ package messages
 import (
 	"bytes"
 
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages/proto"
 )
 
 type CommittedSeal struct {
@@ -28,7 +28,6 @@ func ExtractCommittedSeals(commitMessages []*proto.Message) []*CommittedSeal {
 
 // ExtractCommittedSeal extracts the committed seal from the passed in message
 func ExtractCommittedSeal(commitMessage *proto.Message) *CommittedSeal {
-	//nolint:errcheck // No need to check this payload here
 	commitData, _ := commitMessage.Payload.(*proto.Message_CommitData)
 
 	return &CommittedSeal{
@@ -43,7 +42,6 @@ func ExtractCommitHash(commitMessage *proto.Message) []byte {
 		return nil
 	}
 
-	//nolint:errcheck // No need to check this payload here
 	commitData, _ := commitMessage.Payload.(*proto.Message_CommitData)
 
 	return commitData.CommitData.ProposalHash
@@ -55,7 +53,6 @@ func ExtractProposal(proposalMessage *proto.Message) *proto.Proposal {
 		return nil
 	}
 
-	//nolint:errcheck // No need to check this payload here
 	preprepareData, _ := proposalMessage.Payload.(*proto.Message_PreprepareData)
 
 	return preprepareData.PreprepareData.Proposal
@@ -67,7 +64,6 @@ func ExtractProposalHash(proposalMessage *proto.Message) []byte {
 		return nil
 	}
 
-	//nolint:errcheck // No need to check this payload here
 	preprepareData, _ := proposalMessage.Payload.(*proto.Message_PreprepareData)
 
 	return preprepareData.PreprepareData.ProposalHash
@@ -79,7 +75,6 @@ func ExtractRoundChangeCertificate(proposalMessage *proto.Message) *proto.RoundC
 		return nil
 	}
 
-	//nolint:errcheck // No need to check this payload here
 	preprepareData, _ := proposalMessage.Payload.(*proto.Message_PreprepareData)
 
 	return preprepareData.PreprepareData.Certificate
@@ -91,7 +86,6 @@ func ExtractPrepareHash(prepareMessage *proto.Message) []byte {
 		return nil
 	}
 
-	//nolint:errcheck // No need to check this payload here
 	prepareData, _ := prepareMessage.Payload.(*proto.Message_PrepareData)
 
 	return prepareData.PrepareData.ProposalHash
@@ -103,7 +97,6 @@ func ExtractLatestPC(roundChangeMessage *proto.Message) *proto.PreparedCertifica
 		return nil
 	}
 
-	//nolint:errcheck // No need to check this payload here
 	rcData, _ := roundChangeMessage.Payload.(*proto.Message_RoundChangeData)
 
 	return rcData.RoundChangeData.LatestPreparedCertificate
@@ -115,7 +108,6 @@ func ExtractLastPreparedProposedBlock(roundChangeMessage *proto.Message) *proto.
 		return nil
 	}
 
-	//nolint:errcheck // No need to check this payload here
 	rcData, _ := roundChangeMessage.Payload.(*proto.Message_RoundChangeData)
 
 	return rcData.RoundChangeData.LastPreparedProposedBlock

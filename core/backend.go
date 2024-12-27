@@ -1,8 +1,8 @@
 package core
 
 import (
-	"github.com/madz-lab/go-ibft/messages"
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages"
+	"github.com/sig-0/go-ibft/messages/proto"
 )
 
 // MessageConstructor defines a message constructor interface

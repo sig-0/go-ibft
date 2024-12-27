@@ -16,7 +16,7 @@ transaction execution or block building mechanics. That responsibility is left t
 
 To get up and running with the `go-ibft` package, you can pull it into your project using:
 
-`go get github.com/madz-lab/go-ibft`
+`go get github.com/sig-0/go-ibft`
 
 Currently, the minimum required go version is `go 1.19`.
 
@@ -25,7 +25,7 @@ Currently, the minimum required go version is `go 1.19`.
 ```go
 package main
 
-import "github.com/madz-lab/go-ibft"
+import "github.com/sig-0/go-ibft"
 
 // IBFTBackend is the structure that implements all required
 // go-ibft Backend interfaces

@@ -3,13 +3,12 @@ package core
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/madz-lab/go-ibft/messages"
-	"github.com/madz-lab/go-ibft/messages/proto"
+	"github.com/sig-0/go-ibft/messages"
+	"github.com/sig-0/go-ibft/messages/proto"
 	"github.com/stretchr/testify/assert"
 	"pgregory.net/rapid"
 )
@@ -156,7 +155,6 @@ func TestProperty_AllHonestNodes(t *testing.T) {
 		transportCallbackMap := make(map[int]transportConfigCallback)
 
 		for i := 0; i < int(numNodes); i++ {
-			i := i
 			backendCallbackMap[i] = func(backend *mockBackend) {
 				commonBackendCallback(backend, i)
 			}
@@ -349,7 +347,6 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 		transportCallbackMap := make(map[int]transportConfigCallback)
 
 		for i := 0; i < int(numNodes); i++ {
-			i := i
 			backendCallbackMap[i] = func(backend *mockBackend) {
 				commonBackendCallback(backend, i)
 			}
@@ -384,10 +381,8 @@ func TestProperty_MajorityHonestNodes(t *testing.T) {
 			ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*5)
 			if err := cluster.awaitNCompletions(ctx, int64(quorum(numNodes))); err != nil {
 				t.Fatalf(
-					fmt.Sprintf(
-						"unable to wait for nodes to complete, %v",
-						err,
-					),
+					"unable to wait for nodes to complete %v",
+					err,
 				)
 			}
 
