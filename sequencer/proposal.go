@@ -30,8 +30,7 @@ func (s *Sequencer) sendMsgProposal(block []byte) {
 	s.transport.MulticastProposal(msg)
 }
 
-func (s *Sequencer) awaitProposal(ctx context.Context, higherRounds bool) (*message.MsgProposal, error) {
-	round := s.state.round
+func (s *Sequencer) awaitProposal(ctx context.Context, round uint64, higherRounds bool) (*message.MsgProposal, error) {
 	if higherRounds {
 		round++
 	}

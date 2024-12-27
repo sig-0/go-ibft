@@ -22,8 +22,11 @@ func (s *Sequencer) sendMsgRoundChange() {
 	s.transport.MulticastRoundChange(message.SignMsg(msg, s.validator))
 }
 
-func (s *Sequencer) awaitRCC(ctx context.Context, higherRounds bool) (*message.RoundChangeCertificate, error) {
-	round := s.state.round
+func (s *Sequencer) awaitRCC(
+	ctx context.Context,
+	round uint64,
+	higherRounds bool,
+) (*message.RoundChangeCertificate, error) {
 	if higherRounds {
 		round++
 	}

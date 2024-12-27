@@ -86,7 +86,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 		}
 
 		select {
-		case _, ok := <-s.startRoundTimer(ctxRound):
+		case _, ok := <-s.startRoundTimer(ctxRound, s.state.round):
 			teardown()
 			if !ok {
 				return nil
@@ -95,7 +95,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 			s.state.moveToNextRound()
 			s.sendMsgRoundChange()
 
-		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound):
+		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound, s.state.round):
 			teardown()
 			if !ok {
 				return nil
@@ -103,7 +103,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 
 			s.state.acceptRCC(rcc)
 
-		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound):
+		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound, s.state.round):
 			teardown()
 			if !ok {
 				return nil
@@ -124,7 +124,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 }
 
 // startRoundTimer starts the round timer of the current round
-func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
+func (s *Sequencer) startRoundTimer(ctx context.Context, round uint64) <-chan struct{} {
 	s.wg.Add(1)
 
 	c := make(chan struct{}, 1)
@@ -134,7 +134,7 @@ func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
 			s.wg.Done()
 		}()
 
-		roundTimer := s.getRoundTimer(s.state.round)
+		roundTimer := s.getRoundTimer(round)
 
 		select {
 		case <-ctx.Done():
@@ -148,7 +148,7 @@ func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
 }
 
 // awaitHigherRoundProposal listens for proposal messages from rounds higher than the current
-func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context) <-chan *message.MsgProposal {
+func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context, currentRound uint64) <-chan *message.MsgProposal {
 	s.wg.Add(1)
 
 	c := make(chan *message.MsgProposal, 1)
@@ -158,7 +158,7 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context) <-chan *messag
 			s.wg.Done()
 		}()
 
-		proposal, err := s.awaitProposal(ctx, true)
+		proposal, err := s.awaitProposal(ctx, currentRound, true)
 		if err != nil {
 			return
 		}
@@ -170,7 +170,10 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context) <-chan *messag
 }
 
 // awaitHigherRoundRCC listens for round change certificates from rounds higher than the current
-func (s *Sequencer) awaitHigherRoundRCC(ctx context.Context) <-chan *message.RoundChangeCertificate {
+func (s *Sequencer) awaitHigherRoundRCC(
+	ctx context.Context,
+	currentRound uint64,
+) <-chan *message.RoundChangeCertificate {
 	s.wg.Add(1)
 
 	c := make(chan *message.RoundChangeCertificate, 1)
@@ -180,7 +183,7 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx context.Context) <-chan *message.Rou
 			s.wg.Done()
 		}()
 
-		rcc, err := s.awaitRCC(ctx, true)
+		rcc, err := s.awaitRCC(ctx, currentRound, true)
 		if err != nil {
 			return
 		}
@@ -231,7 +234,7 @@ func (s *Sequencer) buildProposal(ctx context.Context) ([]byte, error) {
 
 	if s.state.rcc == nil {
 		// round jump triggered by round timer -> justify proposal with round change certificate
-		RCC, err := s.awaitRCC(ctx, false)
+		RCC, err := s.awaitRCC(ctx, s.state.round, false)
 		if err != nil {
 			return nil, err
 		}
@@ -258,7 +261,7 @@ func (s *Sequencer) runRound(ctx context.Context) error {
 	}
 
 	if !s.state.isProposalAccepted() {
-		proposal, err := s.awaitProposal(ctx, false)
+		proposal, err := s.awaitProposal(ctx, s.state.round, false)
 		if err != nil {
 			return err
 		}
