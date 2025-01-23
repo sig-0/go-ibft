@@ -19,7 +19,9 @@ func (s *Sequencer) sendMsgCommit() {
 		CommitSeal: s.validator.Sign(s.state.acceptedBlockHash()),
 	}
 
-	s.transport.MulticastCommit(message.SignMsg(msg, s.validator))
+	msg.Info.Signature = s.validator.Sign(msg.Payload())
+
+	s.transport.MulticastCommit(msg)
 }
 
 func (s *Sequencer) awaitCommitQuorum(ctx context.Context) ([]*message.MsgCommit, error) {
@@ -33,7 +35,7 @@ func (s *Sequencer) awaitCommitQuorum(ctx context.Context) ([]*message.MsgCommit
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache.Add(notification.Unwrap()...)
+			cache.Add(notification()...)
 
 			commits := cache.Get()
 			if len(commits) == 0 || !s.validatorSet.HasQuorum(message.WrapMessages(commits...)) {

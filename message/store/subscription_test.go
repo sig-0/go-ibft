@@ -15,7 +15,7 @@ func Test_Subscribe_Proposal(t *testing.T) {
 	t.Run("exact sequence and round", func(t *testing.T) {
 		t.Parallel()
 
-		s := NewMsgStore()
+		s := NewMsgStore(mockSignatureVerifier(true))
 		f := s.Feed()
 
 		sub, cancelSub := f.SubscribeProposal(101, 0, false)
@@ -37,7 +37,7 @@ func Test_Subscribe_Proposal(t *testing.T) {
 		require.NoError(t, s.Add(m))
 
 		notification := <-sub
-		mm := notification.Unwrap()[0]
+		mm := notification()[0]
 
 		assert.Equal(t, mm, m)
 	})
@@ -45,7 +45,7 @@ func Test_Subscribe_Proposal(t *testing.T) {
 	t.Run("highest available round", func(t *testing.T) {
 		t.Parallel()
 
-		s := NewMsgStore()
+		s := NewMsgStore(mockSignatureVerifier(true))
 		f := s.Feed()
 
 		sub, cancelSub := f.SubscribeProposal(101, 0, true)
@@ -97,7 +97,7 @@ func Test_Subscribe_Proposal(t *testing.T) {
 		require.NoError(t, s.Add(m))
 
 		notification := <-sub
-		mm := notification.Unwrap()[0]
+		mm := notification()[0]
 
 		assert.Equal(t, mm, m)
 		assert.Equal(t, uint64(2), mm.Info.Round)

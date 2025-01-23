@@ -3,7 +3,6 @@ package sequencer
 
 import (
 	"github.com/sig-0/go-ibft/message"
-	"github.com/sig-0/go-ibft/message/transport"
 )
 
 var (
@@ -15,19 +14,20 @@ var (
 	AlwaysAValidator     = func([]byte, uint64) bool { return true }
 	AlwaysValidSignature = mockSignatureVerifier(func(_, _, _ []byte) error { return nil })
 	AlwaysValidProposal  = func(_ uint64, _ []byte) bool { return true }
-	DummyKeccak          = mockKeccak(func(_ []byte) []byte { return DummyKeccakValue })
+	DummyKeccak          = KeccakFn(func(_ []byte) []byte { return DummyKeccakValue })
 	DummyKeccakValue     = []byte("keccak")
 	DummySignFn          = func(_ []byte) []byte { return nil }
 )
 
-func DummyTransport() message.Transport {
-	return transport.NewTransport(
-		func(_ *message.MsgProposal) {},
-		func(_ *message.MsgPrepare) {},
-		func(_ *message.MsgCommit) {},
-		func(_ *message.MsgRoundChange) {},
-	)
-}
+type dummyTransport struct{}
+
+func (t dummyTransport) MulticastProposal(_ *message.MsgProposal) {}
+
+func (t dummyTransport) MulticastPrepare(_ *message.MsgPrepare) {}
+
+func (t dummyTransport) MulticastCommit(_ *message.MsgCommit) {}
+
+func (t dummyTransport) MulticastRoundChange(_ *message.MsgRoundChange) {}
 
 type mockValidator struct {
 	signFn            func([]byte) []byte
@@ -68,12 +68,6 @@ func (vs mockValidatorSet) IsProposer(addr []byte, sequence, round uint64) bool 
 
 func (vs mockValidatorSet) HasQuorum(messages []message.Message) bool {
 	return vs.hasQuorumFn(messages)
-}
-
-type mockKeccak func([]byte) []byte
-
-func (k mockKeccak) Hash(digest []byte) []byte {
-	return k(digest)
 }
 
 type mockSignatureVerifier func([]byte, []byte, []byte) error
@@ -160,9 +154,9 @@ func (f mockFeed) SubscribeProposal(
 	sequence,
 	round uint64,
 	higherRounds bool,
-) (message.Subscription[*message.MsgProposal], func()) {
-	sub := make(message.Subscription[*message.MsgProposal], 1)
-	var notification message.MsgNotificationFn[*message.MsgProposal]
+) (chan func() []*message.MsgProposal, func()) {
+	sub := make(chan func() []*message.MsgProposal, 1)
+	var notification func() []*message.MsgProposal
 	if !higherRounds {
 		notification = func() []*message.MsgProposal {
 			return f.proposal[sequence][round]
@@ -193,9 +187,9 @@ func (f mockFeed) SubscribePrepare(
 	sequence,
 	round uint64,
 	higherRounds bool,
-) (message.Subscription[*message.MsgPrepare], func()) {
-	sub := make(message.Subscription[*message.MsgPrepare], 1)
-	var notification message.MsgNotificationFn[*message.MsgPrepare]
+) (chan func() []*message.MsgPrepare, func()) {
+	sub := make(chan func() []*message.MsgPrepare, 1)
+	var notification func() []*message.MsgPrepare
 	if !higherRounds {
 		notification = func() []*message.MsgPrepare {
 			return f.prepare[sequence][round]
@@ -226,9 +220,9 @@ func (f mockFeed) SubscribeCommit(
 	sequence,
 	round uint64,
 	higherRounds bool,
-) (message.Subscription[*message.MsgCommit], func()) {
-	sub := make(message.Subscription[*message.MsgCommit], 1)
-	var notification message.MsgNotificationFn[*message.MsgCommit]
+) (chan func() []*message.MsgCommit, func()) {
+	sub := make(chan func() []*message.MsgCommit, 1)
+	var notification func() []*message.MsgCommit
 	if !higherRounds {
 		notification = func() []*message.MsgCommit {
 			return f.commit[sequence][round]
@@ -258,9 +252,9 @@ func (f mockFeed) SubscribeRoundChange(
 	sequence,
 	round uint64,
 	higherRounds bool,
-) (message.Subscription[*message.MsgRoundChange], func()) {
-	sub := make(message.Subscription[*message.MsgRoundChange], 1)
-	var notification message.MsgNotificationFn[*message.MsgRoundChange]
+) (chan func() []*message.MsgRoundChange, func()) {
+	sub := make(chan func() []*message.MsgRoundChange, 1)
+	var notification func() []*message.MsgRoundChange
 	if !higherRounds {
 		notification = func() []*message.MsgRoundChange {
 			return f.roundChange[sequence][round]
@@ -297,21 +291,21 @@ func (f SingeRoundMockFeed) SubscribeProposal(
 	sequence,
 	round uint64,
 	higherRounds bool,
-) (message.Subscription[*message.MsgProposal], func()) {
-	sub := make(message.Subscription[*message.MsgProposal], 1)
+) (chan func() []*message.MsgProposal, func()) {
+	sub := make(chan func() []*message.MsgProposal, 1)
 	if !higherRounds {
 		notification := func() []*message.MsgProposal {
 			return f.proposal[sequence][round]
 		}
 
-		sub <- message.MsgNotificationFn[*message.MsgProposal](notification)
+		sub <- notification
 
 		return sub, func() { close(sub) }
 	}
 
-	sub <- message.MsgNotificationFn[*message.MsgProposal](func() []*message.MsgProposal {
+	sub <- func() []*message.MsgProposal {
 		return nil
-	})
+	}
 
 	return sub, func() { close(sub) }
 }
@@ -320,21 +314,21 @@ func (f SingeRoundMockFeed) SubscribePrepare(
 	sequence,
 	round uint64,
 	higherRounds bool,
-) (message.Subscription[*message.MsgPrepare], func()) {
-	sub := make(message.Subscription[*message.MsgPrepare], 1)
+) (chan func() []*message.MsgPrepare, func()) {
+	sub := make(chan func() []*message.MsgPrepare, 1)
 	if !higherRounds {
 		notification := func() []*message.MsgPrepare {
 			return f.prepare[sequence][round]
 		}
 
-		sub <- message.MsgNotificationFn[*message.MsgPrepare](notification)
+		sub <- notification
 
 		return sub, func() { close(sub) }
 	}
 
-	sub <- message.MsgNotificationFn[*message.MsgPrepare](func() []*message.MsgPrepare {
+	sub <- func() []*message.MsgPrepare {
 		return nil
-	})
+	}
 
 	return sub, func() { close(sub) }
 }
@@ -343,21 +337,21 @@ func (f SingeRoundMockFeed) SubscribeCommit(
 	sequence,
 	round uint64,
 	higherRounds bool,
-) (message.Subscription[*message.MsgCommit], func()) {
-	sub := make(message.Subscription[*message.MsgCommit], 1)
+) (chan func() []*message.MsgCommit, func()) {
+	sub := make(chan func() []*message.MsgCommit, 1)
 	if !higherRounds {
 		notification := func() []*message.MsgCommit {
 			return f.commit[sequence][round]
 		}
 
-		sub <- message.MsgNotificationFn[*message.MsgCommit](notification)
+		sub <- notification
 
 		return sub, func() { close(sub) }
 	}
 
-	sub <- message.MsgNotificationFn[*message.MsgCommit](func() []*message.MsgCommit {
+	sub <- func() []*message.MsgCommit {
 		return nil
-	})
+	}
 
 	return sub, func() { close(sub) }
 }
@@ -366,21 +360,21 @@ func (f SingeRoundMockFeed) SubscribeRoundChange(
 	sequence,
 	round uint64,
 	higherRounds bool,
-) (message.Subscription[*message.MsgRoundChange], func()) {
-	sub := make(message.Subscription[*message.MsgRoundChange], 1)
+) (chan func() []*message.MsgRoundChange, func()) {
+	sub := make(chan func() []*message.MsgRoundChange, 1)
 	if !higherRounds {
 		notification := func() []*message.MsgRoundChange {
 			return f.roundChange[sequence][round]
 		}
 
-		sub <- message.MsgNotificationFn[*message.MsgRoundChange](notification)
+		sub <- notification
 
 		return sub, func() { close(sub) }
 	}
 
-	sub <- message.MsgNotificationFn[*message.MsgRoundChange](func() []*message.MsgRoundChange {
+	sub <- func() []*message.MsgRoundChange {
 		return nil
-	})
+	}
 
 	return sub, func() { close(sub) }
 }

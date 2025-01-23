@@ -2,10 +2,13 @@ package sequencer
 
 import "github.com/sig-0/go-ibft/message"
 
-// Validator represents a unique consensus actor in the network.
-// Its role in the protocol is to broadcast (signed) consensus messages and make proposals (if elected)
+// Validator represents a unique consensus actor in the network whose role
+// is to broadcast (signed) consensus messages and make proposals (if elected)
 type Validator interface {
 	message.Signer
+
+	// Address returns validator's public address
+	Address() []byte
 
 	// BuildProposal returns this validator's proposal for given sequence
 	BuildProposal(sequence uint64) []byte

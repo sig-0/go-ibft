@@ -19,6 +19,19 @@ type SequenceResult struct {
 	Round    uint64
 }
 
+// KeccakFn returns the KECCAK256 digest of arbitrary input
+type KeccakFn func(data []byte) []byte
+
+type Config struct {
+	Validator         Validator
+	ValidatorSet      ValidatorSet
+	Transport         Transport
+	Feed              MessageFeed
+	Keccak            KeccakFn
+	SignatureVerifier message.SignatureVerifier
+	Round0Duration    time.Duration
+}
+
 // Sequencer is the consensus actor's (Validator) block finalization process. Whenever the network moves to a
 // new sequence, all actors run their Sequencer processes to reach consensus on some proposal. Sequences consist of
 // rounds in which a chosen actor (Proposer) suggests their own proposal to the network. The Sequencer makes sure
@@ -27,9 +40,9 @@ type SequenceResult struct {
 type Sequencer struct {
 	validator      Validator
 	validatorSet   ValidatorSet
-	transport      message.Transport
-	feed           message.Feed
-	keccak         message.Keccak
+	transport      Transport
+	feed           MessageFeed
+	keccak         KeccakFn
 	sig            message.SignatureVerifier
 	state          state
 	wg             sync.WaitGroup
@@ -86,7 +99,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 		}
 
 		select {
-		case _, ok := <-s.startRoundTimer(ctxRound, s.state.round):
+		case _, ok := <-s.startRoundTimer(ctxRound):
 			teardown()
 			if !ok {
 				return nil
@@ -95,7 +108,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 			s.state.moveToNextRound()
 			s.sendMsgRoundChange()
 
-		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound, s.state.round):
+		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound):
 			teardown()
 			if !ok {
 				return nil
@@ -103,7 +116,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 
 			s.state.acceptRCC(rcc)
 
-		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound, s.state.round):
+		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound):
 			teardown()
 			if !ok {
 				return nil
@@ -124,11 +137,13 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 }
 
 // startRoundTimer starts the round timer of the current round
-func (s *Sequencer) startRoundTimer(ctx context.Context, round uint64) <-chan struct{} {
+func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
 	s.wg.Add(1)
 
+	round := s.state.round
 	c := make(chan struct{}, 1)
-	go func() {
+
+	go func(round uint64) {
 		defer func() {
 			close(c)
 			s.wg.Done()
@@ -142,29 +157,31 @@ func (s *Sequencer) startRoundTimer(ctx context.Context, round uint64) <-chan st
 		case <-roundTimer.C:
 			c <- struct{}{}
 		}
-	}()
+	}(round)
 
 	return c
 }
 
 // awaitHigherRoundProposal listens for proposal messages from rounds higher than the current
-func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context, currentRound uint64) <-chan *message.MsgProposal {
+func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context) <-chan *message.MsgProposal {
 	s.wg.Add(1)
 
 	c := make(chan *message.MsgProposal, 1)
-	go func() {
+	round := s.state.round
+
+	go func(round uint64) {
 		defer func() {
 			close(c)
 			s.wg.Done()
 		}()
 
-		proposal, err := s.awaitProposal(ctx, currentRound, true)
+		proposal, err := s.awaitProposal(ctx, round, true)
 		if err != nil {
 			return
 		}
 
 		c <- proposal
-	}()
+	}(round)
 
 	return c
 }
@@ -172,24 +189,25 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context, currentRound u
 // awaitHigherRoundRCC listens for round change certificates from rounds higher than the current
 func (s *Sequencer) awaitHigherRoundRCC(
 	ctx context.Context,
-	currentRound uint64,
 ) <-chan *message.RoundChangeCertificate {
 	s.wg.Add(1)
 
 	c := make(chan *message.RoundChangeCertificate, 1)
-	go func() {
+	round := s.state.round
+
+	go func(round uint64) {
 		defer func() {
 			close(c)
 			s.wg.Done()
 		}()
 
-		rcc, err := s.awaitRCC(ctx, currentRound, true)
+		rcc, err := s.awaitRCC(ctx, round, true)
 		if err != nil {
 			return
 		}
 
 		c <- rcc
-	}()
+	}(round)
 
 	return c
 }

@@ -6,35 +6,28 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-type MsgCollection[M message.IBFTMessage] interface {
-	Add(msg M)
-	Get(sequence uint64, round uint64) []M
-	Subscribe(sequence, round uint64, higherRounds bool) (message.Subscription[M], func())
-	Clear()
-}
-
-type syncCollection[M message.IBFTMessage] struct {
+type MsgCollection[M message.Message] struct {
 	msgCollection[M]
 	subscriptions[M]
 
 	collectionMux, subscriptionMux sync.RWMutex
 }
 
-func NewMsgCollection[M message.IBFTMessage]() MsgCollection[M] {
-	return &syncCollection[M]{
+func NewMsgCollection[M message.Message]() *MsgCollection[M] {
+	return &MsgCollection[M]{
 		msgCollection: msgCollection[M]{},
 		subscriptions: subscriptions[M]{},
 	}
 }
 
-func (c *syncCollection[M]) Clear() {
+func (c *MsgCollection[M]) Clear() {
 	c.collectionMux.Lock()
 	defer c.collectionMux.Unlock()
 
 	clear(c.msgCollection)
 }
 
-func (c *syncCollection[M]) Subscribe(sequence, round uint64, higherRounds bool) (message.Subscription[M], func()) {
+func (c *MsgCollection[M]) Subscribe(sequence, round uint64, higherRounds bool) (chan func() []M, func()) {
 	sub := newSubscription[M](sequence, round, higherRounds)
 	unregister := c.registerSubscription(sub)
 
@@ -43,7 +36,7 @@ func (c *syncCollection[M]) Subscribe(sequence, round uint64, higherRounds bool)
 	return sub.sub, unregister
 }
 
-func (c *syncCollection[M]) registerSubscription(sub subscription[M]) func() {
+func (c *MsgCollection[M]) registerSubscription(sub subscription[M]) func() {
 	c.subscriptionMux.Lock()
 	defer c.subscriptionMux.Unlock()
 
@@ -57,7 +50,7 @@ func (c *syncCollection[M]) registerSubscription(sub subscription[M]) func() {
 	}
 }
 
-func (c *syncCollection[M]) Add(msg M) {
+func (c *MsgCollection[M]) Add(msg M) {
 	c.collectionMux.Lock()
 	defer c.collectionMux.Unlock()
 
@@ -84,14 +77,14 @@ func (c *syncCollection[M]) Add(msg M) {
 	})
 }
 
-func (c *syncCollection[M]) Get(sequence, round uint64) []M {
+func (c *MsgCollection[M]) Get(sequence, round uint64) []M {
 	c.collectionMux.RLock()
 	defer c.collectionMux.RUnlock()
 
 	return c.msgCollection.loadSet(sequence, round).Messages()
 }
 
-func (c *syncCollection[M]) getNotificationFn(sequence, round uint64, higherRounds bool) message.MsgNotificationFn[M] {
+func (c *MsgCollection[M]) getNotificationFn(sequence, round uint64, higherRounds bool) func() []M {
 	return func() []M {
 		c.collectionMux.RLock()
 		defer c.collectionMux.RUnlock()
@@ -104,7 +97,7 @@ func (c *syncCollection[M]) getNotificationFn(sequence, round uint64, higherRoun
 	}
 }
 
-type msgCollection[M message.IBFTMessage] map[uint64]map[uint64]msgSet[M]
+type msgCollection[M message.Message] map[uint64]map[uint64]msgSet[M]
 
 func (c *msgCollection[M]) add(msg M) {
 	var (
@@ -164,7 +157,7 @@ func (c *msgCollection[M]) getMessagesWithHighestRoundNumber(sequence, round uin
 	return c.get(sequence, maxRound)
 }
 
-type msgSet[M message.IBFTMessage] map[string]M
+type msgSet[M message.Message] map[string]M
 
 func (s msgSet[M]) Messages() []M {
 	messages := make([]M, 0, len(s))

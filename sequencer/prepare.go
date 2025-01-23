@@ -18,7 +18,9 @@ func (s *Sequencer) sendMsgPrepare() {
 		BlockHash: s.state.acceptedBlockHash(),
 	}
 
-	s.transport.MulticastPrepare(message.SignMsg(msg, s.validator))
+	msg.Info.Signature = s.validator.Sign(msg.Payload())
+
+	s.transport.MulticastPrepare(msg)
 }
 
 func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.MsgPrepare, error) {
@@ -32,7 +34,7 @@ func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.MsgPrepa
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache.Add(notification.Unwrap()...)
+			cache.Add(notification()...)
 
 			prepares := cache.Get()
 			if !s.validatorSet.HasQuorum(message.WrapMessages(prepares...)) {

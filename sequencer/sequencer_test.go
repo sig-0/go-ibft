@@ -16,14 +16,16 @@ import (
 func Test_SequencerFinalizeCancelled(t *testing.T) {
 	t.Parallel()
 
-	s := NewSequencer(NewConfig(
-		WithValidator(mockValidator{address: Alice}),
-		WithValidatorSet(mockValidatorSet{isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
+	cfg := Config{
+		Validator: mockValidator{address: Alice},
+		ValidatorSet: mockValidatorSet{isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
 			return false
-		}}),
-		WithRound0Duration(10*time.Millisecond),
-		WithFeed(NewSingleRoundMockFeed(nil)),
-	))
+		}},
+		Feed:           NewSingleRoundMockFeed(nil),
+		Round0Duration: 10 * time.Millisecond,
+	}
+
+	s := NewSequencer(cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan *SequenceResult)
@@ -63,13 +65,14 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0
@@ -77,8 +80,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(newMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: newMockFeed([]message.Message{
 					&message.MsgProposal{
 						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
 						ProposedBlock: &message.ProposedBlock{Block: []byte("Bob's proposal"), Round: 0},
@@ -106,12 +110,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Chris seal"),
 					},
-				})),
-				WithKeccak(DummyKeccak),
-				WithTransport(DummyTransport()),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithRound0Duration(10*time.Millisecond),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -130,20 +133,17 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address: Alice,
 					signFn:  DummySignFn,
 					buildProposalFn: func(_ uint64) []byte {
 						return []byte("Alice's proposal")
 					},
 					isValidProposalFn: AlwaysValidProposal,
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Alice) && round == 0
@@ -151,8 +151,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(newMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: newMockFeed([]message.Message{
 					&message.MsgPrepare{
 						Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
 						BlockHash: DummyKeccakValue,
@@ -174,8 +175,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Chris seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 		{
 			name: "Alice and Chris accept Bob's proposal in round 1 due to round change",
@@ -193,17 +197,14 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 1
@@ -211,8 +212,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(newMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: newMockFeed([]message.Message{
 					&message.MsgProposal{
 						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
 						BlockHash:     DummyKeccakValue,
@@ -249,8 +251,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Chris seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -269,17 +274,14 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Chris) && round == 0 || bytes.Equal(v, Bob) && round == 1
@@ -287,8 +289,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(newMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: newMockFeed([]message.Message{
 					&message.MsgProposal{
 						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
 						BlockHash:     DummyKeccakValue,
@@ -364,8 +367,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Chris seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -386,20 +392,16 @@ func Test_SequencerFinalize(t *testing.T) {
 				},
 			},
 
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
 					buildProposalFn: func(_ uint64) []byte {
 						return []byte("Alice's round 1 proposal")
 					},
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Alice) && round == 1
@@ -407,8 +409,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(newMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: newMockFeed([]message.Message{
 					// need to justify Alice's proposal for round 1
 					&message.MsgRoundChange{
 						Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: Alice},
@@ -439,8 +442,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Nina seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -459,17 +465,14 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Alice) && round == 1
@@ -477,8 +480,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(newMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: newMockFeed([]message.Message{
 					&message.MsgRoundChange{
 						Info: &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
 						LatestPreparedProposedBlock: &message.ProposedBlock{
@@ -558,8 +562,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Chris seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -578,20 +585,17 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
 					buildProposalFn: func(_ uint64) []byte {
 						return []byte("Alice round 3 proposal")
 					},
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Alice) && round == 3
@@ -599,8 +603,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(newMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: newMockFeed([]message.Message{
 					&message.MsgRoundChange{Info: &message.MsgInfo{
 						Sender:   Bob,
 						Sequence: 101,
@@ -650,8 +655,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Chris seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -670,17 +678,14 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Nina) && round == 5
@@ -688,8 +693,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(newMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: newMockFeed([]message.Message{
 					&message.MsgProposal{
 						Info:          &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 5},
 						ProposedBlock: &message.ProposedBlock{Block: []byte("round 5 block"), Round: 5},
@@ -726,8 +732,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Nina seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -746,20 +755,17 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
 					buildProposalFn: func(_ uint64) []byte {
 						return []byte("Alice round 1 proposal")
 					},
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Alice) && round == 1
@@ -767,8 +773,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(NewSingleRoundMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: NewSingleRoundMockFeed([]message.Message{
 					&message.MsgRoundChange{
 						Info: &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
 					},
@@ -798,8 +805,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Chris seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -819,17 +829,14 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Chris) && round == 1
@@ -837,8 +844,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(NewSingleRoundMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: NewSingleRoundMockFeed([]message.Message{
 					&message.MsgProposal{
 						Info: &message.MsgInfo{
 							Sender:   Bob,
@@ -897,8 +905,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Nina seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -917,17 +928,14 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Chris) && round == 1
@@ -935,8 +943,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(NewSingleRoundMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: NewSingleRoundMockFeed([]message.Message{
 					/* round 0 */
 					&message.MsgProposal{
 						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
@@ -988,8 +997,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Bob seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 
 		{
@@ -1008,17 +1020,14 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg: NewConfig(
-				WithRound0Duration(10*time.Millisecond),
-				WithTransport(DummyTransport()),
-				WithKeccak(DummyKeccak),
-				WithSignatureVerifier(AlwaysValidSignature),
-				WithValidator(mockValidator{
+
+			cfg: Config{
+				Validator: mockValidator{
 					address:           Alice,
 					signFn:            DummySignFn,
 					isValidProposalFn: AlwaysValidProposal,
-				}),
-				WithValidatorSet(mockValidatorSet{
+				},
+				ValidatorSet: mockValidatorSet{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 ||
@@ -1028,8 +1037,9 @@ func Test_SequencerFinalize(t *testing.T) {
 					hasQuorumFn: func(messages []message.Message) bool {
 						return len(messages) >= 2
 					},
-				}),
-				WithFeed(NewSingleRoundMockFeed([]message.Message{
+				},
+				Transport: dummyTransport{},
+				Feed: NewSingleRoundMockFeed([]message.Message{
 					&message.MsgRoundChange{
 						Info: &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
 					},
@@ -1067,8 +1077,11 @@ func Test_SequencerFinalize(t *testing.T) {
 						BlockHash:  DummyKeccakValue,
 						CommitSeal: []byte("Alice seal"),
 					},
-				})),
-			),
+				}),
+				Keccak:            DummyKeccak,
+				SignatureVerifier: AlwaysValidSignature,
+				Round0Duration:    10 * time.Millisecond,
+			},
 		},
 	}
 

@@ -19,7 +19,9 @@ func (s *Sequencer) sendMsgRoundChange() {
 		LatestPreparedCertificate:   s.state.latestPC,
 	}
 
-	s.transport.MulticastRoundChange(message.SignMsg(msg, s.validator))
+	msg.Info.Signature = s.validator.Sign(msg.Payload())
+
+	s.transport.MulticastRoundChange(msg)
 }
 
 func (s *Sequencer) awaitRCC(
@@ -41,7 +43,7 @@ func (s *Sequencer) awaitRCC(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache.Add(notification.Unwrap()...)
+			cache.Add(notification()...)
 
 			roundChanges := cache.Get()
 			if len(roundChanges) == 0 || !s.validatorSet.HasQuorum(message.WrapMessages(roundChanges...)) {
@@ -79,7 +81,7 @@ func (s *Sequencer) isValidMsgRoundChange(msg *message.MsgRoundChange) bool {
 	}
 
 	// block hash in proposal message and keccak hash of proposed block match
-	if !bytes.Equal(pc.ProposalMessage.BlockHash, s.keccak.Hash(pb.Bytes())) {
+	if !bytes.Equal(pc.ProposalMessage.BlockHash, s.keccak(pb.Bytes())) {
 		return false
 	}
 
@@ -155,11 +157,10 @@ func (s *Sequencer) isValidRCC(rcc *message.RoundChangeCertificate, proposal *me
 	}
 
 	var (
-		sequence = proposal.Info.Sequence
-		round    = proposal.Info.Round
+		sequence      = proposal.Info.Sequence
+		round         = proposal.Info.Round
+		uniqueSenders = make(map[string]struct{})
 	)
-
-	uniqueSenders := make(map[string]struct{})
 
 	for _, msg := range rcc.Messages {
 		// round change msg sequence (round) and proposal msg sequence (round) must match

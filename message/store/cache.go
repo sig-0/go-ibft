@@ -2,13 +2,13 @@ package store
 
 import "github.com/sig-0/go-ibft/message"
 
-type MsgCache[M message.IBFTMessage] struct {
+type MsgCache[M message.Message] struct {
 	filterFn func(M) bool
 	seen     map[string]struct{}
 	messages []M
 }
 
-func NewMsgCache[M message.IBFTMessage](filterFn func(M) bool) *MsgCache[M] {
+func NewMsgCache[M message.Message](filterFn func(M) bool) *MsgCache[M] {
 	return &MsgCache[M]{
 		filterFn: filterFn,
 		messages: make([]M, 0),
@@ -18,7 +18,7 @@ func NewMsgCache[M message.IBFTMessage](filterFn func(M) bool) *MsgCache[M] {
 
 func (c *MsgCache[M]) Add(messages ...M) {
 	for _, msg := range messages {
-		sender := string(message.Message(msg).GetInfo().Sender)
+		sender := string(msg.GetInfo().Sender)
 		if _, ok := c.seen[sender]; ok {
 			continue
 		}

@@ -21,11 +21,12 @@ func (s *Sequencer) sendMsgProposal(block []byte) {
 			Sender:   s.validator.Address(),
 		},
 		ProposedBlock:          pb,
-		BlockHash:              s.keccak.Hash(pb.Bytes()),
+		BlockHash:              s.keccak(pb.Bytes()),
 		RoundChangeCertificate: s.state.rcc,
 	}
 
-	msg = message.SignMsg(msg, s.validator)
+	msg.Info.Signature = s.validator.Sign(msg.Payload())
+
 	s.state.proposal = msg
 	s.transport.MulticastProposal(msg)
 }
@@ -45,7 +46,7 @@ func (s *Sequencer) awaitProposal(ctx context.Context, round uint64, higherRound
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache.Add(notification.Unwrap()...)
+			cache.Add(notification()...)
 
 			proposals := cache.Get()
 			if len(proposals) == 0 {
@@ -74,7 +75,7 @@ func (s *Sequencer) isValidMsgProposal(msg *message.MsgProposal) bool {
 	}
 
 	// block hash and keccak hash of proposed block match
-	if !bytes.Equal(msg.BlockHash, s.keccak.Hash(msg.ProposedBlock.Bytes())) {
+	if !bytes.Equal(msg.BlockHash, s.keccak(msg.ProposedBlock.Bytes())) {
 		return false
 	}
 
@@ -115,5 +116,5 @@ func (s *Sequencer) isValidMsgProposal(msg *message.MsgProposal) bool {
 	}
 
 	// block hash and a keccak hash of proposed block match
-	return bytes.Equal(blockHash, s.keccak.Hash(pb.Bytes()))
+	return bytes.Equal(blockHash, s.keccak(pb.Bytes()))
 }

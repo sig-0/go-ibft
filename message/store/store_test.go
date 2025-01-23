@@ -1,19 +1,32 @@
 package store
 
 import (
+	"errors"
 	"testing"
 
-	"github.com/sig-0/go-ibft/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sig-0/go-ibft/message"
 )
+
+type mockSignatureVerifier bool
+
+func (v mockSignatureVerifier) Verify(_, _, _ []byte) error {
+	if v {
+		return nil
+	} else {
+		return errors.New("signature verification failed")
+	}
+}
 
 func Test_Store_Add(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		msg            message.Message
-		expectedErrStr string
+		msg              message.Message
+		expectedErrStr   string
+		isValidSignature bool
 	}{
 		{
 			expectedErrStr: "missing info",
@@ -52,7 +65,8 @@ func Test_Store_Add(t *testing.T) {
 		},
 
 		{
-			expectedErrStr: "ok",
+			expectedErrStr:   "ok",
+			isValidSignature: true,
 			msg: &message.MsgProposal{
 				Info: &message.MsgInfo{
 					Sender:    []byte("sender"),
@@ -82,8 +96,22 @@ func Test_Store_Add(t *testing.T) {
 				},
 			},
 		},
+
 		{
-			expectedErrStr: "ok",
+			expectedErrStr:   "signature verification failed",
+			isValidSignature: false,
+			msg: &message.MsgPrepare{
+				Info: &message.MsgInfo{
+					Sender:    []byte("sender"),
+					Signature: []byte("signature"),
+				},
+				BlockHash: []byte("block_hash"),
+			},
+		},
+
+		{
+			expectedErrStr:   "ok",
+			isValidSignature: true,
 			msg: &message.MsgPrepare{
 				Info: &message.MsgInfo{
 					Sender:    []byte("sender"),
@@ -115,7 +143,8 @@ func Test_Store_Add(t *testing.T) {
 		},
 
 		{
-			expectedErrStr: "ok",
+			expectedErrStr:   "ok",
+			isValidSignature: true,
 			msg: &message.MsgCommit{
 				Info: &message.MsgInfo{
 					Sender:    []byte("sender"),
@@ -127,7 +156,8 @@ func Test_Store_Add(t *testing.T) {
 		},
 
 		{
-			expectedErrStr: "ok",
+			expectedErrStr:   "ok",
+			isValidSignature: true,
 			msg: &message.MsgRoundChange{
 				Info: &message.MsgInfo{
 					Sender:    []byte("sender"),
@@ -143,7 +173,7 @@ func Test_Store_Add(t *testing.T) {
 		t.Run(tt.expectedErrStr, func(t *testing.T) {
 			t.Parallel()
 
-			s := NewMsgStore()
+			s := NewMsgStore(mockSignatureVerifier(tt.isValidSignature))
 			if tt.expectedErrStr != "ok" {
 				assert.ErrorContains(t, s.Add(tt.msg), tt.expectedErrStr)
 			} else {
@@ -166,7 +196,7 @@ func Test_Store_Clear(t *testing.T) {
 		BlockHash: []byte("block_hash"),
 	}
 
-	s := NewMsgStore()
+	s := NewMsgStore(mockSignatureVerifier(true))
 	require.NoError(t, s.Add(msg))
 
 	s.Clear()

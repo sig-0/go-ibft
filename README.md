@@ -11,9 +11,9 @@ Required Go version `1.22`
 
 From your project root directory run:
 
-`$ go get github.com/madz-lab/go-ibft`
+`$ go get github.com/sig-0/go-ibft`
 
-## Usage Examples
+## Usage Example
 
 ```go
 package main
@@ -22,49 +22,46 @@ import (
 	"context"
 	"time"
 
-	"github.com/madz-lab/go-ibft"
-	"github.com/madz-lab/go-ibft/engine"
-	"github.com/madz-lab/go-ibft/message/types"
+	"github.com/sig-0/go-ibft/message"
+	"github.com/sig-0/go-ibft/message/store"
+	"github.com/sig-0/go-ibft/sequencer"
 )
 
 func main() {
-
 	var (
-		// Provide external dependencies
-		validator      ibft.Validator
-		keccak         ibft.Keccak
-		quorum         ibft.Quorum
-		round0Duration time.Duration
-
-		proposalTransport    ibft.Transport[*types.MsgProposal]
-		prepareTransport     ibft.Transport[*types.MsgPrepare]
-		commitTransport      ibft.Transport[*types.MsgCommit]
-		roundChangeTransport ibft.Transport[*types.MsgRoundChange]
+		v                 sequencer.Validator
+		vs                sequencer.ValidatorSet
+		transport         sequencer.Transport
+		signatureVerifier message.SignatureVerifier
+		keccak            sequencer.KeccakFn
+		round0Duration    time.Duration
 	)
+
+	msgStore := store.NewMsgStore(signatureVerifier)
 	
-	// ...
-
-	cfg := engine.Config{
-		TransportMsgProposal:    proposalTransport,
-		TransportMsgPrepare:     prepareTransport,
-		TransportMsgCommit:      commitTransport,
-		TransportMsgRoundChange: roundChangeTransport,
-		Quorum:                  quorum,
-		Keccak:                  keccak,
-		Round0Duration:          round0Duration,
-	}
-
-	e := engine.NewEngine(validator, cfg)
-
 	go func() {
-		var msg types.Message
+		var msg message.Message
 
-		// Receive consensus messages gossiped in the network
-		_ = e.AddMessage(msg)
+		// ...
+
+		// receive consensus messages from the network
+		_ = msgStore.Add(msg)
 	}()
 
-	// await proposal to be finalized for current sequence
-	_ = e.FinalizeSequence(context.Background(), 101)
+	cfg := sequencer.Config{
+		Validator:         v,
+		ValidatorSet:      vs,
+		Transport:         transport,
+		Feed:              msgStore.Feed(),
+		Keccak:            keccak,
+		SignatureVerifier: signatureVerifier,
+		Round0Duration:    round0Duration,
+	}
+
+	s := sequencer.NewSequencer(cfg)
+
+	// finalize some proposal for give sequence
+	_ = s.Finalize(context.Background(), 101)
 }
 
 ```
