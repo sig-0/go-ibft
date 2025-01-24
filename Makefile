@@ -1,6 +1,6 @@
 .PHONY: lint
 lint:
-	golangci-lint run --config .github/golangci.yaml
+	golangci-lint run --config ./.github/golangci.yaml
 
 .PHONY: gofumpt
 gofumpt:
@@ -14,4 +14,5 @@ fixalign:
 
 .PHONY: protoc
 protoc:
-	protoc --go_out=./ --go-grpc_out=./ messages/proto/*.proto
+	protoc --go_out=./  ./proto/*.proto
+

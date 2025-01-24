@@ -1,0 +1,61 @@
+package sequencer
+
+import (
+	"bytes"
+	"context"
+
+	"github.com/sig-0/go-ibft/message"
+	"github.com/sig-0/go-ibft/message/store"
+)
+
+func (s *Sequencer) sendMsgPrepare() {
+	msg := &message.MsgPrepare{
+		Info: &message.MsgInfo{
+			Sequence: s.state.sequence,
+			Round:    s.state.round,
+			Sender:   s.validator.Address(),
+		},
+		BlockHash: s.state.acceptedBlockHash(),
+	}
+
+	msg.Info.Signature = s.validator.Sign(msg.Payload())
+
+	s.transport.MulticastPrepare(msg)
+}
+
+func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.MsgPrepare, error) {
+	sub, cancelSub := s.feed.SubscribePrepare(s.state.sequence, s.state.round, false)
+	defer cancelSub()
+
+	cache := store.NewMsgCache(s.isValidMsgPrepare)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case notification := <-sub:
+			cache.Add(notification()...)
+
+			prepares := cache.Get()
+			if !s.validatorSet.HasQuorum(message.WrapMessages(prepares...)) {
+				continue
+			}
+
+			return prepares, nil
+		}
+	}
+}
+
+func (s *Sequencer) isValidMsgPrepare(msg *message.MsgPrepare) bool {
+	// sender is part of the validator set
+	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.Sequence) {
+		return false
+	}
+
+	// block hash and accepted block hash match
+	if !bytes.Equal(msg.BlockHash, s.state.acceptedBlockHash()) {
+		return false
+	}
+
+	return true
+}

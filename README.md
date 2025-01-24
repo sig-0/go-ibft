@@ -1,72 +1,67 @@
 ## Overview
 
-`go-ibft` is a simple, straightforward, IBFT state machine implementation.
+`go-ibft` provides a light-weight engine implementation of the IBFT 2.0 block finalization algorithm. 
 
-It doesn't contain fancy synchronization logic, or any kind of transaction execution layer.
-Instead, `go-ibft` is designed from the ground up to respect and adhere to the `IBFT 2.0` specification document.
-
-Inside this package, you’ll find that it solves the underlying liveness and persistence issues of the original IBFT
-specification, as well as that it contains a plethora of optimizations that make it faster and more lightweight. For a
-complete specification overview on the package, you can check out the official documentation.
-
-As mentioned before, `go-ibft` implements basic IBFT 2.0 state machine logic, meaning it doesn’t have any kind of
-transaction execution or block building mechanics. That responsibility is left to the `Backend` implementation.
+Due to its simple API and minimal client dependencies (see `ibft.go`) the engine is designed to work in parallel with a block syncing mechanism (as described in the original document). 
+For the full protocol specification, see the official doc.
 
 ## Installation
 
-To get up and running with the `go-ibft` package, you can pull it into your project using:
+Required Go version `1.22`
 
-`go get github.com/sig-0/go-ibft`
+From your project root directory run:
 
-Currently, the minimum required go version is `go 1.19`.
+`$ go get github.com/sig-0/go-ibft`
 
-## Usage Examples
+## Usage Example
 
 ```go
 package main
 
-import "github.com/sig-0/go-ibft"
+import (
+	"context"
+	"time"
 
-// IBFTBackend is the structure that implements all required
-// go-ibft Backend interfaces
-type IBFTBackend struct {
-	// ...
-}
-
-// IBFTLogger is the structure that implements all required
-// go-ibft Logger interface
-type IBFTLogger struct {
-	// ...
-}
-
-// IBFTTransport is the structure that implements all required
-// go-ibft Transport interface
-type IBFTTransport struct {
-	// ...
-}
-
-// ...
+	"github.com/sig-0/go-ibft/message"
+	"github.com/sig-0/go-ibft/message/store"
+	"github.com/sig-0/go-ibft/sequencer"
+)
 
 func main() {
-	backend := NewIBFTBackned(...)
-	logger := NewIBFTLogger(...)
-	transport := NewIBFTTransport(...)
+	var (
+		v                 sequencer.Validator
+		vs                sequencer.ValidatorSet
+		transport         sequencer.Transport
+		signatureVerifier message.SignatureVerifier
+		keccak            sequencer.KeccakFn
+		round0Duration    time.Duration
+	)
 
-	ibft := NewIBFT(logger, backend, transport)
-
-	blockHeight := uint64(1)
-	ctx, cancelFn := context.WithCancel(context.Background())
-
+	msgStore := store.NewMsgStore(signatureVerifier)
+	
 	go func() {
-		// Run the consensus sequence for the block height.
-		// When the method returns, that means that
-		// consensus was reached
-		i := RunSequence(ctx, blockHeight)
+		var msg message.Message
+
+		// ...
+
+		// receive consensus messages from the network
+		_ = msgStore.Add(msg)
+	}()
+
+	cfg := sequencer.Config{
+		Validator:         v,
+		ValidatorSet:      vs,
+		Transport:         transport,
+		Feed:              msgStore.Feed(),
+		Keccak:            keccak,
+		SignatureVerifier: signatureVerifier,
+		Round0Duration:    round0Duration,
 	}
 
-	// ...
+	s := sequencer.NewSequencer(cfg)
 
-	// Stop the sequence by cancelling the context
-	cancelFn()
+	// finalize some proposal for give sequence
+	_ = s.Finalize(context.Background(), 101)
 }
+
 ```

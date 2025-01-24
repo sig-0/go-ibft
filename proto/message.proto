@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+option go_package = "./message";
+
+// MsgInfo contains common message details
+message MsgInfo {
+  // Sequence in which the message was created
+  uint64 sequence = 1;
+
+  // Round in which the message was created
+  uint64 round = 2;
+
+  // ID of the validator who sent the message
+  bytes sender = 3;
+
+  // Validator's signature over the message
+  bytes signature = 4;
+}
+
+// ProposedBlock is the proposer's block
+message ProposedBlock {
+  // Proposed block content
+  bytes block = 1;
+
+  // Round in which the block was proposed
+  uint64 round = 2;
+}
+
+// RoundChangeCertificate is a collection of round-change messages used as proof that validators moved to a new round
+message RoundChangeCertificate {
+  repeated MsgRoundChange messages = 1;
+}
+
+// MsgProposal is the initial consensus message that starts the finalization process. It's gossiped by
+// a chosen proposer in a specific round and represents the proposal being voted on by the network
+message MsgProposal {
+  MsgInfo info = 1;
+
+  // Proposal being voted on
+  ProposedBlock proposed_block = 2;
+
+  // Keccak hash of the proposed_block
+  bytes block_hash = 3;
+
+  // Proof that a round-change occurred in the previous round
+  RoundChangeCertificate round_change_certificate = 4;
+}
+
+// MsgPrepare is sent when a validator accepts a proposal
+message MsgPrepare {
+  MsgInfo info = 1;
+
+  // Keccak hash of the proposal being voted on
+  bytes block_hash = 2;
+}
+
+// MsgCommit is a validator's commitment on a proposal that passed the PREPARE phase
+message MsgCommit {
+  MsgInfo info = 1;
+
+  // Keccak hash of the proposal being voted on
+  bytes block_hash = 2;
+
+  // Validator's signature over block_hash
+  bytes commit_seal = 3;
+}
+
+// PreparedCertificate is the last proposal to pass the PREPARE phase
+message PreparedCertificate {
+  // The original MsgProposal
+  MsgProposal proposal_message = 1;
+
+  // Proof the original message passed PREPARE phase
+  repeated MsgPrepare prepare_messages = 2;
+}
+
+// MsgRoundChange is sent when a validator's round timer expires
+message MsgRoundChange {
+  MsgInfo info = 1;
+
+  // Proposal from previous round
+  ProposedBlock latest_prepared_proposed_block = 2;
+
+  // Certificate proving network accepted the ProposedBlock but did not commit
+  PreparedCertificate latest_prepared_certificate = 3;
+}
+
