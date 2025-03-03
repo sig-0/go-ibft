@@ -6,7 +6,7 @@ require (
 	github.com/rs/xid v1.6.0
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/protobuf v1.36.1
-	pgregory.net/rapid v1.1.0
+	pgregory.net/rapid v1.2.0
 )
 
 require (
