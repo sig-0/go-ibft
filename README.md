@@ -3,7 +3,8 @@
 `go-ibft` is a simple, straightforward, IBFT state machine implementation.
 
 It doesn't contain fancy synchronization logic, or any kind of transaction execution layer.
-Instead, `go-ibft` is designed from the ground up to respect and adhere to the `IBFT 2.0` specification document.
+Instead, `go-ibft` is designed from the ground up to respect and adhere to the
+`IBFT 2.0` [specification document](https://arxiv.org/abs/1909.10194).
 
 Inside this package, you’ll find that it solves the underlying liveness and persistence issues of the original IBFT
 specification, as well as that it contains a plethora of optimizations that make it faster and more lightweight. For a
