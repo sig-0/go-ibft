@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/rs/xid v1.6.0
 	github.com/stretchr/testify v1.10.0
-	google.golang.org/protobuf v1.36.6
+	google.golang.org/protobuf v1.36.7
 	pgregory.net/rapid v1.2.0
 )
 
