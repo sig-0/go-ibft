@@ -4,9 +4,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Message is an opaque wrapper for the IBFT consensus messages. See message.proto for concrete type definitions
-type Message interface {
-	GetInfo() *MsgInfo
+type message interface {
+	GetSender() []byte
+	GetSequence() uint64
+	GetRound() uint64
 }
 
 // Signer is used to generate unique signatures based on some digest
@@ -21,23 +22,11 @@ type SignatureVerifier interface {
 	Verify(signer, digest, signature []byte) error
 }
 
-// WrapMessages wraps concrete message types into Message type
-func WrapMessages[M Message](messages ...M) []Message {
-	wrapped := make([]Message, 0, len(messages))
-	for _, msg := range messages {
-		wrapped = append(wrapped, Message(msg))
-	}
-
-	return wrapped
-}
-
-func (x *MsgProposal) Payload() []byte {
-	xx := &MsgProposal{
-		Info: &MsgInfo{
-			Sequence: x.Info.Sequence,
-			Round:    x.Info.Round,
-			Sender:   x.Info.Sender,
-		},
+func (x *Proposal) Payload() []byte {
+	xx := &Proposal{
+		Sequence:               x.Sequence,
+		Round:                  x.Round,
+		Sender:                 x.Sender,
 		ProposedBlock:          x.ProposedBlock,
 		BlockHash:              x.BlockHash,
 		RoundChangeCertificate: x.RoundChangeCertificate,
@@ -47,13 +36,11 @@ func (x *MsgProposal) Payload() []byte {
 	return payload
 }
 
-func (x *MsgPrepare) Payload() []byte {
-	xx := &MsgPrepare{
-		Info: &MsgInfo{
-			Sequence: x.Info.Sequence,
-			Round:    x.Info.Round,
-			Sender:   x.Info.Sender,
-		},
+func (x *Prepare) Payload() []byte {
+	xx := &Prepare{
+		Sequence:  x.Sequence,
+		Round:     x.Round,
+		Sender:    x.Sender,
 		BlockHash: x.BlockHash,
 	}
 
@@ -61,13 +48,11 @@ func (x *MsgPrepare) Payload() []byte {
 	return payload
 }
 
-func (x *MsgCommit) Payload() []byte {
-	xx := &MsgCommit{
-		Info: &MsgInfo{
-			Sequence: x.Info.Sequence,
-			Round:    x.Info.Round,
-			Sender:   x.Info.Sender,
-		},
+func (x *Commit) Payload() []byte {
+	xx := &Commit{
+		Sequence:   x.Sequence,
+		Round:      x.Round,
+		Sender:     x.Sender,
 		BlockHash:  x.BlockHash,
 		CommitSeal: x.CommitSeal,
 	}
@@ -76,13 +61,11 @@ func (x *MsgCommit) Payload() []byte {
 	return payload
 }
 
-func (x *MsgRoundChange) Payload() []byte {
-	xx := &MsgRoundChange{
-		Info: &MsgInfo{
-			Sequence: x.Info.Sequence,
-			Round:    x.Info.Round,
-			Sender:   x.Info.Sender,
-		},
+func (x *RoundChange) Payload() []byte {
+	xx := &RoundChange{
+		Sequence:                    x.Sequence,
+		Round:                       x.Round,
+		Sender:                      x.Sender,
 		LatestPreparedProposedBlock: x.LatestPreparedProposedBlock,
 		LatestPreparedCertificate:   x.LatestPreparedCertificate,
 	}
@@ -106,7 +89,7 @@ func (rcc *RoundChangeCertificate) HighestRoundBlock() ([]byte, uint64) {
 			continue
 		}
 
-		roundsAndPreparedBlocks[pc.ProposalMessage.Info.Round] = pb.Block
+		roundsAndPreparedBlocks[pc.ProposalMessage.Round] = pb.Block
 	}
 
 	if len(roundsAndPreparedBlocks) == 0 {
@@ -136,7 +119,7 @@ func (rcc *RoundChangeCertificate) HighestRoundBlockHash() ([]byte, uint64) {
 			continue
 		}
 
-		roundsAndPreparedBlockHashes[pc.ProposalMessage.Info.Round] = pc.ProposalMessage.BlockHash
+		roundsAndPreparedBlockHashes[pc.ProposalMessage.Round] = pc.ProposalMessage.BlockHash
 	}
 
 	if len(roundsAndPreparedBlockHashes) == 0 {

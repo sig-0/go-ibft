@@ -1,22 +1,22 @@
 package message
 
-type MsgCache[M Message] struct {
+type Cache[M message] struct {
 	filterFn func(M) bool
 	seen     map[string]struct{}
 	messages []M
 }
 
-func NewMsgCache[M Message](filterFn func(M) bool) *MsgCache[M] {
-	return &MsgCache[M]{
+func NewMsgCache[M message](filterFn func(M) bool) *Cache[M] {
+	return &Cache[M]{
 		filterFn: filterFn,
 		messages: make([]M, 0),
 		seen:     make(map[string]struct{}),
 	}
 }
 
-func (c *MsgCache[M]) Add(messages ...M) {
+func (c *Cache[M]) Add(messages ...M) {
 	for _, msg := range messages {
-		sender := string(msg.GetInfo().Sender)
+		sender := string(msg.GetSender())
 		if _, ok := c.seen[sender]; ok {
 			continue
 		}
@@ -31,6 +31,6 @@ func (c *MsgCache[M]) Add(messages ...M) {
 	}
 }
 
-func (c *MsgCache[M]) Get() []M {
+func (c *Cache[M]) Get() []M {
 	return c.messages
 }

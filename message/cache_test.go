@@ -12,8 +12,8 @@ func Test_Cache(t *testing.T) {
 	t.Run("valid message added", func(t *testing.T) {
 		t.Parallel()
 
-		msg := &MsgProposal{Info: &MsgInfo{Sender: []byte("sender")}}
-		cache := NewMsgCache(func(_ *MsgProposal) bool {
+		msg := &Proposal{Sender: []byte("sender")}
+		cache := NewMsgCache(func(_ *Proposal) bool {
 			return true
 		})
 
@@ -24,8 +24,8 @@ func Test_Cache(t *testing.T) {
 	t.Run("invalid message skipped", func(t *testing.T) {
 		t.Parallel()
 
-		msg := &MsgProposal{Info: &MsgInfo{Sender: []byte("sender")}}
-		cache := NewMsgCache(func(_ *MsgProposal) bool {
+		msg := &Proposal{Sender: []byte("sender")}
+		cache := NewMsgCache(func(_ *Proposal) bool {
 			return false
 		})
 
@@ -36,8 +36,8 @@ func Test_Cache(t *testing.T) {
 	t.Run("duplicate message skipped", func(t *testing.T) {
 		t.Parallel()
 
-		msg := &MsgProposal{Info: &MsgInfo{Sender: []byte("sender")}}
-		cache := NewMsgCache(func(_ *MsgProposal) bool {
+		msg := &Proposal{Sender: []byte("sender")}
+		cache := NewMsgCache(func(_ *Proposal) bool {
 			return true
 		})
 

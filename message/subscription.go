@@ -4,14 +4,14 @@ import (
 	"github.com/rs/xid"
 )
 
-type subscription[M Message] struct {
+type subscription[M message] struct {
 	sub          chan func() []M
 	sequence     uint64
 	round        uint64
 	higherRounds bool
 }
 
-func newSubscription[M Message](sequence, round uint64, higherRounds bool) subscription[M] {
+func newSubscription[M message](sequence, round uint64, higherRounds bool) subscription[M] {
 	return subscription[M]{
 		sequence:     sequence,
 		round:        round,
@@ -27,7 +27,7 @@ func (s *subscription[M]) notify(receiver func() []M) {
 	}
 }
 
-type subscriptions[M Message] map[string]subscription[M]
+type subscriptions[M message] map[string]subscription[M]
 
 func (s *subscriptions[M]) add(sub subscription[M]) string {
 	id := xid.New()

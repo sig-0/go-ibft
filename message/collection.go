@@ -4,28 +4,28 @@ import (
 	"sync"
 )
 
-type MsgCollection[M Message] struct {
+type Collection[M message] struct {
 	msgCollection[M]
 	subscriptions[M]
 
 	collectionMux, subscriptionMux sync.RWMutex
 }
 
-func NewMsgCollection[M Message]() *MsgCollection[M] {
-	return &MsgCollection[M]{
+func NewMsgCollection[M message]() *Collection[M] {
+	return &Collection[M]{
 		msgCollection: msgCollection[M]{},
 		subscriptions: subscriptions[M]{},
 	}
 }
 
-func (c *MsgCollection[M]) Clear() {
+func (c *Collection[M]) Clear() {
 	c.collectionMux.Lock()
 	defer c.collectionMux.Unlock()
 
 	clear(c.msgCollection)
 }
 
-func (c *MsgCollection[M]) Subscribe(sequence, round uint64, higherRounds bool) (chan func() []M, func()) {
+func (c *Collection[M]) Subscribe(sequence, round uint64, higherRounds bool) (chan func() []M, func()) {
 	sub := newSubscription[M](sequence, round, higherRounds)
 	unregister := c.registerSubscription(sub)
 
@@ -34,7 +34,7 @@ func (c *MsgCollection[M]) Subscribe(sequence, round uint64, higherRounds bool) 
 	return sub.sub, unregister
 }
 
-func (c *MsgCollection[M]) registerSubscription(sub subscription[M]) func() {
+func (c *Collection[M]) registerSubscription(sub subscription[M]) func() {
 	c.subscriptionMux.Lock()
 	defer c.subscriptionMux.Unlock()
 
@@ -48,7 +48,7 @@ func (c *MsgCollection[M]) registerSubscription(sub subscription[M]) func() {
 	}
 }
 
-func (c *MsgCollection[M]) Add(msg M) {
+func (c *Collection[M]) Add(msg M) {
 	c.collectionMux.Lock()
 	defer c.collectionMux.Unlock()
 
@@ -57,8 +57,7 @@ func (c *MsgCollection[M]) Add(msg M) {
 	c.subscriptionMux.RLock()
 	defer c.subscriptionMux.RUnlock()
 
-	info := Message(msg).GetInfo()
-	seq, round := info.Sequence, info.Round
+	seq, round := msg.GetSequence(), msg.GetRound()
 
 	c.subscriptions.Notify(func(sub subscription[M]) {
 		// match the sequence
@@ -75,14 +74,14 @@ func (c *MsgCollection[M]) Add(msg M) {
 	})
 }
 
-func (c *MsgCollection[M]) Get(sequence, round uint64) []M {
+func (c *Collection[M]) Get(sequence, round uint64) []M {
 	c.collectionMux.RLock()
 	defer c.collectionMux.RUnlock()
 
 	return c.msgCollection.loadSet(sequence, round).Messages()
 }
 
-func (c *MsgCollection[M]) getNotificationFn(sequence, round uint64, higherRounds bool) func() []M {
+func (c *Collection[M]) getNotificationFn(sequence, round uint64, higherRounds bool) func() []M {
 	return func() []M {
 		c.collectionMux.RLock()
 		defer c.collectionMux.RUnlock()
@@ -95,17 +94,16 @@ func (c *MsgCollection[M]) getNotificationFn(sequence, round uint64, higherRound
 	}
 }
 
-type msgCollection[M Message] map[uint64]map[uint64]msgSet[M]
+type msgCollection[M message] map[uint64]map[uint64]msgSet[M]
 
 func (c *msgCollection[M]) add(msg M) {
 	var (
-		info     = Message(msg).GetInfo()
-		sequence = info.Sequence
-		round    = info.Round
-		sender   = string(info.Sender)
+		sequence = msg.GetSequence()
+		round    = msg.GetRound()
+		sender   = msg.GetSender()
 	)
 
-	c.loadOrStoreSet(sequence, round)[sender] = msg
+	c.loadOrStoreSet(sequence, round)[string(sender)] = msg
 }
 
 func (c *msgCollection[M]) loadOrStoreSet(sequence, round uint64) msgSet[M] {
@@ -155,7 +153,7 @@ func (c *msgCollection[M]) getMessagesWithHighestRoundNumber(sequence, round uin
 	return c.get(sequence, maxRound)
 }
 
-type msgSet[M Message] map[string]M
+type msgSet[M message] map[string]M
 
 func (s msgSet[M]) Messages() []M {
 	messages := make([]M, 0, len(s))
