@@ -1,19 +1,17 @@
-package store
+package message
 
 import (
 	"sync"
-
-	"github.com/sig-0/go-ibft/message"
 )
 
-type MsgCollection[M message.Message] struct {
+type MsgCollection[M Message] struct {
 	msgCollection[M]
 	subscriptions[M]
 
 	collectionMux, subscriptionMux sync.RWMutex
 }
 
-func NewMsgCollection[M message.Message]() *MsgCollection[M] {
+func NewMsgCollection[M Message]() *MsgCollection[M] {
 	return &MsgCollection[M]{
 		msgCollection: msgCollection[M]{},
 		subscriptions: subscriptions[M]{},
@@ -59,7 +57,7 @@ func (c *MsgCollection[M]) Add(msg M) {
 	c.subscriptionMux.RLock()
 	defer c.subscriptionMux.RUnlock()
 
-	info := message.Message(msg).GetInfo()
+	info := Message(msg).GetInfo()
 	seq, round := info.Sequence, info.Round
 
 	c.subscriptions.Notify(func(sub subscription[M]) {
@@ -97,11 +95,11 @@ func (c *MsgCollection[M]) getNotificationFn(sequence, round uint64, higherRound
 	}
 }
 
-type msgCollection[M message.Message] map[uint64]map[uint64]msgSet[M]
+type msgCollection[M Message] map[uint64]map[uint64]msgSet[M]
 
 func (c *msgCollection[M]) add(msg M) {
 	var (
-		info     = message.Message(msg).GetInfo()
+		info     = Message(msg).GetInfo()
 		sequence = info.Sequence
 		round    = info.Round
 		sender   = string(info.Sender)
@@ -157,7 +155,7 @@ func (c *msgCollection[M]) getMessagesWithHighestRoundNumber(sequence, round uin
 	return c.get(sequence, maxRound)
 }
 
-type msgSet[M message.Message] map[string]M
+type msgSet[M Message] map[string]M
 
 func (s msgSet[M]) Messages() []M {
 	messages := make([]M, 0, len(s))

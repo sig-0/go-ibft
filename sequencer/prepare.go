@@ -5,7 +5,6 @@ import (
 	"context"
 
 	"github.com/sig-0/go-ibft/message"
-	"github.com/sig-0/go-ibft/message/store"
 )
 
 func (s *Sequencer) sendMsgPrepare() {
@@ -27,7 +26,7 @@ func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.MsgPrepa
 	sub, cancelSub := s.feed.SubscribePrepare(s.state.sequence, s.state.round, false)
 	defer cancelSub()
 
-	cache := store.NewMsgCache(s.isValidMsgPrepare)
+	cache := message.NewMsgCache(s.isValidMsgPrepare)
 
 	for {
 		select {

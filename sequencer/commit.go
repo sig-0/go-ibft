@@ -5,7 +5,6 @@ import (
 	"context"
 
 	"github.com/sig-0/go-ibft/message"
-	"github.com/sig-0/go-ibft/message/store"
 )
 
 func (s *Sequencer) sendMsgCommit() {
@@ -28,7 +27,7 @@ func (s *Sequencer) awaitCommitQuorum(ctx context.Context) ([]*message.MsgCommit
 	sub, cancelSub := s.feed.SubscribeCommit(s.state.sequence, s.state.round, false)
 	defer cancelSub()
 
-	cache := store.NewMsgCache(s.isValidMsgCommit)
+	cache := message.NewMsgCache(s.isValidMsgCommit)
 
 	for {
 		select {

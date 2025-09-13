@@ -1,4 +1,4 @@
-package store
+package message
 
 import (
 	"errors"
@@ -6,8 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/sig-0/go-ibft/message"
 )
 
 type mockSignatureVerifier bool
@@ -24,30 +22,30 @@ func Test_Store_Add(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		msg              message.Message
+		msg              Message
 		expectedErrStr   string
 		isValidSignature bool
 	}{
 		{
 			expectedErrStr: "missing info",
-			msg:            &message.MsgProposal{},
+			msg:            &MsgProposal{},
 		},
 
 		{
 			expectedErrStr: "missing sender",
-			msg:            &message.MsgProposal{Info: &message.MsgInfo{}},
+			msg:            &MsgProposal{Info: &MsgInfo{}},
 		},
 
 		{
 			expectedErrStr: "missing signature",
-			msg: &message.MsgProposal{Info: &message.MsgInfo{
+			msg: &MsgProposal{Info: &MsgInfo{
 				Sender: []byte("sender"),
 			}},
 		},
 
 		{
 			expectedErrStr: "missing block_hash",
-			msg: &message.MsgProposal{Info: &message.MsgInfo{
+			msg: &MsgProposal{Info: &MsgInfo{
 				Sender:    []byte("sender"),
 				Signature: []byte("signature"),
 			}},
@@ -55,8 +53,8 @@ func Test_Store_Add(t *testing.T) {
 
 		{
 			expectedErrStr: "missing proposed_block",
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
+			msg: &MsgProposal{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
@@ -67,20 +65,20 @@ func Test_Store_Add(t *testing.T) {
 		{
 			expectedErrStr:   "ok",
 			isValidSignature: true,
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
+			msg: &MsgProposal{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
 				BlockHash:     []byte("block_hash"),
-				ProposedBlock: &message.ProposedBlock{},
+				ProposedBlock: &ProposedBlock{},
 			},
 		},
 
 		{
 			expectedErrStr: "missing block_hash",
-			msg: &message.MsgPrepare{
-				Info: &message.MsgInfo{
+			msg: &MsgPrepare{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
@@ -89,8 +87,8 @@ func Test_Store_Add(t *testing.T) {
 
 		{
 			expectedErrStr: "missing block_hash",
-			msg: &message.MsgPrepare{
-				Info: &message.MsgInfo{
+			msg: &MsgPrepare{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
@@ -100,8 +98,8 @@ func Test_Store_Add(t *testing.T) {
 		{
 			expectedErrStr:   "signature verification failed",
 			isValidSignature: false,
-			msg: &message.MsgPrepare{
-				Info: &message.MsgInfo{
+			msg: &MsgPrepare{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
@@ -112,8 +110,8 @@ func Test_Store_Add(t *testing.T) {
 		{
 			expectedErrStr:   "ok",
 			isValidSignature: true,
-			msg: &message.MsgPrepare{
-				Info: &message.MsgInfo{
+			msg: &MsgPrepare{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
@@ -123,8 +121,8 @@ func Test_Store_Add(t *testing.T) {
 
 		{
 			expectedErrStr: "missing block_hash",
-			msg: &message.MsgCommit{
-				Info: &message.MsgInfo{
+			msg: &MsgCommit{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
@@ -133,8 +131,8 @@ func Test_Store_Add(t *testing.T) {
 
 		{
 			expectedErrStr: "missing commit_seal",
-			msg: &message.MsgCommit{
-				Info: &message.MsgInfo{
+			msg: &MsgCommit{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
@@ -145,8 +143,8 @@ func Test_Store_Add(t *testing.T) {
 		{
 			expectedErrStr:   "ok",
 			isValidSignature: true,
-			msg: &message.MsgCommit{
-				Info: &message.MsgInfo{
+			msg: &MsgCommit{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
@@ -158,8 +156,8 @@ func Test_Store_Add(t *testing.T) {
 		{
 			expectedErrStr:   "ok",
 			isValidSignature: true,
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
+			msg: &MsgRoundChange{
+				Info: &MsgInfo{
 					Sender:    []byte("sender"),
 					Signature: []byte("signature"),
 				},
@@ -186,8 +184,8 @@ func Test_Store_Add(t *testing.T) {
 func Test_Store_Clear(t *testing.T) {
 	t.Parallel()
 
-	msg := &message.MsgPrepare{
-		Info: &message.MsgInfo{
+	msg := &MsgPrepare{
+		Info: &MsgInfo{
 			Sequence:  0,
 			Round:     0,
 			Sender:    []byte("sender"),

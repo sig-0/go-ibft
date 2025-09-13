@@ -1,37 +1,35 @@
-package store
+package message
 
 import (
 	"errors"
 	"fmt"
-
-	"github.com/sig-0/go-ibft/message"
 )
 
 var ErrInvalidMessage = errors.New("invalid consensus message")
 
 // MsgStore is a thread-safe storage for consensus messages with a built-in sequencer.Feed mechanism
 type MsgStore struct {
-	sigVerifier message.SignatureVerifier
+	sigVerifier SignatureVerifier
 
-	ProposalMessages    *MsgCollection[*message.MsgProposal]
-	PrepareMessages     *MsgCollection[*message.MsgPrepare]
-	CommitMessages      *MsgCollection[*message.MsgCommit]
-	RoundChangeMessages *MsgCollection[*message.MsgRoundChange]
+	ProposalMessages    *MsgCollection[*MsgProposal]
+	PrepareMessages     *MsgCollection[*MsgPrepare]
+	CommitMessages      *MsgCollection[*MsgCommit]
+	RoundChangeMessages *MsgCollection[*MsgRoundChange]
 }
 
 // NewMsgStore returns a new MsgStore instance
-func NewMsgStore(vrf message.SignatureVerifier) *MsgStore {
+func NewMsgStore(vrf SignatureVerifier) *MsgStore {
 	return &MsgStore{
 		sigVerifier:         vrf,
-		ProposalMessages:    NewMsgCollection[*message.MsgProposal](),
-		PrepareMessages:     NewMsgCollection[*message.MsgPrepare](),
-		CommitMessages:      NewMsgCollection[*message.MsgCommit](),
-		RoundChangeMessages: NewMsgCollection[*message.MsgRoundChange](),
+		ProposalMessages:    NewMsgCollection[*MsgProposal](),
+		PrepareMessages:     NewMsgCollection[*MsgPrepare](),
+		CommitMessages:      NewMsgCollection[*MsgCommit](),
+		RoundChangeMessages: NewMsgCollection[*MsgRoundChange](),
 	}
 }
 
 // Add includes the message in the store
-func (s *MsgStore) Add(msg message.Message) error {
+func (s *MsgStore) Add(msg Message) error {
 	info := msg.GetInfo()
 	if info == nil {
 		return fmt.Errorf("%w: missing info field", ErrInvalidMessage)
@@ -46,7 +44,7 @@ func (s *MsgStore) Add(msg message.Message) error {
 	}
 
 	switch msg := msg.(type) {
-	case *message.MsgProposal:
+	case *MsgProposal:
 		if msg.BlockHash == nil {
 			return fmt.Errorf("%w: missing block_hash field", ErrInvalidMessage)
 		}
@@ -60,7 +58,7 @@ func (s *MsgStore) Add(msg message.Message) error {
 		}
 
 		s.ProposalMessages.Add(msg)
-	case *message.MsgPrepare:
+	case *MsgPrepare:
 		if msg.BlockHash == nil {
 			return fmt.Errorf("%w: missing block_hash field", ErrInvalidMessage)
 		}
@@ -70,7 +68,7 @@ func (s *MsgStore) Add(msg message.Message) error {
 		}
 
 		s.PrepareMessages.Add(msg)
-	case *message.MsgCommit:
+	case *MsgCommit:
 		if msg.BlockHash == nil {
 			return fmt.Errorf("%w: missing block_hash field", ErrInvalidMessage)
 		}
@@ -84,7 +82,7 @@ func (s *MsgStore) Add(msg message.Message) error {
 		}
 
 		s.CommitMessages.Add(msg)
-	case *message.MsgRoundChange:
+	case *MsgRoundChange:
 		if err := s.sigVerifier.Verify(msg.GetInfo().Sender, msg.Payload(), msg.GetInfo().Signature); err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidMessage, err)
 		}
@@ -114,27 +112,27 @@ type Feed struct {
 func (f Feed) SubscribeProposal(
 	sequence, round uint64,
 	futureRounds bool,
-) (chan func() []*message.MsgProposal, func()) {
+) (chan func() []*MsgProposal, func()) {
 	return f.MsgStore.ProposalMessages.Subscribe(sequence, round, futureRounds)
 }
 
 func (f Feed) SubscribePrepare(
 	sequence, round uint64,
 	futureRounds bool,
-) (chan func() []*message.MsgPrepare, func()) {
+) (chan func() []*MsgPrepare, func()) {
 	return f.MsgStore.PrepareMessages.Subscribe(sequence, round, futureRounds)
 }
 
 func (f Feed) SubscribeCommit(
 	sequence, round uint64,
 	futureRounds bool,
-) (chan func() []*message.MsgCommit, func()) {
+) (chan func() []*MsgCommit, func()) {
 	return f.MsgStore.CommitMessages.Subscribe(sequence, round, futureRounds)
 }
 
 func (f Feed) SubscribeRoundChange(
 	sequence, round uint64,
 	futureRounds bool,
-) (chan func() []*message.MsgRoundChange, func()) {
+) (chan func() []*MsgRoundChange, func()) {
 	return f.MsgStore.RoundChangeMessages.Subscribe(sequence, round, futureRounds)
 }

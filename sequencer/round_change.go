@@ -5,7 +5,6 @@ import (
 	"context"
 
 	"github.com/sig-0/go-ibft/message"
-	"github.com/sig-0/go-ibft/message/store"
 )
 
 func (s *Sequencer) sendMsgRoundChange() {
@@ -36,7 +35,7 @@ func (s *Sequencer) awaitRCC(
 	sub, cancelSub := s.feed.SubscribeRoundChange(s.state.sequence, round, higherRounds)
 	defer cancelSub()
 
-	cache := store.NewMsgCache(s.isValidMsgRoundChange)
+	cache := message.NewMsgCache(s.isValidMsgRoundChange)
 
 	for {
 		select {

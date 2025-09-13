@@ -1,14 +1,12 @@
-package store
+package message
 
-import "github.com/sig-0/go-ibft/message"
-
-type MsgCache[M message.Message] struct {
+type MsgCache[M Message] struct {
 	filterFn func(M) bool
 	seen     map[string]struct{}
 	messages []M
 }
 
-func NewMsgCache[M message.Message](filterFn func(M) bool) *MsgCache[M] {
+func NewMsgCache[M Message](filterFn func(M) bool) *MsgCache[M] {
 	return &MsgCache[M]{
 		filterFn: filterFn,
 		messages: make([]M, 0),

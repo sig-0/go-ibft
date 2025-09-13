@@ -1,12 +1,10 @@
-package store
+package message
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/sig-0/go-ibft/message"
 )
 
 func Test_Subscribe_Proposal(t *testing.T) {
@@ -21,14 +19,14 @@ func Test_Subscribe_Proposal(t *testing.T) {
 		sub, cancelSub := f.SubscribeProposal(101, 0, false)
 		defer cancelSub()
 
-		m := &message.MsgProposal{
-			Info: &message.MsgInfo{
+		m := &MsgProposal{
+			Info: &MsgInfo{
 				Sequence:  101,
 				Round:     0,
 				Sender:    []byte("sender"),
 				Signature: []byte("signature"),
 			},
-			ProposedBlock: &message.ProposedBlock{
+			ProposedBlock: &ProposedBlock{
 				Block: []byte("block"),
 				Round: 0,
 			},
@@ -51,14 +49,14 @@ func Test_Subscribe_Proposal(t *testing.T) {
 		sub, cancelSub := f.SubscribeProposal(101, 0, true)
 		defer cancelSub()
 
-		m := &message.MsgProposal{
-			Info: &message.MsgInfo{
+		m := &MsgProposal{
+			Info: &MsgInfo{
 				Sequence:  101,
 				Round:     0,
 				Sender:    []byte("sender"),
 				Signature: []byte("signature"),
 			},
-			ProposedBlock: &message.ProposedBlock{
+			ProposedBlock: &ProposedBlock{
 				Block: []byte("block"),
 				Round: 0,
 			},
@@ -66,14 +64,14 @@ func Test_Subscribe_Proposal(t *testing.T) {
 		}
 		require.NoError(t, s.Add(m))
 
-		m = &message.MsgProposal{
-			Info: &message.MsgInfo{
+		m = &MsgProposal{
+			Info: &MsgInfo{
 				Sequence:  101,
 				Round:     1,
 				Sender:    []byte("sender"),
 				Signature: []byte("signature"),
 			},
-			ProposedBlock: &message.ProposedBlock{
+			ProposedBlock: &ProposedBlock{
 				Block: []byte("block"),
 				Round: 0,
 			},
@@ -81,14 +79,14 @@ func Test_Subscribe_Proposal(t *testing.T) {
 		}
 		require.NoError(t, s.Add(m))
 
-		m = &message.MsgProposal{
-			Info: &message.MsgInfo{
+		m = &MsgProposal{
+			Info: &MsgInfo{
 				Sequence:  101,
 				Round:     2,
 				Sender:    []byte("sender"),
 				Signature: []byte("signature"),
 			},
-			ProposedBlock: &message.ProposedBlock{
+			ProposedBlock: &ProposedBlock{
 				Block: []byte("block"),
 				Round: 0,
 			},

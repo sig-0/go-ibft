@@ -1,18 +1,17 @@
-package store
+package message
 
 import (
 	"github.com/rs/xid"
-	"github.com/sig-0/go-ibft/message"
 )
 
-type subscription[M message.Message] struct {
+type subscription[M Message] struct {
 	sub          chan func() []M
 	sequence     uint64
 	round        uint64
 	higherRounds bool
 }
 
-func newSubscription[M message.Message](sequence, round uint64, higherRounds bool) subscription[M] {
+func newSubscription[M Message](sequence, round uint64, higherRounds bool) subscription[M] {
 	return subscription[M]{
 		sequence:     sequence,
 		round:        round,
@@ -28,7 +27,7 @@ func (s *subscription[M]) notify(receiver func() []M) {
 	}
 }
 
-type subscriptions[M message.Message] map[string]subscription[M]
+type subscriptions[M Message] map[string]subscription[M]
 
 func (s *subscriptions[M]) add(sub subscription[M]) string {
 	id := xid.New()

@@ -5,7 +5,6 @@ import (
 	"context"
 
 	"github.com/sig-0/go-ibft/message"
-	"github.com/sig-0/go-ibft/message/store"
 )
 
 func (s *Sequencer) sendMsgProposal(block []byte) {
@@ -39,7 +38,7 @@ func (s *Sequencer) awaitProposal(ctx context.Context, round uint64, higherRound
 	sub, cancelSub := s.feed.SubscribeProposal(s.state.sequence, round, higherRounds)
 	defer cancelSub()
 
-	cache := store.NewMsgCache(s.isValidMsgProposal)
+	cache := message.NewMsgCache(s.isValidMsgProposal)
 
 	for {
 		select {

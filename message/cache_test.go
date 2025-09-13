@@ -1,9 +1,8 @@
-package store
+package message
 
 import (
 	"testing"
 
-	"github.com/sig-0/go-ibft/message"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,8 +12,8 @@ func Test_Cache(t *testing.T) {
 	t.Run("valid message added", func(t *testing.T) {
 		t.Parallel()
 
-		msg := &message.MsgProposal{Info: &message.MsgInfo{Sender: []byte("sender")}}
-		cache := NewMsgCache(func(_ *message.MsgProposal) bool {
+		msg := &MsgProposal{Info: &MsgInfo{Sender: []byte("sender")}}
+		cache := NewMsgCache(func(_ *MsgProposal) bool {
 			return true
 		})
 
@@ -25,8 +24,8 @@ func Test_Cache(t *testing.T) {
 	t.Run("invalid message skipped", func(t *testing.T) {
 		t.Parallel()
 
-		msg := &message.MsgProposal{Info: &message.MsgInfo{Sender: []byte("sender")}}
-		cache := NewMsgCache(func(_ *message.MsgProposal) bool {
+		msg := &MsgProposal{Info: &MsgInfo{Sender: []byte("sender")}}
+		cache := NewMsgCache(func(_ *MsgProposal) bool {
 			return false
 		})
 
@@ -37,8 +36,8 @@ func Test_Cache(t *testing.T) {
 	t.Run("duplicate message skipped", func(t *testing.T) {
 		t.Parallel()
 
-		msg := &message.MsgProposal{Info: &message.MsgInfo{Sender: []byte("sender")}}
-		cache := NewMsgCache(func(_ *message.MsgProposal) bool {
+		msg := &MsgProposal{Info: &MsgInfo{Sender: []byte("sender")}}
+		cache := NewMsgCache(func(_ *MsgProposal) bool {
 			return true
 		})
 
