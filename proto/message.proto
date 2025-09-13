@@ -4,21 +4,6 @@ package message;
 
 option go_package = "github.com/sig-0/go-ibft/message;message";
 
-// MsgInfo contains common message details
-message MsgInfo {
-  // Sequence in which the message was created
-  uint64 sequence = 1;
-
-  // Round in which the message was created
-  uint64 round = 2;
-
-  // ID of the validator who sent the message
-  bytes sender = 3;
-
-  // Validator's signature over the message
-  bytes signature = 4;
-}
-
 // ProposedBlock is the proposer's block
 message ProposedBlock {
   // Proposed block content
@@ -30,60 +15,100 @@ message ProposedBlock {
 
 // RoundChangeCertificate is a collection of round-change messages used as proof that validators moved to a new round
 message RoundChangeCertificate {
-  repeated MsgRoundChange messages = 1;
+  repeated RoundChange messages = 1;
 }
 
 // MsgProposal is the initial consensus message that starts the finalization process. It's gossiped by
 // a chosen proposer in a specific round and represents the proposal being voted on by the network
-message MsgProposal {
-  MsgInfo info = 1;
+message Proposal {
+  // Sequence in which the message was created
+  uint64 sequence = 1;
+
+  // Round in which the message was created
+  uint64 round = 2;
+
+  // ID of the validator who sent the message
+  bytes sender = 3;
+
+  // Validator's signature over the message
+  bytes signature = 4;
 
   // Proposal being voted on
-  ProposedBlock proposed_block = 2;
+  ProposedBlock proposed_block = 5;
 
   // Keccak hash of the proposed_block
-  bytes block_hash = 3;
+  bytes block_hash = 6;
 
   // Proof that a round-change occurred in the previous round
-  RoundChangeCertificate round_change_certificate = 4;
+  RoundChangeCertificate round_change_certificate = 7;
 }
 
 // MsgPrepare is sent when a validator accepts a proposal
-message MsgPrepare {
-  MsgInfo info = 1;
+message Prepare {
+  // Sequence in which the message was created
+  uint64 sequence = 1;
+
+  // Round in which the message was created
+  uint64 round = 2;
+
+  // ID of the validator who sent the message
+  bytes sender = 3;
+
+  // Validator's signature over the message
+  bytes signature = 4;
 
   // Keccak hash of the proposal being voted on
-  bytes block_hash = 2;
+  bytes block_hash = 5;
 }
 
 // MsgCommit is a validator's commitment on a proposal that passed the PREPARE phase
-message MsgCommit {
-  MsgInfo info = 1;
+message Commit {
+  // Sequence in which the message was created
+  uint64 sequence = 1;
+
+  // Round in which the message was created
+  uint64 round = 2;
+
+  // ID of the validator who sent the message
+  bytes sender = 3;
+
+  // Validator's signature over the message
+  bytes signature = 4;
 
   // Keccak hash of the proposal being voted on
-  bytes block_hash = 2;
+  bytes block_hash = 5;
 
   // Validator's signature over block_hash
-  bytes commit_seal = 3;
+  bytes commit_seal = 6;
 }
 
 // PreparedCertificate is the last proposal to pass the PREPARE phase
 message PreparedCertificate {
   // The original MsgProposal
-  MsgProposal proposal_message = 1;
+  Proposal proposal_message = 1;
 
   // Proof the original message passed PREPARE phase
-  repeated MsgPrepare prepare_messages = 2;
+  repeated Prepare prepare_messages = 2;
 }
 
 // MsgRoundChange is sent when a validator's round timer expires
-message MsgRoundChange {
-  MsgInfo info = 1;
+message RoundChange {
+  // Sequence in which the message was created
+  uint64 sequence = 1;
+
+  // Round in which the message was created
+  uint64 round = 2;
+
+  // ID of the validator who sent the message
+  bytes sender = 3;
+
+  // Validator's signature over the message
+  bytes signature = 4;
 
   // Proposal from previous round
-  ProposedBlock latest_prepared_proposed_block = 2;
+  ProposedBlock latest_prepared_proposed_block = 5;
 
   // Certificate proving network accepted the ProposedBlock but did not commit
-  PreparedCertificate latest_prepared_certificate = 3;
+  PreparedCertificate latest_prepared_certificate = 6;
 }
 
