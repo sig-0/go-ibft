@@ -14,5 +14,6 @@ fixalign:
 
 .PHONY: protoc
 protoc:
-	protoc --go_out=./  ./proto/*.proto
+	protoc --proto_path=./proto --go_out=./message --go_opt=module=github.com/sig-0/go-ibft/message ./proto/*.proto
+
 
