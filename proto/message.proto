@@ -1,6 +1,8 @@
 syntax = "proto3";
 
-option go_package = "./message";
+package message;
+
+option go_package = "github.com/sig-0/go-ibft/message;message";
 
 // MsgInfo contains common message details
 message MsgInfo {
