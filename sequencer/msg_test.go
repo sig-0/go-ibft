@@ -15,15 +15,15 @@ func Test_IsValidMsgProposal_Round0(t *testing.T) {
 
 	testTable := []struct {
 		sequencer *Sequencer
-		msg       *message.MsgProposal
+		msg       *message.Proposal
 		name      string
 		expected  bool
 	}{
 		{
 			name:      "proposed block round and current round do not match",
 			sequencer: &Sequencer{validator: mockValidator{address: Alice}},
-			msg: &message.MsgProposal{
-				Info:          &message.MsgInfo{Round: 0},
+			msg: &message.Proposal{
+				Round:         0,
 				ProposedBlock: &message.ProposedBlock{Round: 5},
 			},
 		},
@@ -31,12 +31,10 @@ func Test_IsValidMsgProposal_Round0(t *testing.T) {
 		{
 			name:      "cannot verify own proposal",
 			sequencer: &Sequencer{validator: mockValidator{address: Alice}},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Alice,
-					Sequence: 101,
-					Round:    0,
-				},
+			msg: &message.Proposal{
+				Sender:        Alice,
+				Sequence:      101,
+				Round:         0,
 				ProposedBlock: &message.ProposedBlock{Round: 0},
 			},
 		},
@@ -45,16 +43,14 @@ func Test_IsValidMsgProposal_Round0(t *testing.T) {
 			name: "bad proposer",
 			sequencer: &Sequencer{
 				validator: mockValidator{address: Alice},
-				validatorSet: mockValidatorSet{isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+				verifier: mockVerifier{isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 					return bytes.Equal(v, Bob) && round == 0
 				}},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   []byte("definitely not Bob"),
-					Sequence: 101,
-					Round:    0,
-				},
+			msg: &message.Proposal{
+				Sender:   []byte("definitely not Bob"),
+				Sequence: 101,
+				Round:    0,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 0,
@@ -67,16 +63,14 @@ func Test_IsValidMsgProposal_Round0(t *testing.T) {
 			sequencer: &Sequencer{
 				keccak:    DummyKeccak,
 				validator: mockValidator{address: Alice},
-				validatorSet: mockValidatorSet{isProposerFn: func(v []byte, _, round uint64) bool {
+				verifier: mockVerifier{isProposerFn: func(v []byte, _, round uint64) bool {
 					return bytes.Equal(v, Bob) && round == 0
 				}},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    0,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    0,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 0,
@@ -91,20 +85,18 @@ func Test_IsValidMsgProposal_Round0(t *testing.T) {
 				keccak: DummyKeccak,
 				validator: mockValidator{
 					address: Alice,
-					isValidProposalFn: func(_ uint64, _ []byte) bool {
-						return false
-					},
 				},
-				validatorSet: mockValidatorSet{isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+				verifier: mockVerifier{isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 					return bytes.Equal(v, Bob) && round == 0
-				}},
-			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    0,
 				},
+					isValidProposalFn: func(_ []byte, _ uint64) bool {
+						return false
+					}},
+			},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    0,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("doesn't really matter"),
 					Round: 0,
@@ -119,19 +111,19 @@ func Test_IsValidMsgProposal_Round0(t *testing.T) {
 			sequencer: &Sequencer{
 				keccak: DummyKeccak,
 				validator: mockValidator{
-					address:           Alice,
+					address: Alice,
+				},
+				verifier: mockVerifier{
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, Bob) && round == 0
+					},
 					isValidProposalFn: AlwaysValidProposal,
 				},
-				validatorSet: mockValidatorSet{isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-					return bytes.Equal(v, Bob) && round == 0
-				}},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    0,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    0,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 0,
@@ -155,7 +147,7 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 
 	testTable := []struct {
 		sequencer *Sequencer
-		msg       *message.MsgProposal
+		msg       *message.Proposal
 		name      string
 		expected  bool
 	}{
@@ -164,19 +156,19 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 			sequencer: &Sequencer{
 				keccak: DummyKeccak,
 				validator: mockValidator{
-					address:           Alice,
+					address: Alice,
+				},
+				verifier: mockVerifier{
+					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+						return bytes.Equal(v, Bob) && round == 1
+					},
 					isValidProposalFn: AlwaysValidProposal,
 				},
-				validatorSet: mockValidatorSet{isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-					return bytes.Equal(v, Bob) && round == 1
-				}},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    1,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    1,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 1,
@@ -191,30 +183,27 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 			sequencer: &Sequencer{
 				keccak: DummyKeccak,
 				validator: mockValidator{
-					address:           Alice,
+					address: Alice,
+				},
+				verifier: mockVerifier{isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+					return bytes.Equal(v, Bob) && round == 1
+				},
 					isValidProposalFn: AlwaysValidProposal,
 				},
-				validatorSet: mockValidatorSet{isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-					return bytes.Equal(v, Bob) && round == 1
-				}},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    1,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    1,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 1,
 				},
 				BlockHash: DummyKeccakValue,
-				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 					{
-						Info: &message.MsgInfo{
-							Sequence: 202,
-							Round:    10101,
-						},
+						Sequence: 202,
+						Round:    10101,
 					},
 				}},
 			},
@@ -225,36 +214,32 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 			sequencer: &Sequencer{
 				keccak: DummyKeccak,
 				validator: mockValidator{
-					address:           Alice,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
 				},
-				validatorSet: mockValidatorSet{
+				verifier: mockVerifier{
 					isValidatorFn: func(v []byte, _ uint64) bool {
 						return !bytes.Equal(v, []byte("definitely not a validator"))
 					},
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 1
 					},
+					isValidProposalFn: AlwaysValidProposal,
 				},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    1,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    1,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 1,
 				},
 				BlockHash: DummyKeccakValue,
-				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 					{
-						Info: &message.MsgInfo{
-							Sender:   []byte("definitely not a validator"),
-							Sequence: 101,
-							Round:    1,
-						},
+						Sender:   []byte("definitely not a validator"),
+						Sequence: 101,
+						Round:    1,
 					},
 				}},
 			},
@@ -265,43 +250,37 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 			sequencer: &Sequencer{
 				keccak: DummyKeccak,
 				validator: mockValidator{
-					address:           Alice,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
 				},
-				validatorSet: mockValidatorSet{
+				verifier: mockVerifier{
 					isValidatorFn: func(v []byte, _ uint64) bool {
 						return !bytes.Equal(v, []byte("definitely not a validator"))
 					},
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 1
 					},
+					isValidProposalFn: AlwaysValidProposal,
 				},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    1,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    1,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 1,
 				},
 				BlockHash: DummyKeccakValue,
-				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 					{
-						Info: &message.MsgInfo{
-							Sender:   Chris,
-							Sequence: 101,
-							Round:    1,
-						},
+						Sender:   Chris,
+						Sequence: 101,
+						Round:    1,
 					},
 					{
-						Info: &message.MsgInfo{
-							Sender:   Chris,
-							Sequence: 101,
-							Round:    1,
-						},
+						Sender:   Chris,
+						Sequence: 101,
+						Round:    1,
 					},
 				}},
 			},
@@ -312,46 +291,40 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 			sequencer: &Sequencer{
 				keccak: DummyKeccak,
 				validator: mockValidator{
-					address:           Alice,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
 				},
-				validatorSet: mockValidatorSet{
+				verifier: mockVerifier{
 					isValidatorFn: func(v []byte, _ uint64) bool {
 						return !bytes.Equal(v, []byte("definitely not a validator"))
 					},
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 1
 					},
-					hasQuorumFn: func(_ []message.Message) bool {
+					hasQuorumFn: func([][]byte, uint64) bool {
 						return false
 					},
+					isValidProposalFn: AlwaysValidProposal,
 				},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    1,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    1,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 1,
 				},
 				BlockHash: DummyKeccakValue,
-				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 					{
-						Info: &message.MsgInfo{
-							Sender:   Chris,
-							Sequence: 101,
-							Round:    1,
-						},
+						Sender:   Chris,
+						Sequence: 101,
+						Round:    1,
 					},
 					{
-						Info: &message.MsgInfo{
-							Sender:   Nina,
-							Sequence: 101,
-							Round:    1,
-						},
+						Sender:   Nina,
+						Sequence: 101,
+						Round:    1,
 					},
 				}},
 			},
@@ -363,47 +336,41 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 				keccak: DummyKeccak,
 				validator: mockValidator{
 					address: Alice,
-					isValidProposalFn: func(_ uint64, p []byte) bool {
+				},
+				verifier: mockVerifier{
+					isValidProposalFn: func(p []byte, _ uint64) bool {
 						return bytes.Equal(p, []byte("block"))
 					},
-				},
-				validatorSet: mockValidatorSet{
 					isValidatorFn: func(v []byte, _ uint64) bool {
 						return !bytes.Equal(v, []byte("definitely not a validator"))
 					},
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 1
 					},
-					hasQuorumFn: func(_ []message.Message) bool {
+					hasQuorumFn: func(_ [][]byte, _ uint64) bool {
 						return true
 					},
 				},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    1,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    1,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("invalid block"),
 					Round: 1,
 				},
 				BlockHash: DummyKeccakValue,
-				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 					{
-						Info: &message.MsgInfo{
-							Sender:   Chris,
-							Sequence: 101,
-							Round:    1,
-						},
+						Sender:   Chris,
+						Sequence: 101,
+						Round:    1,
 					},
 					{
-						Info: &message.MsgInfo{
-							Sender:   Nina,
-							Sequence: 101,
-							Round:    1,
-						},
+						Sender:   Nina,
+						Sequence: 101,
+						Round:    1,
 					},
 				}},
 			},
@@ -419,7 +386,7 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 						return bytes.Equal(block, []byte("block"))
 					},
 				},
-				validatorSet: mockValidatorSet{
+				verifier: mockVerifier{
 					isValidatorFn: func(v []byte, _ uint64) bool {
 						return !bytes.Equal(v, []byte("definitely not a validator"))
 					},
@@ -427,45 +394,37 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 						return bytes.Equal(v, Alice) && round == 0 ||
 							bytes.Equal(v, Bob) && round == 1
 					},
-					hasQuorumFn: func(_ []message.Message) bool {
+					hasQuorumFn: func(_ [][]byte, _ uint64) bool {
 						return true
 					},
 				},
 			},
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    1,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    1,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 1,
 				},
 				BlockHash: DummyKeccakValue,
-				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 					{
-						Info: &message.MsgInfo{
-							Sender:   Chris,
-							Sequence: 101,
-							Round:    1,
-						},
+						Sender:   Chris,
+						Sequence: 101,
+						Round:    1,
 						LatestPreparedCertificate: &message.PreparedCertificate{
-							ProposalMessage: &message.MsgProposal{
-								Info: &message.MsgInfo{
-									Sender:   Alice,
-									Sequence: 101,
-									Round:    0,
-								},
+							ProposalMessage: &message.Proposal{
+								Sender:    Alice,
+								Sequence:  101,
+								Round:     0,
 								BlockHash: []byte("invalid keccak"),
 							},
-							PrepareMessages: []*message.MsgPrepare{
+							PrepareMessages: []*message.Prepare{
 								{
-									Info: &message.MsgInfo{
-										Sender:   Chris,
-										Sequence: 101,
-										Round:    0,
-									},
+									Sender:    Chris,
+									Sequence:  101,
+									Round:     0,
 									BlockHash: []byte("invalid keccak"),
 								},
 							},
@@ -481,10 +440,9 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 			sequencer: &Sequencer{
 				keccak: DummyKeccak,
 				validator: mockValidator{
-					address:           Alice,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
 				},
-				validatorSet: mockValidatorSet{
+				verifier: mockVerifier{
 					isValidatorFn: func(from []byte, _ uint64) bool {
 						return bytes.Equal(from, Alice) || bytes.Equal(from, Chris)
 					},
@@ -492,47 +450,40 @@ func Test_IsValidMsgProposal_Higher_Rounds(t *testing.T) {
 						return bytes.Equal(v, Alice) && round == 0 ||
 							bytes.Equal(v, Bob) && round == 1
 					},
-					hasQuorumFn: func(_ []message.Message) bool {
+					hasQuorumFn: func(_ [][]byte, _ uint64) bool {
 						return true
 					},
+					isValidProposalFn: AlwaysValidProposal,
 				},
 			},
 
-			msg: &message.MsgProposal{
-				Info: &message.MsgInfo{
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    1,
-				},
+			msg: &message.Proposal{
+				Sender:   Bob,
+				Sequence: 101,
+				Round:    1,
 				ProposedBlock: &message.ProposedBlock{
 					Block: []byte("block"),
 					Round: 1,
 				},
 				BlockHash: DummyKeccakValue,
-				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
+				RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 					{
-						Info: &message.MsgInfo{
-							Sender:   Chris,
-							Sequence: 101,
-							Round:    1,
-						},
+						Sender:                      Chris,
+						Sequence:                    101,
+						Round:                       1,
 						LatestPreparedProposedBlock: &message.ProposedBlock{},
 						LatestPreparedCertificate: &message.PreparedCertificate{
-							ProposalMessage: &message.MsgProposal{
-								Info: &message.MsgInfo{
-									Sender:   Alice,
-									Sequence: 101,
-									Round:    0,
-								},
+							ProposalMessage: &message.Proposal{
+								Sender:    Alice,
+								Sequence:  101,
+								Round:     0,
 								BlockHash: DummyKeccakValue,
 							},
-							PrepareMessages: []*message.MsgPrepare{
+							PrepareMessages: []*message.Prepare{
 								{
-									Info: &message.MsgInfo{
-										Sender:   Chris,
-										Sequence: 101,
-										Round:    0,
-									},
+									Sender:    Chris,
+									Sequence:  101,
+									Round:     0,
 									BlockHash: DummyKeccakValue,
 								},
 							},
@@ -556,41 +507,37 @@ func Test_IsValidMsgPrepare(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		msg       *message.MsgPrepare
+		msg       *message.Prepare
 		sequencer *Sequencer
 		name      string
 		expected  bool
 	}{
 		{
 			name: "invalid sender",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{isValidatorFn: func(_ []byte, _ uint64) bool {
+			sequencer: &Sequencer{verifier: mockVerifier{isValidatorFn: func(_ []byte, _ uint64) bool {
 				return false
 			}}},
-			msg: &message.MsgPrepare{
-				Info: &message.MsgInfo{
-					Sender:   []byte("definitely not a validator"),
-					Sequence: 101,
-				},
+			msg: &message.Prepare{
+				Sender:   []byte("definitely not a validator"),
+				Sequence: 101,
 			},
 		},
 
 		{
 			name: "invalid block hash",
 			sequencer: &Sequencer{
-				validatorSet: mockValidatorSet{isValidatorFn: func(_ []byte, _ uint64) bool {
+				verifier: mockVerifier{isValidatorFn: func(_ []byte, _ uint64) bool {
 					return true
 				}},
 				state: state{
-					proposal: &message.MsgProposal{
+					proposal: &message.Proposal{
 						BlockHash: []byte("keccak"),
 					},
 				},
 			},
-			msg: &message.MsgPrepare{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
-				},
+			msg: &message.Prepare{
+				Sequence:  101,
+				Sender:    Chris,
 				BlockHash: []byte("definitely not keccak"),
 			},
 		},
@@ -599,16 +546,14 @@ func Test_IsValidMsgPrepare(t *testing.T) {
 			name:     "ok",
 			expected: true,
 			sequencer: &Sequencer{
-				validatorSet: mockValidatorSet{isValidatorFn: func(_ []byte, _ uint64) bool {
+				verifier: mockVerifier{isValidatorFn: func(_ []byte, _ uint64) bool {
 					return true
 				}},
-				state: state{proposal: &message.MsgProposal{BlockHash: DummyKeccakValue}},
+				state: state{proposal: &message.Proposal{BlockHash: DummyKeccakValue}},
 			},
-			msg: &message.MsgPrepare{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
-				},
+			msg: &message.Prepare{
+				Sequence:  101,
+				Sender:    Chris,
 				BlockHash: DummyKeccakValue,
 			},
 		},
@@ -627,35 +572,31 @@ func Test_IsValidMsgCommit(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		msg       *message.MsgCommit
+		msg       *message.Commit
 		sequencer *Sequencer
 		name      string
 		expected  bool
 	}{
 		{
 			name: "invalid sender",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{isValidatorFn: func(_ []byte, _ uint64) bool {
+			sequencer: &Sequencer{verifier: mockVerifier{isValidatorFn: func(_ []byte, _ uint64) bool {
 				return false
 			}}},
-			msg: &message.MsgCommit{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   []byte("definitely not a validator"),
-				},
+			msg: &message.Commit{
+				Sequence: 101,
+				Sender:   []byte("definitely not a validator"),
 			},
 		},
 
 		{
 			name: "invalid block hash",
 			sequencer: &Sequencer{
-				validatorSet: mockValidatorSet{isValidatorFn: AlwaysAValidator},
-				state:        state{proposal: &message.MsgProposal{BlockHash: []byte("keccak")}},
+				verifier: mockVerifier{isValidatorFn: AlwaysAValidator},
+				state:    state{proposal: &message.Proposal{BlockHash: []byte("keccak")}},
 			},
-			msg: &message.MsgCommit{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
-				},
+			msg: &message.Commit{
+				Sequence:  101,
+				Sender:    Chris,
 				BlockHash: []byte("definitely not keccak"),
 			},
 		},
@@ -663,17 +604,17 @@ func Test_IsValidMsgCommit(t *testing.T) {
 		{
 			name: "invalid commit seal",
 			sequencer: &Sequencer{
-				validatorSet: mockValidatorSet{isValidatorFn: AlwaysAValidator},
-				state:        state{proposal: &message.MsgProposal{BlockHash: DummyKeccakValue}},
-				sig: mockSignatureVerifier(func(_ []byte, _ []byte, _ []byte) error {
-					return errors.New("bad sig")
-				}),
-			},
-			msg: &message.MsgCommit{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
+				verifier: mockVerifier{
+					isValidatorFn: AlwaysAValidator,
+					isValidSignatureFn: func(_ []byte, _ []byte, _ []byte) error {
+						return errors.New("bad sig")
+					},
 				},
+				state: state{proposal: &message.Proposal{BlockHash: DummyKeccakValue}},
+			},
+			msg: &message.Commit{
+				Sequence: 101,
+				Sender:   Chris,
 
 				BlockHash:  []byte("keccak"),
 				CommitSeal: []byte("doesn't matter"),
@@ -684,15 +625,15 @@ func Test_IsValidMsgCommit(t *testing.T) {
 			name:     "ok",
 			expected: true,
 			sequencer: &Sequencer{
-				validatorSet: mockValidatorSet{isValidatorFn: AlwaysAValidator},
-				state:        state{proposal: &message.MsgProposal{BlockHash: DummyKeccakValue}},
-				sig:          AlwaysValidSignature,
-			},
-			msg: &message.MsgCommit{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
+				verifier: mockVerifier{
+					isValidatorFn:      AlwaysAValidator,
+					isValidSignatureFn: AlwaysValidSignature,
 				},
+				state: state{proposal: &message.Proposal{BlockHash: DummyKeccakValue}},
+			},
+			msg: &message.Commit{
+				Sequence: 101,
+				Sender:   Chris,
 
 				BlockHash:  []byte("keccak"),
 				CommitSeal: []byte("doesn't matter"),
@@ -714,55 +655,47 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 
 	testTable := []struct {
 		sequencer *Sequencer
-		msg       *message.MsgRoundChange
+		msg       *message.RoundChange
 		name      string
 		expected  bool
 	}{
 		{
 			name: "invalid sender",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{isValidatorFn: func(_ []byte, _ uint64) bool {
+			sequencer: &Sequencer{verifier: mockVerifier{isValidatorFn: func(_ []byte, _ uint64) bool {
 				return false
 			}}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sender:   []byte("definitely not a validator"),
-					Sequence: 101,
-				},
+			msg: &message.RoundChange{
+				Sender:   []byte("definitely not a validator"),
+				Sequence: 101,
 			},
 		},
 
 		{
 			name:      "ok (pb and pc are nil)",
 			expected:  true,
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{isValidatorFn: AlwaysAValidator}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
-				},
+			sequencer: &Sequencer{verifier: mockVerifier{isValidatorFn: AlwaysAValidator}},
+			msg: &message.RoundChange{
+				Sequence: 101,
+				Sender:   Chris,
 			},
 		},
 
 		{
 			name:      "proposed block and prepared certificate must both be set",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{isValidatorFn: AlwaysAValidator}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
-				},
+			sequencer: &Sequencer{verifier: mockVerifier{isValidatorFn: AlwaysAValidator}},
+			msg: &message.RoundChange{
+				Sequence:                  101,
+				Sender:                    Chris,
 				LatestPreparedCertificate: &message.PreparedCertificate{},
 			},
 		},
 
 		{
 			name:      "(invalid pc) proposal message and prepare messages are not included",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{isValidatorFn: AlwaysAValidator}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
-				},
+			sequencer: &Sequencer{verifier: mockVerifier{isValidatorFn: AlwaysAValidator}},
+			msg: &message.RoundChange{
+				Sequence:                    101,
+				Sender:                      Chris,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
 					ProposalMessage: nil,
@@ -772,46 +705,38 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 
 		{
 			name:      "(invalid pc) bad proposal message sequence",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{isValidatorFn: AlwaysAValidator}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
-				},
+			sequencer: &Sequencer{verifier: mockVerifier{isValidatorFn: AlwaysAValidator}},
+			msg: &message.RoundChange{
+				Sequence:                    101,
+				Sender:                      Chris,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{
-						Info: &message.MsgInfo{Sequence: 200},
-					},
-					PrepareMessages: []*message.MsgPrepare{},
+					ProposalMessage: &message.Proposal{},
+					PrepareMessages: []*message.Prepare{},
 				},
 			},
 		},
 
 		{
 			name:      "(invalid pc) bad proposal message round",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{isValidatorFn: AlwaysAValidator}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sequence: 101,
-					Sender:   Chris,
-				},
+			sequencer: &Sequencer{verifier: mockVerifier{isValidatorFn: AlwaysAValidator}},
+			msg: &message.RoundChange{
+				Sequence:                    101,
+				Sender:                      Chris,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{
-						Info: &message.MsgInfo{
-							Sequence: 101,
-							Round:    5,
-						},
+					ProposalMessage: &message.Proposal{
+						Sequence: 101,
+						Round:    5,
 					},
-					PrepareMessages: []*message.MsgPrepare{},
+					PrepareMessages: []*message.Prepare{},
 				},
 			},
 		},
 
 		{
 			name: "(invalid pc) bad proposer",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{
+			sequencer: &Sequencer{verifier: mockVerifier{
 				isValidatorFn: func(v []byte, _ uint64) bool {
 					return bytes.Equal(v, Chris)
 				},
@@ -819,49 +744,43 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					return false
 				},
 			}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    1,
-				},
+			msg: &message.RoundChange{
+				Sender:                      Chris,
+				Sequence:                    101,
+				Round:                       1,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{Info: &message.MsgInfo{
+					ProposalMessage: &message.Proposal{
 						Sender:   []byte("bad proposer"),
 						Sequence: 101,
 						Round:    0,
-					}},
-					PrepareMessages: []*message.MsgPrepare{},
+					},
+					PrepareMessages: []*message.Prepare{},
 				},
 			},
 		},
 
 		{
 			name: "(invalid pc) proposal msg sequence (round) and prepare msg sequence (round) do not match",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{
+			sequencer: &Sequencer{verifier: mockVerifier{
 				isValidatorFn: AlwaysAValidator,
 				isProposerFn:  func(_ []byte, _ uint64, _ uint64) bool { return true },
 			}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    2,
-				},
+			msg: &message.RoundChange{
+				Sender:                      Chris,
+				Sequence:                    101,
+				Round:                       2,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{Info: &message.MsgInfo{
+					ProposalMessage: &message.Proposal{
 						Sender:   Bob,
 						Sequence: 101,
 						Round:    1,
-					}},
-					PrepareMessages: []*message.MsgPrepare{
+					},
+					PrepareMessages: []*message.Prepare{
 						{
-							Info: &message.MsgInfo{
-								Sequence: 99,
-								Round:    3212,
-							},
+							Sequence: 99,
+							Round:    3212,
 						},
 					},
 				},
@@ -870,32 +789,26 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 
 		{
 			name: "(invalid pc) proposal msg block hash and prepare msg block hash do not match",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{
+			sequencer: &Sequencer{verifier: mockVerifier{
 				isValidatorFn: AlwaysAValidator,
 				isProposerFn:  func(_ []byte, _ uint64, _ uint64) bool { return true },
 			}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    2,
-				},
+			msg: &message.RoundChange{
+				Sender:                      Chris,
+				Sequence:                    101,
+				Round:                       2,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{
-						Info: &message.MsgInfo{
-							Sender:   Bob,
-							Sequence: 101,
-							Round:    1,
-						},
+					ProposalMessage: &message.Proposal{
+						Sender:    Bob,
+						Sequence:  101,
+						Round:     1,
 						BlockHash: []byte("xxx"),
 					},
-					PrepareMessages: []*message.MsgPrepare{
+					PrepareMessages: []*message.Prepare{
 						{
-							Info: &message.MsgInfo{
-								Sequence: 101,
-								Round:    1,
-							},
+							Sequence:  101,
+							Round:     1,
 							BlockHash: []byte("yyy"),
 						},
 					},
@@ -905,7 +818,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 
 		{
 			name: "(invalid pc) bad prepare msg sender",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{
+			sequencer: &Sequencer{verifier: mockVerifier{
 				isValidatorFn: func(v []byte, _ uint64) bool {
 					return bytes.Equal(v, Bob) || bytes.Equal(v, Chris)
 				},
@@ -913,28 +826,22 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					return true
 				},
 			}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    2,
-				},
+			msg: &message.RoundChange{
+				Sender:                      Chris,
+				Sequence:                    101,
+				Round:                       2,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{
-						Info: &message.MsgInfo{
-							Sender:   Bob,
-							Sequence: 101, Round: 1,
-						},
+					ProposalMessage: &message.Proposal{
+						Sender:   Bob,
+						Sequence: 101, Round: 1,
 						BlockHash: DummyKeccakValue,
 					},
-					PrepareMessages: []*message.MsgPrepare{
+					PrepareMessages: []*message.Prepare{
 						{
-							Info: &message.MsgInfo{
-								Sender:   []byte("definitely not a validator"),
-								Sequence: 101,
-								Round:    1,
-							},
+							Sender:    []byte("definitely not a validator"),
+							Sequence:  101,
+							Round:     1,
 							BlockHash: DummyKeccakValue,
 						},
 					},
@@ -944,7 +851,7 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 
 		{
 			name: "(invalid pc) duplicate sender in prepare messages",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{
+			sequencer: &Sequencer{verifier: mockVerifier{
 				isValidatorFn: func(v []byte, _ uint64) bool {
 					return bytes.Equal(v, Bob) || bytes.Equal(v, Chris)
 				},
@@ -952,36 +859,28 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 					return true
 				},
 			}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    2,
-				},
+			msg: &message.RoundChange{
+				Sender:                      Chris,
+				Sequence:                    101,
+				Round:                       2,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{
-						Info: &message.MsgInfo{
-							Sender:   Bob,
-							Sequence: 101, Round: 1,
-						},
+					ProposalMessage: &message.Proposal{
+						Sender:   Bob,
+						Sequence: 101, Round: 1,
 						BlockHash: DummyKeccakValue,
 					},
-					PrepareMessages: []*message.MsgPrepare{
+					PrepareMessages: []*message.Prepare{
 						{
-							Info: &message.MsgInfo{
-								Sender:   Chris,
-								Sequence: 101,
-								Round:    1,
-							},
+							Sender:    Chris,
+							Sequence:  101,
+							Round:     1,
 							BlockHash: DummyKeccakValue,
 						},
 						{
-							Info: &message.MsgInfo{
-								Sender:   Chris,
-								Sequence: 101,
-								Round:    1,
-							},
+							Sender:    Chris,
+							Sequence:  101,
+							Round:     1,
 							BlockHash: DummyKeccakValue,
 						},
 					},
@@ -991,46 +890,38 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 
 		{
 			name: "(invalid pc) no quorum messages in pc",
-			sequencer: &Sequencer{validatorSet: mockValidatorSet{
+			sequencer: &Sequencer{verifier: mockVerifier{
 				isValidatorFn: AlwaysAValidator,
 				isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
 					return true
 				},
-				hasQuorumFn: func(_ []message.Message) bool {
+				hasQuorumFn: func(_ [][]byte, _ uint64) bool {
 					return false
 				},
 			}},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    2,
-				},
+			msg: &message.RoundChange{
+				Sender:                      Chris,
+				Sequence:                    101,
+				Round:                       2,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{
-						Info: &message.MsgInfo{
-							Sender:   Bob,
-							Sequence: 101,
-							Round:    1,
-						},
+					ProposalMessage: &message.Proposal{
+						Sender:    Bob,
+						Sequence:  101,
+						Round:     1,
 						BlockHash: DummyKeccakValue,
 					},
-					PrepareMessages: []*message.MsgPrepare{
+					PrepareMessages: []*message.Prepare{
 						{
-							Info: &message.MsgInfo{
-								Sender:   Chris,
-								Sequence: 101,
-								Round:    1,
-							},
+							Sender:    Chris,
+							Sequence:  101,
+							Round:     1,
 							BlockHash: DummyKeccakValue,
 						},
 						{
-							Info: &message.MsgInfo{
-								Sender:   Alice,
-								Sequence: 101,
-								Round:    1,
-							},
+							Sender:    Alice,
+							Sequence:  101,
+							Round:     1,
 							BlockHash: DummyKeccakValue,
 						},
 					},
@@ -1042,43 +933,35 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			name: "block hash in pc and block hash in pb do not match",
 			sequencer: &Sequencer{
 				keccak: DummyKeccak,
-				validatorSet: mockValidatorSet{
+				verifier: mockVerifier{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn:  func(_ []byte, _ uint64, _ uint64) bool { return true },
-					hasQuorumFn:   func(_ []message.Message) bool { return true },
+					hasQuorumFn:   func(_ [][]byte, _ uint64) bool { return true },
 				},
 			},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    2,
-				},
+			msg: &message.RoundChange{
+				Sender:                      Chris,
+				Sequence:                    101,
+				Round:                       2,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{
-						Info: &message.MsgInfo{
-							Sender:   Bob,
-							Sequence: 101,
-							Round:    1,
-						},
+					ProposalMessage: &message.Proposal{
+						Sender:    Bob,
+						Sequence:  101,
+						Round:     1,
 						BlockHash: []byte("definitely not keccak"),
 					},
-					PrepareMessages: []*message.MsgPrepare{
+					PrepareMessages: []*message.Prepare{
 						{
-							Info: &message.MsgInfo{
-								Sender:   Chris,
-								Sequence: 101,
-								Round:    1,
-							},
+							Sender:    Chris,
+							Sequence:  101,
+							Round:     1,
 							BlockHash: []byte("definitely not keccak"),
 						},
 						{
-							Info: &message.MsgInfo{
-								Sender:   Alice,
-								Sequence: 101,
-								Round:    1,
-							},
+							Sender:    Alice,
+							Sequence:  101,
+							Round:     1,
 							BlockHash: []byte("definitely not keccak"),
 						},
 					},
@@ -1091,43 +974,35 @@ func TestIsValidMsgRoundChange(t *testing.T) {
 			expected: true,
 			sequencer: &Sequencer{
 				keccak: DummyKeccak,
-				validatorSet: mockValidatorSet{
+				verifier: mockVerifier{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn:  func(_ []byte, _ uint64, _ uint64) bool { return true },
-					hasQuorumFn:   func(_ []message.Message) bool { return true },
+					hasQuorumFn:   func(_ [][]byte, _ uint64) bool { return true },
 				},
 			},
-			msg: &message.MsgRoundChange{
-				Info: &message.MsgInfo{
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    2,
-				},
+			msg: &message.RoundChange{
+				Sender:                      Chris,
+				Sequence:                    101,
+				Round:                       2,
 				LatestPreparedProposedBlock: &message.ProposedBlock{},
 				LatestPreparedCertificate: &message.PreparedCertificate{
-					ProposalMessage: &message.MsgProposal{
-						Info: &message.MsgInfo{
-							Sender:   Bob,
-							Sequence: 101,
-							Round:    1,
-						},
+					ProposalMessage: &message.Proposal{
+						Sender:    Bob,
+						Sequence:  101,
+						Round:     1,
 						BlockHash: DummyKeccakValue,
 					},
-					PrepareMessages: []*message.MsgPrepare{
+					PrepareMessages: []*message.Prepare{
 						{
-							Info: &message.MsgInfo{
-								Sender:   Chris,
-								Sequence: 101,
-								Round:    1,
-							},
+							Sender:    Chris,
+							Sequence:  101,
+							Round:     1,
 							BlockHash: DummyKeccakValue,
 						},
 						{
-							Info: &message.MsgInfo{
-								Sender:   Alice,
-								Sequence: 101,
-								Round:    1,
-							},
+							Sender:    Alice,
+							Sequence:  101,
+							Round:     1,
 							BlockHash: DummyKeccakValue,
 						},
 					},

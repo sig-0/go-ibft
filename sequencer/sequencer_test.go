@@ -4,7 +4,7 @@ package sequencer
 import (
 	"bytes"
 	"context"
-	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -18,10 +18,10 @@ func Test_SequencerFinalizeCancelled(t *testing.T) {
 
 	cfg := Config{
 		Validator: mockValidator{address: Alice},
-		ValidatorSet: mockValidatorSet{isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
+		ValidatorSet: mockVerifier{isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
 			return false
 		}},
-		Feed:           NewSingleRoundMockFeed(nil),
+		Feed:           message.NewMsgStore(),
 		Round0Duration: 10 * time.Millisecond,
 	}
 
@@ -48,6 +48,7 @@ func Test_SequencerFinalize(t *testing.T) {
 		expected *SequenceResult
 		cfg      Config
 		name     string
+		messages []any
 	}{
 		{
 			name: "Alice and Chris accept Bob's proposal in round 0",
@@ -66,54 +67,55 @@ func Test_SequencerFinalize(t *testing.T) {
 				},
 			},
 
+			messages: []any{
+				&message.Proposal{
+					Sender: Bob, Sequence: 101, Round: 0,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("Bob's proposal"), Round: 0},
+					BlockHash:     DummyKeccakValue,
+				},
+				&message.Prepare{
+					Sender: Alice, Sequence: 101, Round: 0,
+					BlockHash: DummyKeccakValue,
+				},
+
+				&message.Prepare{
+					Sender: Chris, Sequence: 101, Round: 0,
+					BlockHash: DummyKeccakValue,
+				},
+
+				&message.Commit{
+					Sender: Alice, Sequence: 101, Round: 0,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Alice seal"),
+				},
+
+				&message.Commit{
+					Sender: Chris, Sequence: 101, Round: 0,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Chris seal"),
+				},
+			},
+
 			cfg: Config{
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockValidatorSet{
+				ValidatorSet: mockVerifier{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidProposalFn:  AlwaysValidProposal,
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: newMockFeed([]message.Message{
-					&message.MsgProposal{
-						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
-						ProposedBlock: &message.ProposedBlock{Block: []byte("Bob's proposal"), Round: 0},
-						BlockHash:     DummyKeccakValue,
-					},
-
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 0},
-						BlockHash: DummyKeccakValue,
-					},
-
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 0},
-						BlockHash: DummyKeccakValue,
-					},
-
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 0},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Alice seal"),
-					},
-
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 0},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Chris seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				Transport:      dummyTransport{},
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+				Feed:           message.NewMsgStore(),
 			},
 		},
 
@@ -134,6 +136,30 @@ func Test_SequencerFinalize(t *testing.T) {
 				},
 			},
 
+			messages: []any{
+				&message.Prepare{
+					Sender: Bob, Sequence: 101, Round: 0,
+					BlockHash: DummyKeccakValue,
+				},
+
+				&message.Prepare{
+					Sender: Chris, Sequence: 101, Round: 0,
+					BlockHash: DummyKeccakValue,
+				},
+
+				&message.Commit{
+					Sender: Bob, Sequence: 101, Round: 0,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Bob seal"),
+				},
+
+				&message.Commit{
+					Sender: Chris, Sequence: 101, Round: 0,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Chris seal"),
+				},
+			},
+
 			cfg: Config{
 				Validator: mockValidator{
 					address: Alice,
@@ -141,46 +167,25 @@ func Test_SequencerFinalize(t *testing.T) {
 					buildProposalFn: func(_ uint64) []byte {
 						return []byte("Alice's proposal")
 					},
-					isValidProposalFn: AlwaysValidProposal,
 				},
-				ValidatorSet: mockValidatorSet{
+				ValidatorSet: mockVerifier{
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Alice) && round == 0
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidProposalFn:  AlwaysValidProposal,
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: newMockFeed([]message.Message{
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
-						BlockHash: DummyKeccakValue,
-					},
-
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 0},
-						BlockHash: DummyKeccakValue,
-					},
-
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Bob seal"),
-					},
-
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 0},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Chris seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				Transport:      dummyTransport{},
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+				Feed:           message.NewMsgStore(),
 			},
 		},
+
 		{
 			name: "Alice and Chris accept Bob's proposal in round 1 due to round change",
 			expected: &SequenceResult{
@@ -200,61 +205,64 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			cfg: Config{
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockValidatorSet{
+				ValidatorSet: mockVerifier{
+					isValidProposalFn: AlwaysValidProposal,
+
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 1
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: newMockFeed([]message.Message{
-					&message.MsgProposal{
-						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-						BlockHash:     DummyKeccakValue,
-						ProposedBlock: &message.ProposedBlock{Block: []byte("Bob's round 1 proposal"), Round: 1},
-						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
-							{
-								Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: Alice},
-							},
+				Transport:      dummyTransport{},
+				Feed:           message.NewMsgStore(),
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+			},
 
-							{
-								Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: Chris},
-							},
-						}},
-					},
+			messages: []any{
+				&message.Proposal{
+					Sender: Bob, Sequence: 101, Round: 1,
+					BlockHash:     DummyKeccakValue,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("Bob's round 1 proposal"), Round: 1},
+					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
+						{
+							Sequence: 101, Round: 1, Sender: Alice,
+						},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
+						{
+							Sequence: 101, Round: 1, Sender: Chris,
+						},
+					}},
+				},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.Prepare{
+					Sender: Alice, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Alice seal"),
-					},
+				&message.Prepare{
+					Sender: Chris, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Chris seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Commit{
+					Sender: Alice, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Alice seal"),
+				},
+
+				&message.Commit{
+					Sender: Chris, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Chris seal"),
+				},
 			},
 		},
 
@@ -277,100 +285,103 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			cfg: Config{
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockValidatorSet{
+				ValidatorSet: mockVerifier{
+					isValidProposalFn: AlwaysValidProposal,
+
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Chris) && round == 0 || bytes.Equal(v, Bob) && round == 1
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: newMockFeed([]message.Message{
-					&message.MsgProposal{
-						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-						BlockHash:     DummyKeccakValue,
-						ProposedBlock: &message.ProposedBlock{Block: []byte("Chris' proposal"), Round: 1},
-						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
-							{
-								Info: &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-								LatestPreparedCertificate: &message.PreparedCertificate{
-									ProposalMessage: &message.MsgProposal{
-										Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 0},
-										BlockHash: DummyKeccakValue,
-										ProposedBlock: &message.ProposedBlock{
-											Block: []byte("Chris' proposal"),
-											Round: 0,
-										},
+				Transport:      dummyTransport{},
+				Feed:           message.NewMsgStore(),
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+			},
+
+			messages: []any{
+				&message.Proposal{
+					Sender: Bob, Sequence: 101, Round: 1,
+					BlockHash:     DummyKeccakValue,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("Chris' proposal"), Round: 1},
+					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
+						{
+							Sender: Bob, Sequence: 101, Round: 1,
+							LatestPreparedCertificate: &message.PreparedCertificate{
+								ProposalMessage: &message.Proposal{
+									Sender: Chris, Sequence: 101, Round: 0,
+									BlockHash: DummyKeccakValue,
+									ProposedBlock: &message.ProposedBlock{
+										Block: []byte("Chris' proposal"),
+										Round: 0,
 									},
-									PrepareMessages: []*message.MsgPrepare{
-										{
-											Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
-											BlockHash: DummyKeccakValue,
-										},
-										{
-											Info:      &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 0},
-											BlockHash: DummyKeccakValue,
-										},
+								},
+								PrepareMessages: []*message.Prepare{
+									{
+										Sender: Bob, Sequence: 101, Round: 0,
+										BlockHash: DummyKeccakValue,
+									},
+									{
+										Sender: Nina, Sequence: 101, Round: 0,
+										BlockHash: DummyKeccakValue,
 									},
 								},
 							},
-							{
-								Info: &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 1},
-								LatestPreparedCertificate: &message.PreparedCertificate{
-									ProposalMessage: &message.MsgProposal{
-										Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 0},
-										BlockHash: DummyKeccakValue,
-										ProposedBlock: &message.ProposedBlock{
-											Block: []byte("Chris' proposal"),
-											Round: 0,
-										},
+						},
+						{
+							Sender: Nina, Sequence: 101, Round: 1,
+							LatestPreparedCertificate: &message.PreparedCertificate{
+								ProposalMessage: &message.Proposal{
+									Sender: Chris, Sequence: 101, Round: 0,
+									BlockHash: DummyKeccakValue,
+									ProposedBlock: &message.ProposedBlock{
+										Block: []byte("Chris' proposal"),
+										Round: 0,
 									},
-									PrepareMessages: []*message.MsgPrepare{
-										{
-											Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
-											BlockHash: DummyKeccakValue,
-										},
-										{
-											Info:      &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 0},
-											BlockHash: DummyKeccakValue,
-										},
+								},
+								PrepareMessages: []*message.Prepare{
+									{
+										Sender: Bob, Sequence: 101, Round: 0,
+										BlockHash: DummyKeccakValue,
+									},
+									{
+										Sender: Nina, Sequence: 101, Round: 0,
+										BlockHash: DummyKeccakValue,
 									},
 								},
 							},
-						}},
-					},
+						},
+					}},
+				},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.Prepare{
+					Sender: Alice, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.Prepare{
+					Sender: Chris, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Alice seal"),
-					},
+				&message.Commit{
+					Sender: Alice, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Alice seal"),
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Chris seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Commit{
+					Sender: Chris, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Chris seal"),
+				},
 			},
 		},
 
@@ -394,58 +405,61 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			cfg: Config{
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 					buildProposalFn: func(_ uint64) []byte {
 						return []byte("Alice's round 1 proposal")
 					},
 				},
-				ValidatorSet: mockValidatorSet{
+				ValidatorSet: mockVerifier{
+					isValidProposalFn: AlwaysValidProposal,
+
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Alice) && round == 1
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: newMockFeed([]message.Message{
-					// need to justify Alice's proposal for round 1
-					&message.MsgRoundChange{
-						Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: Alice},
-					},
+				Transport:      dummyTransport{},
+				Feed:           message.NewMsgStore(),
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+			},
 
-					&message.MsgRoundChange{
-						Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: Nina},
-					},
+			messages: []any{
+				// need to justify Alice's proposal for round 1
+				&message.RoundChange{
+					Sequence: 101, Round: 1, Sender: Alice,
+				},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sequence: 101, Round: 1, Sender: Bob},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.RoundChange{
+					Sequence: 101, Round: 1, Sender: Nina,
+				},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sequence: 101, Round: 1, Sender: Nina},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.Prepare{
+					Sequence: 101, Round: 1, Sender: Bob,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sequence: 101, Round: 1, Sender: Bob},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Bob seal"),
-					},
+				&message.Prepare{
+					Sequence: 101, Round: 1, Sender: Nina,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sequence: 101, Round: 1, Sender: Nina},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Nina seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Commit{
+					Sequence: 101, Round: 1, Sender: Bob,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Bob seal"),
+				},
+
+				&message.Commit{
+					Sequence: 101, Round: 1, Sender: Nina,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Nina seal"),
+				},
 			},
 		},
 
@@ -468,104 +482,130 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			cfg: Config{
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockValidatorSet{
+				ValidatorSet: mockVerifier{
+					isValidProposalFn: AlwaysValidProposal,
+
 					isValidatorFn: AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Alice) && round == 1
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: newMockFeed([]message.Message{
-					&message.MsgRoundChange{
-						Info: &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						LatestPreparedProposedBlock: &message.ProposedBlock{
-							Block: []byte("Bob's round 0 proposal"),
-							Round: 0,
+				Transport:      dummyTransport{},
+				Feed:           message.NewMsgStore(),
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+			},
+			messages: []any{
+				&message.RoundChange{
+					Sender:   Chris,
+					Sequence: 101,
+					Round:    1,
+					LatestPreparedProposedBlock: &message.ProposedBlock{
+						Block: []byte("Bob's round 0 proposal"),
+						Round: 0,
+					},
+					LatestPreparedCertificate: &message.PreparedCertificate{
+						ProposalMessage: &message.Proposal{
+							Sender:    Bob,
+							Sequence:  101,
+							Round:     0,
+							BlockHash: DummyKeccakValue,
+							ProposedBlock: &message.ProposedBlock{
+								Block: []byte("Bob's round 0 proposal"),
+								Round: 0,
+							},
 						},
-						LatestPreparedCertificate: &message.PreparedCertificate{
-							ProposalMessage: &message.MsgProposal{
-								Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
+
+						PrepareMessages: []*message.Prepare{
+							{
+								Sender:    Chris,
+								Sequence:  101,
+								Round:     0,
 								BlockHash: DummyKeccakValue,
-								ProposedBlock: &message.ProposedBlock{
-									Block: []byte("Bob's round 0 proposal"),
-									Round: 0,
-								},
 							},
-
-							PrepareMessages: []*message.MsgPrepare{
-								{
-									Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 0},
-									BlockHash: DummyKeccakValue,
-								},
-								{
-									Info:      &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 0},
-									BlockHash: DummyKeccakValue,
-								},
-							},
-						},
-					},
-
-					&message.MsgRoundChange{
-						Info: &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 1},
-						LatestPreparedProposedBlock: &message.ProposedBlock{
-							Block: []byte("Bob's round 0 proposal"),
-							Round: 0,
-						},
-						LatestPreparedCertificate: &message.PreparedCertificate{
-							ProposalMessage: &message.MsgProposal{
-								Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
+							{
+								Sender:    Nina,
+								Sequence:  101,
+								Round:     0,
 								BlockHash: DummyKeccakValue,
-								ProposedBlock: &message.ProposedBlock{
-									Block: []byte("Bob's round 0 proposal"),
-									Round: 0,
-								},
-							},
-
-							PrepareMessages: []*message.MsgPrepare{
-								{
-									Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 0},
-									BlockHash: DummyKeccakValue,
-								},
-								{
-									Info:      &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 0},
-									BlockHash: DummyKeccakValue,
-								},
 							},
 						},
 					},
+				},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
+				&message.RoundChange{
+					Sender:   Nina,
+					Sequence: 101,
+					Round:    1,
+					LatestPreparedProposedBlock: &message.ProposedBlock{
+						Block: []byte("Bob's round 0 proposal"),
+						Round: 0,
 					},
+					LatestPreparedCertificate: &message.PreparedCertificate{
+						ProposalMessage: &message.Proposal{
+							Sender:    Bob,
+							Sequence:  101,
+							Round:     0,
+							BlockHash: DummyKeccakValue,
+							ProposedBlock: &message.ProposedBlock{
+								Block: []byte("Bob's round 0 proposal"),
+								Round: 0,
+							},
+						},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
+						PrepareMessages: []*message.Prepare{
+							{
+								Sender:    Chris,
+								Sequence:  101,
+								Round:     0,
+								BlockHash: DummyKeccakValue,
+							},
+							{
+								Sender:    Nina,
+								Sequence:  101,
+								Round:     0,
+								BlockHash: DummyKeccakValue,
+							},
+						},
 					},
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Bob seal"),
-					},
+				&message.Prepare{
+					Sender:    Bob,
+					Sequence:  101,
+					Round:     1,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Chris seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Prepare{
+					Sender:    Chris,
+					Sequence:  101,
+					Round:     1,
+					BlockHash: DummyKeccakValue,
+				},
+
+				&message.Commit{
+					Sender:     Bob,
+					Sequence:   101,
+					Round:      1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Bob seal"),
+				},
+
+				&message.Commit{
+					Sender:     Chris,
+					Sequence:   101,
+					Round:      1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Chris seal"),
+				},
 			},
 		},
 
@@ -588,77 +628,77 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			cfg: Config{
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 					buildProposalFn: func(_ uint64) []byte {
 						return []byte("Alice round 3 proposal")
 					},
 				},
-				ValidatorSet: mockValidatorSet{
-					isValidatorFn: AlwaysAValidator,
+				ValidatorSet: mockVerifier{
+					isValidProposalFn: AlwaysValidProposal,
+					isValidatorFn:     AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Alice) && round == 3
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: newMockFeed([]message.Message{
-					&message.MsgRoundChange{Info: &message.MsgInfo{
-						Sender:   Bob,
-						Sequence: 101,
-						Round:    3,
-					}},
+				Transport:      dummyTransport{},
+				Feed:           message.NewMsgStore(),
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+			},
 
-					&message.MsgRoundChange{Info: &message.MsgInfo{
-						Sender:   Chris,
-						Sequence: 101,
-						Round:    3,
-					}},
+			messages: []any{
+				&message.RoundChange{
+					Sender:   Bob,
+					Sequence: 101,
+					Round:    3,
+				},
 
-					&message.MsgPrepare{
-						Info: &message.MsgInfo{
-							Sender:   Bob,
-							Sequence: 101,
-							Round:    3,
-						},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.RoundChange{
+					Sender:   Chris,
+					Sequence: 101,
+					Round:    3,
+				}, &message.Prepare{
 
-					&message.MsgPrepare{
-						Info: &message.MsgInfo{
-							Sender:   Chris,
-							Sequence: 101,
-							Round:    3,
-						},
-						BlockHash: DummyKeccakValue,
-					},
+					Sender:   Bob,
+					Sequence: 101,
+					Round:    3,
 
-					&message.MsgCommit{
-						Info: &message.MsgInfo{
-							Sender:   Bob,
-							Sequence: 101,
-							Round:    3,
-						},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Bob seal"),
-					},
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info: &message.MsgInfo{
-							Sender:   Chris,
-							Sequence: 101,
-							Round:    3,
-						},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Chris seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Prepare{
+
+					Sender:   Chris,
+					Sequence: 101,
+					Round:    3,
+
+					BlockHash: DummyKeccakValue,
+				},
+
+				&message.Commit{
+
+					Sender:   Bob,
+					Sequence: 101,
+					Round:    3,
+
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Bob seal"),
+				},
+
+				&message.Commit{
+
+					Sender:   Chris,
+					Sequence: 101,
+					Round:    3,
+
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Chris seal"),
+				},
 			},
 		},
 
@@ -681,66 +721,68 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			cfg: Config{
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockValidatorSet{
-					isValidatorFn: AlwaysAValidator,
+				ValidatorSet: mockVerifier{
+					isValidProposalFn: AlwaysValidProposal,
+					isValidatorFn:     AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Nina) && round == 5
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: newMockFeed([]message.Message{
-					&message.MsgProposal{
-						Info:          &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 5},
-						ProposedBlock: &message.ProposedBlock{Block: []byte("round 5 block"), Round: 5},
-						BlockHash:     DummyKeccakValue,
-						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
-							{
-								Info: &message.MsgInfo{Sequence: 101, Round: 5, Sender: Chris},
-							},
+				Transport:      dummyTransport{},
+				Feed:           message.NewMsgStore(),
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+			},
 
-							{
-								Info: &message.MsgInfo{Sequence: 101, Round: 5, Sender: Bob},
-							},
-						}},
-					},
+			messages: []any{
+				&message.Proposal{
+					Sender: Nina, Sequence: 101, Round: 5,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("round 5 block"), Round: 5},
+					BlockHash:     DummyKeccakValue,
+					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
+						{
+							Sequence: 101, Round: 5, Sender: Chris,
+						},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 5},
-						BlockHash: DummyKeccakValue,
-					},
+						{
+							Sequence: 101, Round: 5, Sender: Bob,
+						},
+					}},
+				},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 5},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.Prepare{
+					Sender: Alice, Sequence: 101, Round: 5,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 5},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Alice seal"),
-					},
+				&message.Prepare{
+					Sender: Nina, Sequence: 101, Round: 5,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 5},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Nina seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Commit{
+					Sender: Alice, Sequence: 101, Round: 5,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Alice seal"),
+				},
+
+				&message.Commit{
+					Sender: Nina, Sequence: 101, Round: 5,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Nina seal"),
+				},
 			},
 		},
 
 		{
-			name: "round timer triggers round jump",
+			name: "round timer triggers round jump", // todo: fix
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("Alice round 1 proposal"),
@@ -758,57 +800,63 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			cfg: Config{
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 					buildProposalFn: func(_ uint64) []byte {
 						return []byte("Alice round 1 proposal")
 					},
 				},
-				ValidatorSet: mockValidatorSet{
-					isValidatorFn: AlwaysAValidator,
+				ValidatorSet: mockVerifier{
+					isValidProposalFn: AlwaysValidProposal,
+					isValidatorFn:     AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Alice) && round == 1
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
-						return len(messages) >= 2
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
+						// set to 1 so Alice's own round change msg trigger the right build flow
+						return len(messages) >= 1
 					},
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: NewSingleRoundMockFeed([]message.Message{
-					&message.MsgRoundChange{
-						Info: &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-					},
+				Transport:      dummyTransport{},
+				Feed:           message.NewMsgStore(),
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+			},
 
-					&message.MsgRoundChange{
-						Info: &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-					},
+			messages: []any{
+				//&message.RoundChange{
+				//	// no way to mock the
+				//	Sender:   Alice,
+				//	Sequence: 101,
+				//	Round:    1,
+				//},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
+				//&message.RoundChange{
+				//	Sender: Chris, Sequence: 101, Round: 1,
+				//},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.Prepare{
+					Sender: Bob, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Bob seal"),
-					},
+				&message.Prepare{
+					Sender: Chris, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Chris seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Commit{
+					Sender: Bob, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Bob seal"),
+				},
+
+				&message.Commit{
+					Sender: Chris, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Chris seal"),
+				},
 			},
 		},
 
@@ -831,84 +879,82 @@ func Test_SequencerFinalize(t *testing.T) {
 			},
 
 			cfg: Config{
+				Keccak: DummyKeccak,
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockValidatorSet{
-					isValidatorFn: AlwaysAValidator,
+				ValidatorSet: mockVerifier{
+					isValidProposalFn: AlwaysValidProposal,
+					isValidatorFn:     AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Chris) && round == 1
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: NewSingleRoundMockFeed([]message.Message{
-					&message.MsgProposal{
-						Info: &message.MsgInfo{
-							Sender:   Bob,
-							Sequence: 101,
-							Round:    0,
+				Transport:      dummyTransport{},
+				Feed:           message.NewMsgStore(),
+				Round0Duration: 10 * time.Millisecond,
+			},
+
+			messages: []any{
+				&message.Proposal{
+					Sender:    Bob,
+					Sequence:  101,
+					Round:     0,
+					BlockHash: DummyKeccakValue,
+					ProposedBlock: &message.ProposedBlock{
+						Block: []byte("round 0 block"),
+						Round: 0,
+					},
+				},
+
+				&message.Prepare{
+					Sender:    Alice,
+					Sequence:  101,
+					Round:     0,
+					BlockHash: DummyKeccakValue,
+				},
+
+				&message.Proposal{
+					Sender: Chris, Sequence: 101, Round: 1,
+					BlockHash:     DummyKeccakValue,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
+					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
+						{
+							Sequence: 101, Round: 1, Sender: Alice,
 						},
-						BlockHash: DummyKeccakValue,
-						ProposedBlock: &message.ProposedBlock{
-							Block: []byte("round 0 block"),
-							Round: 0,
+
+						{
+							Sequence: 101, Round: 1, Sender: Chris,
 						},
-					},
+					}},
+				},
 
-					&message.MsgPrepare{
-						Info: &message.MsgInfo{
-							Sender:   Alice,
-							Sequence: 101,
-							Round:    0,
-						},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.Prepare{
+					Sender: Alice, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgProposal{
-						Info:          &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash:     DummyKeccakValue,
-						ProposedBlock: &message.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
-						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
-							{
-								Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: Alice},
-							},
+				&message.Prepare{
+					Sender: Nina, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
 
-							{
-								Info: &message.MsgInfo{Sequence: 101, Round: 1, Sender: Chris},
-							},
-						}},
-					},
+				&message.Commit{
+					Sender: Alice, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Alice seal"),
+				},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
-
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
-
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Alice seal"),
-					},
-
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Nina, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Nina seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Commit{
+					Sender: Nina, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Nina seal"),
+				},
 			},
 		},
 
@@ -930,77 +976,79 @@ func Test_SequencerFinalize(t *testing.T) {
 			},
 
 			cfg: Config{
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockValidatorSet{
-					isValidatorFn: AlwaysAValidator,
+				ValidatorSet: mockVerifier{
+					isValidSignatureFn: AlwaysValidSignature,
+					isValidProposalFn:  AlwaysValidProposal,
+					isValidatorFn:      AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Chris) && round == 1
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
 				},
 				Transport: dummyTransport{},
-				Feed: NewSingleRoundMockFeed([]message.Message{
-					/* round 0 */
-					&message.MsgProposal{
-						Info:          &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
-						BlockHash:     DummyKeccakValue,
-						ProposedBlock: &message.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
-					},
+				Feed:      message.NewMsgStore(),
+			},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 0},
-						BlockHash: DummyKeccakValue,
-					},
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 0},
-						BlockHash: DummyKeccakValue,
-					},
+			messages: []any{
+				// round 0
+				&message.Proposal{
+					Sender: Bob, Sequence: 101, Round: 0,
+					BlockHash:     DummyKeccakValue,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
+				},
 
-					/* round 1 */
+				&message.Prepare{
+					Sender: Alice, Sequence: 101, Round: 0,
+					BlockHash: DummyKeccakValue,
+				},
+				&message.Prepare{
+					Sender: Bob, Sequence: 101, Round: 0,
+					BlockHash: DummyKeccakValue,
+				},
 
-					&message.MsgProposal{
-						Info:          &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-						BlockHash:     DummyKeccakValue,
-						ProposedBlock: &message.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
-						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
-							{
-								Info: &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 1},
-							},
-							{
-								Info: &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-							},
-						}},
-					},
+				// round 1
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.Proposal{
+					Sender: Chris, Sequence: 101, Round: 1,
+					BlockHash:     DummyKeccakValue,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
+					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
+						{
+							Sender: Alice, Sequence: 101, Round: 1,
+						},
+						{
+							Sender: Bob, Sequence: 101, Round: 1,
+						},
+					}},
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Alice seal"),
-					},
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 1},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Bob seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Prepare{
+					Sender: Alice, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
+				&message.Prepare{
+					Sender: Bob, Sequence: 101, Round: 1,
+					BlockHash: DummyKeccakValue,
+				},
+
+				&message.Commit{
+					Sender: Alice, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Alice seal"),
+				},
+				&message.Commit{
+					Sender: Bob, Sequence: 101, Round: 1,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Bob seal"),
+				},
 			},
 		},
 
@@ -1023,64 +1071,74 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			cfg: Config{
 				Validator: mockValidator{
-					address:           Alice,
-					signFn:            DummySignFn,
-					isValidProposalFn: AlwaysValidProposal,
+					address: Alice,
+					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockValidatorSet{
-					isValidatorFn: AlwaysAValidator,
+				ValidatorSet: mockVerifier{
+					isValidProposalFn: AlwaysValidProposal,
+					isValidatorFn:     AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 ||
 							bytes.Equal(v, Alice) && round == 1 ||
 							bytes.Equal(v, Chris) && round == 2
 					},
-					hasQuorumFn: func(messages []message.Message) bool {
+					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
+					isValidSignatureFn: AlwaysValidSignature,
 				},
-				Transport: dummyTransport{},
-				Feed: NewSingleRoundMockFeed([]message.Message{
-					&message.MsgRoundChange{
-						Info: &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 1},
-					},
+				Transport:      dummyTransport{},
+				Feed:           message.NewMsgStore(),
+				Keccak:         DummyKeccak,
+				Round0Duration: 10 * time.Millisecond,
+			},
 
-					&message.MsgProposal{
-						Info:          &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 2},
-						ProposedBlock: &message.ProposedBlock{Block: []byte("round 2 block"), Round: 2},
-						BlockHash:     DummyKeccakValue,
-						RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.MsgRoundChange{
-							{
-								Info: &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 2},
-							},
-							{
-								Info: &message.MsgInfo{Sender: Chris, Sequence: 101, Round: 2},
-							},
-						}},
-					},
+			messages: []any{
+				&message.RoundChange{
+					Sender:   Chris,
+					Sequence: 101,
+					Round:    1,
+				},
 
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 2},
-						BlockHash: DummyKeccakValue,
-					},
-					&message.MsgPrepare{
-						Info:      &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 2},
-						BlockHash: DummyKeccakValue,
-					},
+				&message.Proposal{
+					Sender:        Chris,
+					Sequence:      101,
+					Round:         2,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("round 2 block"), Round: 2},
+					BlockHash:     DummyKeccakValue,
+					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
+						{
+							Sender:   Bob,
+							Sequence: 101,
+							Round:    2,
+						},
+						{
+							Sender:   Chris,
+							Sequence: 101,
+							Round:    2,
+						},
+					}},
+				},
 
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Bob, Sequence: 101, Round: 2},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Bob seal"),
-					},
-					&message.MsgCommit{
-						Info:       &message.MsgInfo{Sender: Alice, Sequence: 101, Round: 2},
-						BlockHash:  DummyKeccakValue,
-						CommitSeal: []byte("Alice seal"),
-					},
-				}),
-				Keccak:            DummyKeccak,
-				SignatureVerifier: AlwaysValidSignature,
-				Round0Duration:    10 * time.Millisecond,
+				&message.Prepare{
+					Sender: Bob, Sequence: 101, Round: 2,
+					BlockHash: DummyKeccakValue,
+				},
+				&message.Prepare{
+					Sender: Alice, Sequence: 101, Round: 2,
+					BlockHash: DummyKeccakValue,
+				},
+
+				&message.Commit{
+					Sender: Bob, Sequence: 101, Round: 2,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Bob seal"),
+				},
+				&message.Commit{
+					Sender: Alice, Sequence: 101, Round: 2,
+					BlockHash:  DummyKeccakValue,
+					CommitSeal: []byte("Alice seal"),
+				},
 			},
 		},
 	}
@@ -1089,8 +1147,33 @@ func Test_SequencerFinalize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			res := NewSequencer(tt.cfg).Finalize(context.Background(), 101)
-			assert.True(t, reflect.DeepEqual(tt.expected, res))
+			s := NewSequencer(tt.cfg)
+			for _, m := range tt.messages {
+				switch m := m.(type) {
+				case *message.RoundChange:
+					s.feed.Add(m)
+				case *message.Prepare:
+					s.feed.Add(m)
+				case *message.Commit:
+					s.feed.Add(m)
+				case *message.Proposal:
+					s.feed.Add(m)
+				}
+			}
+
+			res := s.Finalize(context.Background(), 101)
+			//assert.True(t, reflect.DeepEqual(tt.expected, res), "expected %#v, got %#v", tt.expected, res)
+			assert.EqualValues(t, tt.expected.Round, res.Round)
+			assert.Equal(t, tt.expected.Proposal, res.Proposal)
+
+			slices.SortFunc(tt.expected.Seals, func(a, b CommitSeal) int {
+				return slices.Compare(a.From, b.From)
+			})
+			slices.SortFunc(res.Seals, func(a, b CommitSeal) int {
+				return slices.Compare(a.From, b.From)
+			})
+
+			assert.EqualValues(t, tt.expected.Seals, res.Seals)
 		})
 	}
 }

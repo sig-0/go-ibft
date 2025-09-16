@@ -8,22 +8,20 @@ import (
 )
 
 func (s *Sequencer) sendMsgPrepare() {
-	msg := &message.MsgPrepare{
-		Info: &message.MsgInfo{
-			Sequence: s.state.sequence,
-			Round:    s.state.round,
-			Sender:   s.validator.Address(),
-		},
+	msg := &message.Prepare{
+		Sequence:  s.state.sequence,
+		Round:     s.state.round,
+		Sender:    s.validator.Address(),
 		BlockHash: s.state.acceptedBlockHash(),
 	}
 
-	msg.Info.Signature = s.validator.Sign(msg.Payload())
+	msg.Signature = s.validator.Sign(msg.Payload())
 
 	s.transport.MulticastPrepare(msg)
 }
 
-func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.MsgPrepare, error) {
-	sub, cancelSub := s.feed.SubscribePrepare(s.state.sequence, s.state.round, false)
+func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.Prepare, error) {
+	sub, cancelSub := s.feed.PrepareMessages.Subscribe(s.state.sequence, s.state.round, false)
 	defer cancelSub()
 
 	cache := message.NewMsgCache(s.isValidMsgPrepare)
@@ -36,7 +34,12 @@ func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.MsgPrepa
 			cache.Add(notification()...)
 
 			prepares := cache.Get()
-			if !s.validatorSet.HasQuorum(message.WrapMessages(prepares...)) {
+			addresses := make([][]byte, 0, len(prepares))
+			for _, commit := range prepares {
+				addresses = append(addresses, commit.GetSender())
+			}
+
+			if !s.verifier.HasQuorum(addresses, s.state.sequence) {
 				continue
 			}
 
@@ -45,9 +48,9 @@ func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.MsgPrepa
 	}
 }
 
-func (s *Sequencer) isValidMsgPrepare(msg *message.MsgPrepare) bool {
+func (s *Sequencer) isValidMsgPrepare(msg *message.Prepare) bool {
 	// sender is part of the validator set
-	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.Sequence) {
+	if !s.verifier.IsValidator(msg.Sender, msg.Sequence) {
 		return false
 	}
 

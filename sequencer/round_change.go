@@ -8,17 +8,17 @@ import (
 )
 
 func (s *Sequencer) sendMsgRoundChange() {
-	msg := &message.MsgRoundChange{
-		Info: &message.MsgInfo{
-			Sequence: s.state.sequence,
-			Round:    s.state.round,
-			Sender:   s.validator.Address(),
-		},
+	msg := &message.RoundChange{
+		Sequence:                    s.state.sequence,
+		Round:                       s.state.round,
+		Sender:                      s.validator.Address(),
 		LatestPreparedProposedBlock: s.state.latestPB,
 		LatestPreparedCertificate:   s.state.latestPC,
 	}
 
-	msg.Info.Signature = s.validator.Sign(msg.Payload())
+	msg.Signature = s.validator.Sign(msg.Payload())
+
+	s.feed.Add(msg) // add to self
 
 	s.transport.MulticastRoundChange(msg)
 }
@@ -32,7 +32,7 @@ func (s *Sequencer) awaitRCC(
 		round++
 	}
 
-	sub, cancelSub := s.feed.SubscribeRoundChange(s.state.sequence, round, higherRounds)
+	sub, cancelSub := s.feed.RoundChangeMessages.Subscribe(s.state.sequence, round, higherRounds)
 	defer cancelSub()
 
 	cache := message.NewMsgCache(s.isValidMsgRoundChange)
@@ -45,7 +45,12 @@ func (s *Sequencer) awaitRCC(
 			cache.Add(notification()...)
 
 			roundChanges := cache.Get()
-			if len(roundChanges) == 0 || !s.validatorSet.HasQuorum(message.WrapMessages(roundChanges...)) {
+			addresses := make([][]byte, 0, len(roundChanges))
+			for _, commit := range roundChanges {
+				addresses = append(addresses, commit.GetSender())
+			}
+
+			if len(roundChanges) == 0 || !s.verifier.HasQuorum(addresses, s.state.sequence) {
 				continue
 			}
 
@@ -54,9 +59,9 @@ func (s *Sequencer) awaitRCC(
 	}
 }
 
-func (s *Sequencer) isValidMsgRoundChange(msg *message.MsgRoundChange) bool {
+func (s *Sequencer) isValidMsgRoundChange(msg *message.RoundChange) bool {
 	// sender is part of the validator set
-	if !s.validatorSet.IsValidator(msg.Info.Sender, msg.Info.Sequence) {
+	if !s.verifier.IsValidator(msg.Sender, msg.Sequence) {
 		return false
 	}
 
@@ -87,39 +92,39 @@ func (s *Sequencer) isValidMsgRoundChange(msg *message.MsgRoundChange) bool {
 	return true
 }
 
-func (s *Sequencer) isValidPC(pc *message.PreparedCertificate, msg *message.MsgRoundChange) bool {
+func (s *Sequencer) isValidPC(pc *message.PreparedCertificate, msg *message.RoundChange) bool {
 	// both proposal message and prepare messages must be included
 	if pc.ProposalMessage == nil || pc.PrepareMessages == nil {
 		return false
 	}
 
 	var (
-		sequence = pc.ProposalMessage.Info.Sequence
-		round    = pc.ProposalMessage.Info.Round
+		sequence = pc.ProposalMessage.Sequence
+		round    = pc.ProposalMessage.Round
 	)
 
 	// proposal sequence in pc and msg sequence must match
-	if sequence != msg.Info.Sequence {
+	if sequence != msg.Sequence {
 		return false
 	}
 
 	// proposal round in pc must be higher than the round of the msg
-	if round >= msg.Info.Round {
+	if round >= msg.Round {
 		return false
 	}
 
 	// proposal sender in pc must be the selected proposer
-	if !s.validatorSet.IsProposer(pc.ProposalMessage.Info.Sender, sequence, round) {
+	if !s.verifier.IsProposer(pc.ProposalMessage.Sender, sequence, round) {
 		return false
 	}
 
 	uniqueSenders := map[string]struct{}{
-		string(pc.ProposalMessage.Info.Sender): {}, // proposer
+		string(pc.ProposalMessage.Sender): {}, // proposer
 	}
 
 	for _, msg := range pc.PrepareMessages {
 		// prepare msg sequence (round) and proposal msg sequence (round) must match
-		if msg.Info.Sequence != sequence || msg.Info.Round != round {
+		if msg.Sequence != sequence || msg.Round != round {
 			return false
 		}
 
@@ -129,11 +134,11 @@ func (s *Sequencer) isValidPC(pc *message.PreparedCertificate, msg *message.MsgR
 		}
 
 		// prepare msg sender must be part of the validator set
-		if !s.validatorSet.IsValidator(msg.Info.Sender, sequence) {
+		if !s.verifier.IsValidator(msg.Sender, sequence) {
 			return false
 		}
 
-		uniqueSenders[string(msg.Info.Sender)] = struct{}{}
+		uniqueSenders[string(msg.Sender)] = struct{}{}
 	}
 
 	// 1 (proposer) + len(prepare) unique validators
@@ -141,38 +146,43 @@ func (s *Sequencer) isValidPC(pc *message.PreparedCertificate, msg *message.MsgR
 		return false
 	}
 
+	senders := make([][]byte, len(uniqueSenders))
+	for sender, _ := range uniqueSenders {
+		senders = append(senders, []byte(sender))
+	}
+
 	// all messages in pc satisfy a quorum
-	if !s.validatorSet.HasQuorum(append(message.WrapMessages(pc.PrepareMessages...), pc.ProposalMessage)) {
+	if !s.verifier.HasQuorum(senders, sequence) {
 		return false
 	}
 
 	return true
 }
 
-func (s *Sequencer) isValidRCC(rcc *message.RoundChangeCertificate, proposal *message.MsgProposal) bool {
+func (s *Sequencer) isValidRCC(rcc *message.RoundChangeCertificate, proposal *message.Proposal) bool {
 	// rcc must be included
 	if rcc == nil || len(rcc.Messages) == 0 {
 		return false
 	}
 
 	var (
-		sequence      = proposal.Info.Sequence
-		round         = proposal.Info.Round
+		sequence      = proposal.Sequence
+		round         = proposal.Round
 		uniqueSenders = make(map[string]struct{})
 	)
 
 	for _, msg := range rcc.Messages {
 		// round change msg sequence (round) and proposal msg sequence (round) must match
-		if msg.Info.Sequence != sequence || msg.Info.Round != round {
+		if msg.Sequence != sequence || msg.Round != round {
 			return false
 		}
 
 		// sender must be part of the validator set
-		if !s.validatorSet.IsValidator(msg.Info.Sender, sequence) {
+		if !s.verifier.IsValidator(msg.Sender, sequence) {
 			return false
 		}
 
-		uniqueSenders[string(msg.Info.Sender)] = struct{}{}
+		uniqueSenders[string(msg.Sender)] = struct{}{}
 	}
 
 	// all messages must be unique
@@ -180,8 +190,13 @@ func (s *Sequencer) isValidRCC(rcc *message.RoundChangeCertificate, proposal *me
 		return false
 	}
 
+	senders := make([][]byte, len(uniqueSenders))
+	for sender, _ := range uniqueSenders {
+		senders = append(senders, []byte(sender))
+	}
+
 	// all messages in rcc satisfy a quorum
-	if !s.validatorSet.HasQuorum(message.WrapMessages(rcc.Messages...)) {
+	if !s.verifier.HasQuorum(senders, sequence) {
 		return false
 	}
 

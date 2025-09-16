@@ -23,13 +23,12 @@ type SequenceResult struct {
 type KeccakFn func(data []byte) []byte
 
 type Config struct {
-	Validator         Validator
-	ValidatorSet      ValidatorSet
-	Transport         Transport
-	Feed              MessageFeed
-	Keccak            KeccakFn
-	SignatureVerifier message.SignatureVerifier
-	Round0Duration    time.Duration
+	Validator      Validator
+	ValidatorSet   Verifier
+	Transport      Transport
+	Feed           *message.Store
+	Keccak         KeccakFn
+	Round0Duration time.Duration
 }
 
 // Sequencer is the consensus actor's (Validator) block finalization process. Whenever the network moves to a
@@ -39,11 +38,10 @@ type Config struct {
 // Given its simple API method Finalize, Sequencer is designed to work alongside a syncing protocol
 type Sequencer struct {
 	validator      Validator
-	validatorSet   ValidatorSet
+	verifier       Verifier
 	transport      Transport
-	feed           MessageFeed
+	feed           *message.Store
 	keccak         KeccakFn
-	sig            message.SignatureVerifier
 	state          state
 	wg             sync.WaitGroup
 	round0Duration time.Duration
@@ -53,11 +51,10 @@ type Sequencer struct {
 func NewSequencer(cfg Config) *Sequencer {
 	return &Sequencer{
 		validator:      cfg.Validator,
-		validatorSet:   cfg.ValidatorSet,
+		verifier:       cfg.ValidatorSet,
 		transport:      cfg.Transport,
 		feed:           cfg.Feed,
 		keccak:         cfg.Keccak,
-		sig:            cfg.SignatureVerifier,
 		round0Duration: cfg.Round0Duration,
 	}
 }
@@ -163,10 +160,10 @@ func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
 }
 
 // awaitHigherRoundProposal listens for proposal messages from rounds higher than the current
-func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context) <-chan *message.MsgProposal {
+func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context) <-chan *message.Proposal {
 	s.wg.Add(1)
 
-	c := make(chan *message.MsgProposal, 1)
+	c := make(chan *message.Proposal, 1)
 	round := s.state.round
 
 	go func(round uint64) {
@@ -242,9 +239,10 @@ func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
 }
 
 func (s *Sequencer) shouldPropose() bool {
-	return s.validatorSet.IsProposer(s.validator.Address(), s.state.sequence, s.state.round)
+	return s.verifier.IsProposer(s.validator.Address(), s.state.sequence, s.state.round)
 }
 
+// todo: should this be a critical error?
 func (s *Sequencer) buildProposal(ctx context.Context) ([]byte, error) {
 	if s.state.round == 0 {
 		return s.validator.BuildProposal(s.state.sequence), nil
@@ -302,7 +300,7 @@ func (s *Sequencer) runRound(ctx context.Context) error {
 	}
 
 	for _, commit := range commits {
-		s.state.acceptSeal(commit.Info.Sender, commit.CommitSeal)
+		s.state.acceptSeal(commit.Sender, commit.CommitSeal)
 	}
 
 	return nil

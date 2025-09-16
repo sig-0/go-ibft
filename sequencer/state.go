@@ -7,7 +7,7 @@ import (
 // state is a collection of consensus artifacts obtained by Sequencer during Finalize
 type state struct {
 	// proposal that's being voted on
-	proposal *message.MsgProposal
+	proposal *message.Proposal
 
 	// proposal that passed the PREPARE phase
 	latestPB *message.ProposedBlock
@@ -46,17 +46,17 @@ func (s *state) moveToNextRound() {
 	clear(s.seals)
 }
 
-func (s *state) acceptProposal(proposal *message.MsgProposal) {
-	s.proposal, s.round = proposal, proposal.Info.Round
+func (s *state) acceptProposal(proposal *message.Proposal) {
+	s.proposal, s.round = proposal, proposal.Round
 	clear(s.seals)
 }
 
 func (s *state) acceptRCC(rcc *message.RoundChangeCertificate) {
-	s.rcc, s.round, s.proposal = rcc, rcc.Messages[0].Info.Round, nil
+	s.rcc, s.round, s.proposal = rcc, rcc.Messages[0].Round, nil
 	clear(s.seals)
 }
 
-func (s *state) prepareCertificate(prepares []*message.MsgPrepare) {
+func (s *state) prepareCertificate(prepares []*message.Prepare) {
 	s.latestPB, s.latestPC = s.proposal.ProposedBlock, &message.PreparedCertificate{
 		ProposalMessage: s.proposal,
 		PrepareMessages: prepares,

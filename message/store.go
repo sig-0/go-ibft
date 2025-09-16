@@ -1,5 +1,7 @@
 package message
 
+import "fmt"
+
 // Store is a thread-safe storage for consensus messages with a built-in sequencer.Feed mechanism
 type Store struct {
 	ProposalMessages    *Collection[*Proposal]
@@ -9,13 +11,18 @@ type Store struct {
 }
 
 // NewMsgStore returns a new Store instance
-func NewMsgStore() *Store {
-	return &Store{
+func NewMsgStore(messages ...message) *Store {
+	s := &Store{
 		ProposalMessages:    NewMsgCollection[*Proposal](),
 		PrepareMessages:     NewMsgCollection[*Prepare](),
 		CommitMessages:      NewMsgCollection[*Commit](),
 		RoundChangeMessages: NewMsgCollection[*RoundChange](),
 	}
+
+	for _, m := range messages {
+		s.Add(m)
+	}
+	return s
 }
 
 // Add includes the message in the store
@@ -29,9 +36,9 @@ func (s *Store) Add(msg message) {
 		s.CommitMessages.Add(msg)
 	case *RoundChange:
 		s.RoundChangeMessages.Add(msg)
+	default:
+		panic(fmt.Sprintf("unknown message type: %T", msg))
 	}
-
-	panic("unknown message")
 }
 
 // Clear removes all messages from store
