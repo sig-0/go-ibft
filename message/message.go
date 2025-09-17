@@ -24,6 +24,10 @@ func (x *Proposal) Payload() []byte {
 	return payload
 }
 
+func (x *Proposal) IsMalformed() bool {
+	return len(x.Sender) == 0 || len(x.Signature) == 0 || len(x.BlockHash) == 0 || x.ProposedBlock == nil
+}
+
 func (x *Prepare) Payload() []byte {
 	xx := &Prepare{
 		Sequence:  x.Sequence,
@@ -34,6 +38,10 @@ func (x *Prepare) Payload() []byte {
 
 	payload, _ := proto.Marshal(xx) //nolint:errcheck //proto
 	return payload
+}
+
+func (x *Prepare) IsMalformed() bool {
+	return len(x.Sender) == 0 || len(x.Signature) == 0 || len(x.BlockHash) == 0
 }
 
 func (x *Commit) Payload() []byte {
@@ -49,6 +57,10 @@ func (x *Commit) Payload() []byte {
 	return payload
 }
 
+func (x *Commit) IsMalformed() bool {
+	return len(x.Sender) == 0 || len(x.Signature) == 0 || len(x.BlockHash) == 0 || len(x.CommitSeal) == 0
+}
+
 func (x *RoundChange) Payload() []byte {
 	xx := &RoundChange{
 		Sequence:                    x.Sequence,
@@ -60,6 +72,10 @@ func (x *RoundChange) Payload() []byte {
 
 	payload, _ := proto.Marshal(xx) //nolint:errcheck //proto
 	return payload
+}
+
+func (x *RoundChange) IsMalformed() bool {
+	return len(x.Sender) == 0 || len(x.Signature) == 0
 }
 
 func (x *ProposedBlock) Bytes() []byte {

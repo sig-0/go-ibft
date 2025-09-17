@@ -4,20 +4,6 @@ package message;
 
 option go_package = "github.com/sig-0/go-ibft/message;message";
 
-// ProposedBlock is the proposer's block
-message ProposedBlock {
-  // Proposed block content
-  bytes block = 1;
-
-  // Round in which the block was proposed
-  uint64 round = 2;
-}
-
-// RoundChangeCertificate is a collection of round-change messages used as proof that validators moved to a new round
-message RoundChangeCertificate {
-  repeated RoundChange messages = 1;
-}
-
 // MsgProposal is the initial consensus message that starts the finalization process. It's gossiped by
 // a chosen proposer in a specific round and represents the proposal being voted on by the network
 message Proposal {
@@ -82,15 +68,6 @@ message Commit {
   bytes commit_seal = 6;
 }
 
-// PreparedCertificate is the last proposal to pass the PREPARE phase
-message PreparedCertificate {
-  // The original MsgProposal
-  Proposal proposal_message = 1;
-
-  // Proof the original message passed PREPARE phase
-  repeated Prepare prepare_messages = 2;
-}
-
 // MsgRoundChange is sent when a validator's round timer expires
 message RoundChange {
   // Sequence in which the message was created
@@ -111,4 +88,28 @@ message RoundChange {
   // Certificate proving network accepted the ProposedBlock but did not commit
   PreparedCertificate latest_prepared_certificate = 6;
 }
+
+// ProposedBlock is the proposer's block
+message ProposedBlock {
+  // Proposed block content
+  bytes block = 1;
+
+  // Round in which the block was proposed
+  uint64 round = 2;
+}
+
+// PreparedCertificate is the last proposal to pass the PREPARE phase
+message PreparedCertificate {
+  // The original MsgProposal
+  Proposal proposal_message = 1;
+
+  // Proof the original message passed PREPARE phase
+  repeated Prepare prepare_messages = 2;
+}
+
+// RoundChangeCertificate is a collection of round-change messages used as proof that validators moved to a new round
+message RoundChangeCertificate {
+  repeated RoundChange messages = 1;
+}
+
 
