@@ -21,7 +21,7 @@ func Test_SequencerFinalizeCancelled(t *testing.T) {
 		ValidatorSet: mockVerifier{isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
 			return false
 		}},
-		Feed:           message.NewMsgStore(),
+		Feed:           message.NewStore(),
 		Round0Duration: 10 * time.Millisecond,
 	}
 
@@ -115,7 +115,7 @@ func Test_SequencerFinalize(t *testing.T) {
 				Transport:      dummyTransport{},
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 			},
 		},
 
@@ -182,7 +182,7 @@ func Test_SequencerFinalize(t *testing.T) {
 				Transport:      dummyTransport{},
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 			},
 		},
 
@@ -221,7 +221,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -301,7 +301,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -424,7 +424,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -498,7 +498,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -646,7 +646,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -736,7 +736,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -819,7 +819,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -896,7 +896,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 				Round0Duration: 10 * time.Millisecond,
 			},
 
@@ -994,7 +994,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 				Transport: dummyTransport{},
-				Feed:      message.NewMsgStore(),
+				Feed:      message.NewStore(),
 			},
 
 			messages: []any{
@@ -1088,7 +1088,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewMsgStore(),
+				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -1151,13 +1151,13 @@ func Test_SequencerFinalize(t *testing.T) {
 			for _, m := range tt.messages {
 				switch m := m.(type) {
 				case *message.RoundChange:
-					s.feed.Add(m)
+					s.feed.RoundChangeMessages.Add(m)
 				case *message.Prepare:
-					s.feed.Add(m)
+					s.feed.PrepareMessages.Add(m)
 				case *message.Commit:
-					s.feed.Add(m)
+					s.feed.CommitMessages.Add(m)
 				case *message.Proposal:
-					s.feed.Add(m)
+					s.feed.ProposalMessages.Add(m)
 				}
 			}
 

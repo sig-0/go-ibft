@@ -24,7 +24,7 @@ func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.Prepare,
 	sub, cancelSub := s.feed.PrepareMessages.Subscribe(s.state.sequence, s.state.round, false)
 	defer cancelSub()
 
-	cache := message.NewMsgCache(s.isValidMsgPrepare)
+	cache := message.NewCache(s.isValidMsgPrepare)
 
 	for {
 		select {

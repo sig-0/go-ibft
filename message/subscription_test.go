@@ -12,7 +12,7 @@ func Test_Subscribe_Proposal(t *testing.T) {
 	t.Run("exact sequence and round", func(t *testing.T) {
 		t.Parallel()
 
-		s := NewMsgStore()
+		s := NewStore()
 
 		sub, cancelSub := s.ProposalMessages.Subscribe(101, 0, false)
 		defer cancelSub()
@@ -39,7 +39,7 @@ func Test_Subscribe_Proposal(t *testing.T) {
 	t.Run("highest available round", func(t *testing.T) {
 		t.Parallel()
 
-		s := NewMsgStore()
+		s := NewStore()
 
 		sub, cancelSub := s.ProposalMessages.Subscribe(101, 0, true)
 		defer cancelSub()

@@ -25,7 +25,7 @@ func (s *Sequencer) awaitCommitQuorum(ctx context.Context) ([]*message.Commit, e
 	sub, cancelSub := s.feed.CommitMessages.Subscribe(s.state.sequence, s.state.round, false)
 	defer cancelSub()
 
-	cache := message.NewMsgCache(s.isValidMsgCommit)
+	cache := message.NewCache(s.isValidMsgCommit)
 
 	for {
 		select {

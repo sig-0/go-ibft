@@ -36,7 +36,7 @@ func (s *Sequencer) awaitProposal(ctx context.Context, round uint64, higherRound
 	sub, cancelSub := s.feed.ProposalMessages.Subscribe(s.state.sequence, round, higherRounds)
 	defer cancelSub()
 
-	cache := message.NewMsgCache(s.isValidMsgProposal)
+	cache := message.NewCache(s.isValidMsgProposal)
 
 	for {
 		select {

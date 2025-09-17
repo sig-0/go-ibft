@@ -6,7 +6,7 @@ type Cache[M message] struct {
 	messages []M
 }
 
-func NewMsgCache[M message](filterFn func(M) bool) *Cache[M] {
+func NewCache[M message](filterFn func(M) bool) *Cache[M] {
 	return &Cache[M]{
 		filterFn: filterFn,
 		messages: make([]M, 0),

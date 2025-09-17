@@ -18,7 +18,7 @@ func (s *Sequencer) sendMsgRoundChange() {
 
 	msg.Signature = s.validator.Sign(msg.Payload())
 
-	s.feed.Add(msg) // add to self
+	s.feed.RoundChangeMessages.Add(msg) // add to self
 
 	s.transport.MulticastRoundChange(msg)
 }
@@ -35,7 +35,7 @@ func (s *Sequencer) awaitRCC(
 	sub, cancelSub := s.feed.RoundChangeMessages.Subscribe(s.state.sequence, round, higherRounds)
 	defer cancelSub()
 
-	cache := message.NewMsgCache(s.isValidMsgRoundChange)
+	cache := message.NewCache(s.isValidMsgRoundChange)
 
 	for {
 		select {
