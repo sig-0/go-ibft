@@ -15,10 +15,6 @@ type Validator interface {
 	BuildProposal(sequence uint64) []byte
 }
 
-type ProposerSelector interface {
-	GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error)
-}
-
 type ValidatorSet interface {
 	GetValidators(ctx context.Context, sequence uint64) ([][]byte, error)
 	GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error)

@@ -6,18 +6,19 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-func (s *Sequencer) sendMsgCommit(sequence *Sequence) {
+func (s *Sequencer) buildCommitMessage(sequence *Sequence) *message.Commit {
 	msg := &message.Commit{
 		Sequence:   sequence.sequence,
 		Round:      sequence.round,
 		Sender:     s.validator.Address(),
-		BlockHash:  sequence.acceptedBlockHash(),
-		CommitSeal: s.validator.Sign(sequence.acceptedBlockHash()),
+		BlockHash:  sequence.proposal.BlockHash,
+		CommitSeal: s.validator.Sign(sequence.proposal.BlockHash),
 	}
 
+	// todo: keccak
 	msg.Signature = s.validator.Sign(msg.Payload())
 
-	s.transport.MulticastCommit(msg)
+	return msg
 }
 
 func (s *Sequencer) awaitCommitQuorum(ctx context.Context, sequence *Sequence) ([]*message.Commit, error) {

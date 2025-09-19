@@ -6,7 +6,7 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-func (s *Sequencer) sendMsgProposal(block []byte, sequence *Sequence) {
+func (s *Sequencer) buildProposalMessage(block []byte, sequence *Sequence) *message.Proposal {
 	pb := &message.ProposedBlock{
 		Block: block,
 		Round: sequence.round,
@@ -21,10 +21,13 @@ func (s *Sequencer) sendMsgProposal(block []byte, sequence *Sequence) {
 		RoundChangeCertificate: sequence.rcc,
 	}
 
+	// todo: keccak this payload
 	msg.Signature = s.validator.Sign(msg.Payload())
 
 	sequence.proposal = msg
-	s.transport.MulticastProposal(msg)
+	
+	return msg
+
 }
 
 func (s *Sequencer) awaitProposal(ctx context.Context, sequence *Sequence, higherRounds bool) (*message.Proposal, error) {

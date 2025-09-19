@@ -6,7 +6,7 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-func (s *Sequencer) sendMsgRoundChange(sequence *Sequence) {
+func (s *Sequencer) buildRoundChangeMessage(sequence *Sequence) *message.RoundChange {
 	msg := &message.RoundChange{
 		Sequence:                    sequence.sequence,
 		Round:                       sequence.round,
@@ -17,9 +17,7 @@ func (s *Sequencer) sendMsgRoundChange(sequence *Sequence) {
 
 	msg.Signature = s.validator.Sign(msg.Payload())
 
-	s.feed.RoundChangeMessages.Add(msg) // add to self
-
-	s.transport.MulticastRoundChange(msg)
+	return msg
 }
 
 func (s *Sequencer) awaitRCC(

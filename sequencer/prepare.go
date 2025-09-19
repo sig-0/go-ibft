@@ -6,17 +6,18 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-func (s *Sequencer) sendMsgPrepare(sequence *Sequence) {
+func (s *Sequencer) buildPrepareMessage(sequence *Sequence) *message.Prepare {
 	msg := &message.Prepare{
 		Sequence:  sequence.sequence,
 		Round:     sequence.round,
 		Sender:    s.validator.Address(),
-		BlockHash: sequence.acceptedBlockHash(),
+		BlockHash: sequence.proposal.BlockHash,
 	}
 
+	// todo: keccak
 	msg.Signature = s.validator.Sign(msg.Payload())
 
-	s.transport.MulticastPrepare(msg)
+	return msg
 }
 
 func (s *Sequencer) awaitPrepareQuorum(ctx context.Context, sequence *Sequence) ([]*message.Prepare, error) {
