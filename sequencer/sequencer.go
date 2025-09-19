@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"bytes"
 	"context"
 	"math"
 	"sync"
@@ -29,6 +30,7 @@ type Config struct {
 	Feed           *message.Store
 	Keccak         KeccakFn
 	Round0Duration time.Duration
+	Vrf            Vrf
 }
 
 // Sequencer is the consensus actor's (Validator) block finalization process. Whenever the network moves to a
@@ -37,12 +39,14 @@ type Config struct {
 // that consensus is (eventually) reached, moving to higher rounds in case the network cannot agree on some proposal.
 // Given its simple API method Finalize, Sequencer is designed to work alongside a syncing protocol
 type Sequencer struct {
-	validator      Validator
-	verifier       Verifier
+	validator Validator
+	//verifier       Verifier
+	proposerAlgo   ProposerSelector
+	vrf            Vrf
 	transport      Transport
 	feed           *message.Store
 	keccak         KeccakFn
-	state          state
+	sequence       Sequence
 	wg             sync.WaitGroup
 	round0Duration time.Duration
 }
@@ -50,11 +54,12 @@ type Sequencer struct {
 // NewSequencer returns a Sequencer object for the provided validator
 func NewSequencer(cfg Config) *Sequencer {
 	return &Sequencer{
-		validator:      cfg.Validator,
-		verifier:       cfg.ValidatorSet,
+		validator: cfg.Validator,
+		//verifier:       cfg.ValidatorSet,
 		transport:      cfg.Transport,
 		feed:           cfg.Feed,
 		keccak:         cfg.Keccak,
+		vrf:            cfg.Vrf,
 		round0Duration: cfg.Round0Duration,
 	}
 }
@@ -62,7 +67,7 @@ func NewSequencer(cfg Config) *Sequencer {
 // Finalize runs the block finalization loop. This method returns a non-nil value only if consensus
 // is reached for the provided sequence. Otherwise, it runs forever until cancelled by the caller
 func (s *Sequencer) Finalize(ctx context.Context, sequence uint64) *SequenceResult {
-	s.state.init(sequence)
+	s.sequence.init(sequence)
 
 	c := make(chan *SequenceResult, 1)
 	go func() {
@@ -102,7 +107,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 				return nil
 			}
 
-			s.state.moveToNextRound()
+			s.sequence.moveToNextRound()
 			s.sendMsgRoundChange()
 
 		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound):
@@ -111,7 +116,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 				return nil
 			}
 
-			s.state.acceptRCC(rcc)
+			s.sequence.acceptRCC(rcc)
 
 		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound):
 			teardown()
@@ -119,7 +124,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 				return nil
 			}
 
-			s.state.acceptProposal(proposal)
+			s.sequence.acceptProposal(proposal)
 			s.sendMsgPrepare()
 
 		case fb, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound):
@@ -137,7 +142,7 @@ func (s *Sequencer) finalize(ctx context.Context) *SequenceResult {
 func (s *Sequencer) startRoundTimer(ctx context.Context) <-chan struct{} {
 	s.wg.Add(1)
 
-	round := s.state.round
+	round := s.sequence.round
 	c := make(chan struct{}, 1)
 
 	go func(round uint64) {
@@ -164,7 +169,7 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context) <-chan *messag
 	s.wg.Add(1)
 
 	c := make(chan *message.Proposal, 1)
-	round := s.state.round
+	round := s.sequence.round
 
 	go func(round uint64) {
 		defer func() {
@@ -184,13 +189,11 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context) <-chan *messag
 }
 
 // awaitHigherRoundRCC listens for round change certificates from rounds higher than the current
-func (s *Sequencer) awaitHigherRoundRCC(
-	ctx context.Context,
-) <-chan *message.RoundChangeCertificate {
+func (s *Sequencer) awaitHigherRoundRCC(ctx context.Context) <-chan *message.RoundChangeCertificate {
 	s.wg.Add(1)
 
 	c := make(chan *message.RoundChangeCertificate, 1)
-	round := s.state.round
+	round := s.sequence.round
 
 	go func(round uint64) {
 		defer func() {
@@ -225,9 +228,9 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx context.Context) <-cha
 		}
 
 		c <- &SequenceResult{
-			Round:    s.state.round,
-			Proposal: s.state.proposal.ProposedBlock.Block,
-			Seals:    s.state.seals,
+			Round:    s.sequence.round,
+			Proposal: s.sequence.proposal.ProposedBlock.Block,
+			Seals:    s.sequence.seals,
 		}
 	}()
 
@@ -239,28 +242,33 @@ func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
 }
 
 func (s *Sequencer) shouldPropose() bool {
-	return s.verifier.IsProposer(s.validator.Address(), s.state.sequence, s.state.round)
+	proposer, err := s.proposerAlgo.GetProposer(context.TODO(), s.sequence.sequence, s.sequence.round)
+	if err != nil {
+		panic(err)
+	}
+
+	return bytes.Equal(proposer, s.validator.Address())
 }
 
 // todo: should this be a critical error?
 func (s *Sequencer) buildProposal(ctx context.Context) ([]byte, error) {
-	if s.state.round == 0 {
-		return s.validator.BuildProposal(s.state.sequence), nil
+	if s.sequence.round == 0 {
+		return s.validator.BuildProposal(s.sequence.sequence), nil
 	}
 
-	if s.state.rcc == nil {
+	if s.sequence.rcc == nil {
 		// round jump triggered by round timer -> justify proposal with round change certificate
-		RCC, err := s.awaitRCC(ctx, s.state.round, false)
+		RCC, err := s.awaitRCC(ctx, s.sequence.round, false)
 		if err != nil {
 			return nil, err
 		}
 
-		s.state.rcc = RCC
+		s.sequence.rcc = RCC
 	}
 
-	block, _ := s.state.rcc.HighestRoundBlock()
+	block, _ := s.sequence.rcc.HighestRoundBlock()
 	if block == nil {
-		return s.validator.BuildProposal(s.state.sequence), nil
+		return s.validator.BuildProposal(s.sequence.sequence), nil
 	}
 
 	return block, nil
@@ -276,13 +284,13 @@ func (s *Sequencer) runRound(ctx context.Context) error {
 		s.sendMsgProposal(proposal)
 	}
 
-	if !s.state.isProposalAccepted() {
-		proposal, err := s.awaitProposal(ctx, s.state.round, false)
+	if !s.sequence.isProposalAccepted() {
+		proposal, err := s.awaitProposal(ctx, s.sequence.round, false)
 		if err != nil {
 			return err
 		}
 
-		s.state.acceptProposal(proposal)
+		s.sequence.acceptProposal(proposal)
 		s.sendMsgPrepare()
 	}
 
@@ -291,7 +299,7 @@ func (s *Sequencer) runRound(ctx context.Context) error {
 		return err
 	}
 
-	s.state.prepareCertificate(prepares)
+	s.sequence.prepareCertificate(prepares)
 	s.sendMsgCommit()
 
 	commits, err := s.awaitCommitQuorum(ctx)
@@ -300,7 +308,7 @@ func (s *Sequencer) runRound(ctx context.Context) error {
 	}
 
 	for _, commit := range commits {
-		s.state.acceptSeal(commit.Sender, commit.CommitSeal)
+		s.sequence.acceptSeal(commit.Sender, commit.CommitSeal)
 	}
 
 	return nil

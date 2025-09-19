@@ -23,9 +23,13 @@ func Test_SequencerFinalizeCancelled(t *testing.T) {
 		}},
 		Feed:           message.NewStore(),
 		Round0Duration: 10 * time.Millisecond,
+		Vrf:            allGoodVrf{},
 	}
 
 	s := NewSequencer(cfg)
+	s.proposerAlgo = mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+		return Bob, nil
+	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan *SequenceResult)
@@ -46,12 +50,14 @@ func Test_SequencerFinalize(t *testing.T) {
 
 	testTable := []struct {
 		expected *SequenceResult
+		algo     ProposerSelector
+		vrf      Vrf
 		cfg      Config
 		name     string
 		messages []any
 	}{
 		{
-			name: "Alice and Chris accept Bob's proposal in round 0",
+			name: "proposal is accepted in round 0",
 			expected: &SequenceResult{
 				Round:    0,
 				Proposal: []byte("Bob's proposal"),
@@ -67,31 +73,42 @@ func Test_SequencerFinalize(t *testing.T) {
 				},
 			},
 
+			vrf: allGoodVrf{},
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				return Bob, nil
+			}),
 			messages: []any{
 				&message.Proposal{
-					Sender: Bob, Sequence: 101, Round: 0,
-					ProposedBlock: &message.ProposedBlock{Block: []byte("Bob's proposal"), Round: 0},
-					BlockHash:     DummyKeccakValue,
+					Sender:   Bob,
+					Sequence: 101,
+					Round:    0,
+					ProposedBlock: &message.ProposedBlock{
+						Block: []byte("Bob's proposal"),
+						Round: 0,
+					},
 				},
 				&message.Prepare{
-					Sender: Alice, Sequence: 101, Round: 0,
-					BlockHash: DummyKeccakValue,
+					Sender:   Alice,
+					Sequence: 101,
+					Round:    0,
 				},
 
 				&message.Prepare{
-					Sender: Chris, Sequence: 101, Round: 0,
-					BlockHash: DummyKeccakValue,
+					Sender:   Chris,
+					Sequence: 101,
+					Round:    0,
 				},
 
 				&message.Commit{
-					Sender: Alice, Sequence: 101, Round: 0,
-					BlockHash:  DummyKeccakValue,
+					Sender:     Alice,
+					Sequence:   101,
+					Round:      0,
 					CommitSeal: []byte("Alice seal"),
 				},
-
 				&message.Commit{
-					Sender: Chris, Sequence: 101, Round: 0,
-					BlockHash:  DummyKeccakValue,
+					Sender:     Chris,
+					Sequence:   101,
+					Round:      0,
 					CommitSeal: []byte("Chris seal"),
 				},
 			},
@@ -101,17 +118,17 @@ func Test_SequencerFinalize(t *testing.T) {
 					address: Alice,
 					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockVerifier{
-					isValidatorFn: AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Bob) && round == 0
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidProposalFn:  AlwaysValidProposal,
-					isValidSignatureFn: AlwaysValidSignature,
-				},
+				//ValidatorSet: mockVerifier{
+				//	isValidatorFn: AlwaysAValidator,
+				//	isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+				//		return bytes.Equal(v, Bob) && round == 0
+				//	},
+				//	hasQuorumFn: func(messages [][]byte, _ uint64) bool {
+				//		return len(messages) >= 2
+				//	},
+				//	isValidProposalFn:  AlwaysValidProposal,
+				//	isValidSignatureFn: AlwaysValidSignature,
+				//},
 				Transport:      dummyTransport{},
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
@@ -135,6 +152,8 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
+
+			vrf: allGoodVrf{},
 
 			messages: []any{
 				&message.Prepare{
@@ -160,6 +179,9 @@ func Test_SequencerFinalize(t *testing.T) {
 				},
 			},
 
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				return Alice, nil
+			}),
 			cfg: Config{
 				Validator: mockValidator{
 					address: Alice,
@@ -170,9 +192,9 @@ func Test_SequencerFinalize(t *testing.T) {
 				},
 				ValidatorSet: mockVerifier{
 					isValidatorFn: AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Alice) && round == 0
-					},
+					//isProposerFn: func(v []byte, _ uint64, round uint64) bool {
+					//	return bytes.Equal(v, Alice) && round == 0
+					//},
 					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
 						return len(messages) >= 2
 					},
@@ -202,6 +224,12 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 			},
+
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				return Bob, nil
+			}),
+
+			vrf: allGoodVrf{},
 
 			cfg: Config{
 				Validator: mockValidator{
@@ -268,6 +296,10 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name: "Alice jumps to round 1 proposal and accepts it",
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				return Chris, nil
+			}),
+			vrf: allGoodVrf{},
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("Chris' proposal"),
@@ -387,6 +419,15 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name: "block proposed in round 1",
+
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 1 {
+					return Alice, nil
+				}
+
+				return Nina, nil
+			}),
+			vrf: allGoodVrf{},
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("Alice's round 1 proposal"),
@@ -465,6 +506,14 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name: "old block proposed in round 1",
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 1 {
+					return Alice, nil
+				}
+
+				return Nina, nil
+			}),
+			vrf: allGoodVrf{},
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("Bob's round 0 proposal"),
@@ -611,6 +660,14 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name: "future rcc triggers round jump",
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 3 {
+					return Alice, nil
+				}
+
+				return Nina, nil
+			}),
+			vrf: allGoodVrf{},
 			expected: &SequenceResult{
 				Round:    3,
 				Proposal: []byte("Alice round 3 proposal"),
@@ -704,6 +761,14 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name: "future proposal triggers round jump",
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 5 {
+					return Nina, nil
+				}
+
+				return Bob, nil
+			}),
+			vrf: allGoodVrf{},
 			expected: &SequenceResult{
 				Round:    5,
 				Proposal: []byte("round 5 block"),
@@ -782,7 +847,15 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name: "round timer triggers round jump", // todo: fix
+			name: "round timer triggers round jump",
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 1 {
+					return Alice, nil
+				}
+
+				return Nina, nil
+			}),
+			vrf: allGoodVrf{},
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("Alice round 1 proposal"),
@@ -862,6 +935,18 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name: "no prepare messages in round 0",
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 0 {
+					return Bob, nil
+				}
+
+				if round == 1 {
+					return Chris, nil
+				}
+
+				return Nina, nil
+			}),
+			vrf: allGoodVrf{},
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("round 1 block"),
@@ -960,6 +1045,18 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name: "no commit messages in round 0",
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 0 {
+					return Bob, nil
+				}
+
+				if round == 1 {
+					return Chris, nil
+				}
+
+				return Nina, nil
+			}),
+			vrf: allGoodVrf{},
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("round 1 block"),
@@ -1054,6 +1151,18 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name: "round 0 proposer fails to build block",
+			algo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 0 {
+					return Bob, nil
+				}
+
+				if round == 1 {
+					return Alice, nil
+				}
+
+				return Chris, nil
+			}),
+			vrf: allGoodVrf{},
 			expected: &SequenceResult{
 				Round:    2,
 				Proposal: []byte("round 2 block"),
@@ -1079,7 +1188,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					isValidatorFn:     AlwaysAValidator,
 					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
 						return bytes.Equal(v, Bob) && round == 0 ||
-							bytes.Equal(v, Alice) && round == 1 ||
+							bytes.Equal(v, Nina) && round == 1 ||
 							bytes.Equal(v, Chris) && round == 2
 					},
 					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
@@ -1094,11 +1203,11 @@ func Test_SequencerFinalize(t *testing.T) {
 			},
 
 			messages: []any{
-				&message.RoundChange{
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    1,
-				},
+				//&message.RoundChange{
+				//	Sender:   Chris,
+				//	Sequence: 101,
+				//	Round:    1,
+				//},
 
 				&message.Proposal{
 					Sender:        Chris,
@@ -1144,10 +1253,15 @@ func Test_SequencerFinalize(t *testing.T) {
 	}
 
 	for _, tt := range testTable {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
+			tt.cfg.Vrf = tt.vrf
+
 			s := NewSequencer(tt.cfg)
+			s.proposerAlgo = tt.algo
+
 			for _, m := range tt.messages {
 				switch m := m.(type) {
 				case *message.RoundChange:

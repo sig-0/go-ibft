@@ -4,8 +4,8 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-// state is a collection of consensus artifacts obtained by Sequencer during Finalize
-type state struct {
+// Sequence is a collection of consensus artifacts obtained by Sequencer during Finalize
+type Sequence struct {
 	// proposal that's being voted on
 	proposal *message.Proposal
 
@@ -28,42 +28,42 @@ type state struct {
 	round uint64
 }
 
-func (s *state) init(sequence uint64) {
-	*s = state{sequence: sequence}
+func (s *Sequence) init(sequence uint64) {
+	*s = Sequence{sequence: sequence}
 }
 
-func (s *state) isProposalAccepted() bool {
+func (s *Sequence) isProposalAccepted() bool {
 	return s.proposal != nil
 }
 
-func (s *state) acceptedBlockHash() []byte {
+func (s *Sequence) acceptedBlockHash() []byte {
 	return s.proposal.BlockHash
 }
 
-func (s *state) moveToNextRound() {
+func (s *Sequence) moveToNextRound() {
 	s.round++
 	s.proposal = nil
 	clear(s.seals)
 }
 
-func (s *state) acceptProposal(proposal *message.Proposal) {
+func (s *Sequence) acceptProposal(proposal *message.Proposal) {
 	s.proposal, s.round = proposal, proposal.Round
 	clear(s.seals)
 }
 
-func (s *state) acceptRCC(rcc *message.RoundChangeCertificate) {
+func (s *Sequence) acceptRCC(rcc *message.RoundChangeCertificate) {
 	s.rcc, s.round, s.proposal = rcc, rcc.Messages[0].Round, nil
 	clear(s.seals)
 }
 
-func (s *state) prepareCertificate(prepares []*message.Prepare) {
+func (s *Sequence) prepareCertificate(prepares []*message.Prepare) {
 	s.latestPB, s.latestPC = s.proposal.ProposedBlock, &message.PreparedCertificate{
 		ProposalMessage: s.proposal,
 		PrepareMessages: prepares,
 	}
 }
 
-func (s *state) acceptSeal(from, seal []byte) {
+func (s *Sequence) acceptSeal(from, seal []byte) {
 	s.seals = append(s.seals, CommitSeal{
 		From: from,
 		Seal: seal,

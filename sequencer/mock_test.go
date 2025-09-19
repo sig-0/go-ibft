@@ -2,6 +2,9 @@
 package sequencer
 
 import (
+	"context"
+	"errors"
+
 	"github.com/sig-0/go-ibft/message"
 )
 
@@ -80,6 +83,47 @@ type mockSignatureVerifier func([]byte, []byte, []byte) error
 
 func (s mockSignatureVerifier) Verify(signature, digest, msg []byte) error {
 	return s(signature, digest, msg)
+}
+
+type mockProposerAlgo func(ctx context.Context, sequence, round uint64) ([]byte, error)
+
+func (m mockProposerAlgo) GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error) {
+	return m(ctx, sequence, round)
+}
+
+type allGoodVrf struct {
+}
+
+func (m allGoodVrf) CheckProposal(ctx context.Context, sequence *Sequence, messages []*message.Proposal) (*message.Proposal, error) {
+	if len(messages) == 0 {
+		return nil, errors.New("messages is empty")
+	}
+
+	return messages[0], nil
+}
+
+func (m allGoodVrf) CheckPrepare(ctx context.Context, sequence *Sequence, messages []*message.Prepare) ([]*message.Prepare, error) {
+	if len(messages) == 0 {
+		return nil, errors.New("messages is empty")
+	}
+
+	return messages, nil
+}
+
+func (m allGoodVrf) CheckCommit(ctx context.Context, sequence *Sequence, messages []*message.Commit) ([]*message.Commit, error) {
+	if len(messages) == 0 {
+		return nil, errors.New("messages is empty")
+	}
+
+	return messages, nil
+}
+
+func (m allGoodVrf) CheckRoundChange(ctx context.Context, sequence *Sequence, messages []*message.RoundChange) ([]*message.RoundChange, error) {
+	if len(messages) == 0 {
+		return nil, errors.New("messages is empty")
+	}
+
+	return messages, nil
 }
 
 //

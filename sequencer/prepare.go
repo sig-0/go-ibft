@@ -1,7 +1,6 @@
 package sequencer
 
 import (
-	"bytes"
 	"context"
 
 	"github.com/sig-0/go-ibft/message"
@@ -9,10 +8,10 @@ import (
 
 func (s *Sequencer) sendMsgPrepare() {
 	msg := &message.Prepare{
-		Sequence:  s.state.sequence,
-		Round:     s.state.round,
+		Sequence:  s.sequence.sequence,
+		Round:     s.sequence.round,
 		Sender:    s.validator.Address(),
-		BlockHash: s.state.acceptedBlockHash(),
+		BlockHash: s.sequence.acceptedBlockHash(),
 	}
 
 	msg.Signature = s.validator.Sign(msg.Payload())
@@ -21,43 +20,52 @@ func (s *Sequencer) sendMsgPrepare() {
 }
 
 func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.Prepare, error) {
-	sub, cancelSub := s.feed.PrepareMessages.Subscribe(s.state.sequence, s.state.round, false)
+	sub, cancelSub := s.feed.PrepareMessages.Subscribe(s.sequence.sequence, s.sequence.round, false)
 	defer cancelSub()
 
-	cache := message.NewCache(s.isValidMsgPrepare)
+	//cache := message.NewCache(s.isValidMsgPrepare)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case notification := <-sub:
-			cache.Add(notification()...)
+			//cache.Add(notification()...)
 
-			prepares := cache.Get()
-			addresses := make([][]byte, 0, len(prepares))
-			for _, commit := range prepares {
-				addresses = append(addresses, commit.GetSender())
-			}
-
-			if !s.verifier.HasQuorum(addresses, s.state.sequence) {
+			messages, err := s.vrf.CheckPrepare(ctx, &s.sequence, notification())
+			if err != nil {
+				// todo: log
 				continue
 			}
 
-			return prepares, nil
+			return messages, nil
+
+			//prepares := cache.Get()
+			//addresses := make([][]byte, 0, len(prepares))
+			//for _, commit := range prepares {
+			//	addresses = append(addresses, commit.GetSender())
+			//}
+			//
+			//if !s.verifier.HasQuorum(addresses, s.state.sequence) {
+			//	continue
+			//}
+			//
+			//return prepares, nil
 		}
 	}
 }
 
-func (s *Sequencer) isValidMsgPrepare(msg *message.Prepare) bool {
-	// sender is part of the validator set
-	if !s.verifier.IsValidator(msg.Sender, msg.Sequence) {
-		return false
-	}
-
-	// block hash and accepted block hash match
-	if !bytes.Equal(msg.BlockHash, s.state.acceptedBlockHash()) {
-		return false
-	}
-
-	return true
-}
+//
+//func (s *Sequencer) isValidMsgPrepare(msg *message.Prepare) bool {
+//	// sender is part of the validator set
+//	if !s.verifier.IsValidator(msg.Sender, msg.Sequence) {
+//		return false
+//	}
+//
+//	// block hash and accepted block hash match
+//	if !bytes.Equal(msg.BlockHash, s.state.acceptedBlockHash()) {
+//		return false
+//	}
+//
+//	return true
+//}
