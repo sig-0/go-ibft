@@ -6,13 +6,13 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-func (s *Sequencer) sendMsgRoundChange() {
+func (s *Sequencer) sendMsgRoundChange(sequence *Sequence) {
 	msg := &message.RoundChange{
-		Sequence:                    s.sequence.sequence,
-		Round:                       s.sequence.round,
+		Sequence:                    sequence.sequence,
+		Round:                       sequence.round,
 		Sender:                      s.validator.Address(),
-		LatestPreparedProposedBlock: s.sequence.latestPB,
-		LatestPreparedCertificate:   s.sequence.latestPC,
+		LatestPreparedProposedBlock: sequence.latestPB,
+		LatestPreparedCertificate:   sequence.latestPC,
 	}
 
 	msg.Signature = s.validator.Sign(msg.Payload())
@@ -24,14 +24,15 @@ func (s *Sequencer) sendMsgRoundChange() {
 
 func (s *Sequencer) awaitRCC(
 	ctx context.Context,
-	round uint64,
+	sequence *Sequence,
 	higherRounds bool,
 ) (*message.RoundChangeCertificate, error) {
+	round := sequence.round
 	if higherRounds {
 		round++
 	}
 
-	sub, cancelSub := s.feed.RoundChangeMessages.Subscribe(s.sequence.sequence, round, higherRounds)
+	sub, cancelSub := s.feed.RoundChangeMessages.Subscribe(sequence.sequence, round, higherRounds)
 	defer cancelSub()
 
 	//cache := message.NewCache(s.isValidMsgRoundChange)
@@ -43,7 +44,7 @@ func (s *Sequencer) awaitRCC(
 		case notification := <-sub:
 			//cache.Add(notification()...)
 
-			messages, err := s.vrf.CheckRoundChange(ctx, &s.sequence, notification())
+			messages, err := s.vrf.CheckRoundChange(ctx, sequence, notification())
 			if err != nil {
 				continue
 				// todo: log

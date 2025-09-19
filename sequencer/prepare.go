@@ -6,12 +6,12 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-func (s *Sequencer) sendMsgPrepare() {
+func (s *Sequencer) sendMsgPrepare(sequence *Sequence) {
 	msg := &message.Prepare{
-		Sequence:  s.sequence.sequence,
-		Round:     s.sequence.round,
+		Sequence:  sequence.sequence,
+		Round:     sequence.round,
 		Sender:    s.validator.Address(),
-		BlockHash: s.sequence.acceptedBlockHash(),
+		BlockHash: sequence.acceptedBlockHash(),
 	}
 
 	msg.Signature = s.validator.Sign(msg.Payload())
@@ -19,8 +19,8 @@ func (s *Sequencer) sendMsgPrepare() {
 	s.transport.MulticastPrepare(msg)
 }
 
-func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.Prepare, error) {
-	sub, cancelSub := s.feed.PrepareMessages.Subscribe(s.sequence.sequence, s.sequence.round, false)
+func (s *Sequencer) awaitPrepareQuorum(ctx context.Context, sequence *Sequence) ([]*message.Prepare, error) {
+	sub, cancelSub := s.feed.PrepareMessages.Subscribe(sequence.sequence, sequence.round, false)
 	defer cancelSub()
 
 	//cache := message.NewCache(s.isValidMsgPrepare)
@@ -32,7 +32,7 @@ func (s *Sequencer) awaitPrepareQuorum(ctx context.Context) ([]*message.Prepare,
 		case notification := <-sub:
 			//cache.Add(notification()...)
 
-			messages, err := s.vrf.CheckPrepare(ctx, &s.sequence, notification())
+			messages, err := s.vrf.CheckPrepare(ctx, sequence, notification())
 			if err != nil {
 				// todo: log
 				continue

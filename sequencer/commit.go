@@ -6,13 +6,13 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-func (s *Sequencer) sendMsgCommit() {
+func (s *Sequencer) sendMsgCommit(sequence *Sequence) {
 	msg := &message.Commit{
-		Sequence:   s.sequence.sequence,
-		Round:      s.sequence.round,
+		Sequence:   sequence.sequence,
+		Round:      sequence.round,
 		Sender:     s.validator.Address(),
-		BlockHash:  s.sequence.acceptedBlockHash(),
-		CommitSeal: s.validator.Sign(s.sequence.acceptedBlockHash()),
+		BlockHash:  sequence.acceptedBlockHash(),
+		CommitSeal: s.validator.Sign(sequence.acceptedBlockHash()),
 	}
 
 	msg.Signature = s.validator.Sign(msg.Payload())
@@ -20,8 +20,8 @@ func (s *Sequencer) sendMsgCommit() {
 	s.transport.MulticastCommit(msg)
 }
 
-func (s *Sequencer) awaitCommitQuorum(ctx context.Context) ([]*message.Commit, error) {
-	sub, cancelSub := s.feed.CommitMessages.Subscribe(s.sequence.sequence, s.sequence.round, false)
+func (s *Sequencer) awaitCommitQuorum(ctx context.Context, sequence *Sequence) ([]*message.Commit, error) {
+	sub, cancelSub := s.feed.CommitMessages.Subscribe(sequence.sequence, sequence.round, false)
 	defer cancelSub()
 
 	//cache := message.NewCache(s.isValidMsgCommit)
@@ -33,7 +33,7 @@ func (s *Sequencer) awaitCommitQuorum(ctx context.Context) ([]*message.Commit, e
 		case notification := <-sub:
 			//cache.Add(notification()...)
 
-			messages, err := s.vrf.CheckCommit(ctx, &s.sequence, notification())
+			messages, err := s.vrf.CheckCommit(ctx, sequence, notification())
 			if err != nil {
 				// todo: log
 				continue

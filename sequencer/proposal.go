@@ -6,33 +6,34 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-func (s *Sequencer) sendMsgProposal(block []byte) {
+func (s *Sequencer) sendMsgProposal(block []byte, sequence *Sequence) {
 	pb := &message.ProposedBlock{
 		Block: block,
-		Round: s.sequence.round,
+		Round: sequence.round,
 	}
 
 	msg := &message.Proposal{
-		Sequence:               s.sequence.sequence,
-		Round:                  s.sequence.round,
+		Sequence:               sequence.sequence,
+		Round:                  sequence.round,
 		Sender:                 s.validator.Address(),
 		ProposedBlock:          pb,
 		BlockHash:              s.keccak(pb.Bytes()),
-		RoundChangeCertificate: s.sequence.rcc,
+		RoundChangeCertificate: sequence.rcc,
 	}
 
 	msg.Signature = s.validator.Sign(msg.Payload())
 
-	s.sequence.proposal = msg
+	sequence.proposal = msg
 	s.transport.MulticastProposal(msg)
 }
 
-func (s *Sequencer) awaitProposal(ctx context.Context, round uint64, higherRounds bool) (*message.Proposal, error) {
+func (s *Sequencer) awaitProposal(ctx context.Context, sequence *Sequence, higherRounds bool) (*message.Proposal, error) {
+	round := sequence.round
 	if higherRounds {
 		round++
 	}
 
-	sub, cancelSub := s.feed.ProposalMessages.Subscribe(s.sequence.sequence, round, higherRounds)
+	sub, cancelSub := s.feed.ProposalMessages.Subscribe(sequence.sequence, round, higherRounds)
 	defer cancelSub()
 
 	//cache := message.NewCache(s.isValidMsgProposal)
@@ -43,7 +44,7 @@ func (s *Sequencer) awaitProposal(ctx context.Context, round uint64, higherRound
 			return nil, ctx.Err()
 		case notification := <-sub:
 			//cache.Add(notification()...)
-			msg, err := s.vrf.CheckProposal(ctx, &s.sequence, notification())
+			msg, err := s.vrf.CheckProposal(ctx, sequence, notification())
 			if err != nil {
 				// todo: log
 				continue
