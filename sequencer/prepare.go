@@ -32,7 +32,7 @@ func (s *Sequencer) awaitPrepareQuorum(ctx context.Context, sequence *Sequence) 
 		case notification := <-sub:
 			//cache.Add(notification()...)
 
-			messages, err := s.vrf.CheckPrepare(ctx, sequence, notification())
+			messages, err := s.vrf.CheckPrepare(ctx, *sequence, notification())
 			if err != nil {
 				// todo: log
 				continue

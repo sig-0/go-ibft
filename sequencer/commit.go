@@ -33,7 +33,7 @@ func (s *Sequencer) awaitCommitQuorum(ctx context.Context, sequence *Sequence) (
 		case notification := <-sub:
 			//cache.Add(notification()...)
 
-			messages, err := s.vrf.CheckCommit(ctx, sequence, notification())
+			messages, err := s.vrf.CheckCommit(ctx, *sequence, notification())
 			if err != nil {
 				// todo: log
 				continue

@@ -25,12 +25,11 @@ type KeccakFn func(data []byte) []byte
 
 type Config struct {
 	Validator      Validator
-	ValidatorSet   Verifier
+	Vrf            Verifier
 	Transport      Transport
 	Feed           *message.Store
 	Keccak         KeccakFn
 	Round0Duration time.Duration
-	Vrf            Vrf
 }
 
 // Sequencer is the consensus actor's (Validator) block finalization process. Whenever the network moves to a
@@ -41,7 +40,7 @@ type Config struct {
 type Sequencer struct {
 	validator      Validator
 	proposerAlgo   ProposerSelector
-	vrf            Vrf
+	vrf            Verifier
 	transport      Transport
 	feed           *message.Store
 	keccak         KeccakFn

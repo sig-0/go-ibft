@@ -44,7 +44,7 @@ func (s *Sequencer) awaitProposal(ctx context.Context, sequence *Sequence, highe
 			return nil, ctx.Err()
 		case notification := <-sub:
 			//cache.Add(notification()...)
-			msg, err := s.vrf.CheckProposal(ctx, sequence, notification())
+			msg, err := s.vrf.CheckProposal(ctx, *sequence, notification())
 			if err != nil {
 				// todo: log
 				continue

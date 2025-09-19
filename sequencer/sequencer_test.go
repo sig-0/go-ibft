@@ -2,7 +2,6 @@
 package sequencer
 
 import (
-	"bytes"
 	"context"
 	"slices"
 	"testing"
@@ -17,10 +16,7 @@ func Test_SequencerFinalizeCancelled(t *testing.T) {
 	t.Parallel()
 
 	cfg := Config{
-		Validator: mockValidator{address: Alice},
-		ValidatorSet: mockVerifier{isProposerFn: func(_ []byte, _ uint64, _ uint64) bool {
-			return false
-		}},
+		Validator:      mockValidator{address: Alice},
 		Feed:           message.NewStore(),
 		Round0Duration: 10 * time.Millisecond,
 		Vrf:            allGoodVrf{},
@@ -51,7 +47,7 @@ func Test_SequencerFinalize(t *testing.T) {
 	testTable := []struct {
 		expected *SequenceResult
 		algo     ProposerSelector
-		vrf      Vrf
+		vrf      Verifier
 		cfg      Config
 		name     string
 		messages []any
@@ -190,17 +186,6 @@ func Test_SequencerFinalize(t *testing.T) {
 						return []byte("Alice's proposal")
 					},
 				},
-				ValidatorSet: mockVerifier{
-					isValidatorFn: AlwaysAValidator,
-					//isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-					//	return bytes.Equal(v, Alice) && round == 0
-					//},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidProposalFn:  AlwaysValidProposal,
-					isValidSignatureFn: AlwaysValidSignature,
-				},
 				Transport:      dummyTransport{},
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
@@ -235,18 +220,6 @@ func Test_SequencerFinalize(t *testing.T) {
 				Validator: mockValidator{
 					address: Alice,
 					signFn:  DummySignFn,
-				},
-				ValidatorSet: mockVerifier{
-					isValidProposalFn: AlwaysValidProposal,
-
-					isValidatorFn: AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Bob) && round == 1
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
 				Feed:           message.NewStore(),
@@ -319,18 +292,6 @@ func Test_SequencerFinalize(t *testing.T) {
 				Validator: mockValidator{
 					address: Alice,
 					signFn:  DummySignFn,
-				},
-				ValidatorSet: mockVerifier{
-					isValidProposalFn: AlwaysValidProposal,
-
-					isValidatorFn: AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Chris) && round == 0 || bytes.Equal(v, Bob) && round == 1
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
 				Feed:           message.NewStore(),
@@ -452,18 +413,6 @@ func Test_SequencerFinalize(t *testing.T) {
 						return []byte("Alice's round 1 proposal")
 					},
 				},
-				ValidatorSet: mockVerifier{
-					isValidProposalFn: AlwaysValidProposal,
-
-					isValidatorFn: AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Alice) && round == 1
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidSignatureFn: AlwaysValidSignature,
-				},
 				Transport:      dummyTransport{},
 				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
@@ -533,18 +482,6 @@ func Test_SequencerFinalize(t *testing.T) {
 				Validator: mockValidator{
 					address: Alice,
 					signFn:  DummySignFn,
-				},
-				ValidatorSet: mockVerifier{
-					isValidProposalFn: AlwaysValidProposal,
-
-					isValidatorFn: AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Alice) && round == 1
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
 				Feed:           message.NewStore(),
@@ -691,17 +628,6 @@ func Test_SequencerFinalize(t *testing.T) {
 						return []byte("Alice round 3 proposal")
 					},
 				},
-				ValidatorSet: mockVerifier{
-					isValidProposalFn: AlwaysValidProposal,
-					isValidatorFn:     AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Alice) && round == 3
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidSignatureFn: AlwaysValidSignature,
-				},
 				Transport:      dummyTransport{},
 				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
@@ -789,17 +715,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					address: Alice,
 					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockVerifier{
-					isValidProposalFn: AlwaysValidProposal,
-					isValidatorFn:     AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Nina) && round == 5
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidSignatureFn: AlwaysValidSignature,
-				},
 				Transport:      dummyTransport{},
 				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
@@ -879,18 +794,6 @@ func Test_SequencerFinalize(t *testing.T) {
 						return []byte("Alice round 1 proposal")
 					},
 				},
-				ValidatorSet: mockVerifier{
-					isValidProposalFn: AlwaysValidProposal,
-					isValidatorFn:     AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Alice) && round == 1
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						// set to 1 so Alice's own round change msg trigger the right build flow
-						return len(messages) >= 1
-					},
-					isValidSignatureFn: AlwaysValidSignature,
-				},
 				Transport:      dummyTransport{},
 				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
@@ -968,17 +871,6 @@ func Test_SequencerFinalize(t *testing.T) {
 				Validator: mockValidator{
 					address: Alice,
 					signFn:  DummySignFn,
-				},
-				ValidatorSet: mockVerifier{
-					isValidProposalFn: AlwaysValidProposal,
-					isValidatorFn:     AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Chris) && round == 1
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
 				Feed:           message.NewStore(),
@@ -1079,17 +971,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					address: Alice,
 					signFn:  DummySignFn,
 				},
-				ValidatorSet: mockVerifier{
-					isValidSignatureFn: AlwaysValidSignature,
-					isValidProposalFn:  AlwaysValidProposal,
-					isValidatorFn:      AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Bob) && round == 0 || bytes.Equal(v, Chris) && round == 1
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-				},
 				Transport: dummyTransport{},
 				Feed:      message.NewStore(),
 			},
@@ -1182,19 +1063,6 @@ func Test_SequencerFinalize(t *testing.T) {
 				Validator: mockValidator{
 					address: Alice,
 					signFn:  DummySignFn,
-				},
-				ValidatorSet: mockVerifier{
-					isValidProposalFn: AlwaysValidProposal,
-					isValidatorFn:     AlwaysAValidator,
-					isProposerFn: func(v []byte, _ uint64, round uint64) bool {
-						return bytes.Equal(v, Bob) && round == 0 ||
-							bytes.Equal(v, Nina) && round == 1 ||
-							bytes.Equal(v, Chris) && round == 2
-					},
-					hasQuorumFn: func(messages [][]byte, _ uint64) bool {
-						return len(messages) >= 2
-					},
-					isValidSignatureFn: AlwaysValidSignature,
 				},
 				Transport:      dummyTransport{},
 				Feed:           message.NewStore(),

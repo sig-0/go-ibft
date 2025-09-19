@@ -94,7 +94,7 @@ func (m mockProposerAlgo) GetProposer(ctx context.Context, sequence, round uint6
 type allGoodVrf struct {
 }
 
-func (m allGoodVrf) CheckProposal(ctx context.Context, sequence *Sequence, messages []*message.Proposal) (*message.Proposal, error) {
+func (m allGoodVrf) CheckProposal(ctx context.Context, sequence Sequence, messages []*message.Proposal) (*message.Proposal, error) {
 	if len(messages) == 0 {
 		return nil, errors.New("messages is empty")
 	}
@@ -102,7 +102,7 @@ func (m allGoodVrf) CheckProposal(ctx context.Context, sequence *Sequence, messa
 	return messages[0], nil
 }
 
-func (m allGoodVrf) CheckPrepare(ctx context.Context, sequence *Sequence, messages []*message.Prepare) ([]*message.Prepare, error) {
+func (m allGoodVrf) CheckPrepare(ctx context.Context, sequence Sequence, messages []*message.Prepare) ([]*message.Prepare, error) {
 	if len(messages) == 0 {
 		return nil, errors.New("messages is empty")
 	}
@@ -110,7 +110,7 @@ func (m allGoodVrf) CheckPrepare(ctx context.Context, sequence *Sequence, messag
 	return messages, nil
 }
 
-func (m allGoodVrf) CheckCommit(ctx context.Context, sequence *Sequence, messages []*message.Commit) ([]*message.Commit, error) {
+func (m allGoodVrf) CheckCommit(ctx context.Context, sequence Sequence, messages []*message.Commit) ([]*message.Commit, error) {
 	if len(messages) == 0 {
 		return nil, errors.New("messages is empty")
 	}
@@ -118,7 +118,7 @@ func (m allGoodVrf) CheckCommit(ctx context.Context, sequence *Sequence, message
 	return messages, nil
 }
 
-func (m allGoodVrf) CheckRoundChange(ctx context.Context, sequence *Sequence, messages []*message.RoundChange) ([]*message.RoundChange, error) {
+func (m allGoodVrf) CheckRoundChange(ctx context.Context, sequence Sequence, messages []*message.RoundChange) ([]*message.RoundChange, error) {
 	if len(messages) == 0 {
 		return nil, errors.New("messages is empty")
 	}

@@ -44,7 +44,7 @@ func (s *Sequencer) awaitRCC(
 		case notification := <-sub:
 			//cache.Add(notification()...)
 
-			messages, err := s.vrf.CheckRoundChange(ctx, sequence, notification())
+			messages, err := s.vrf.CheckRoundChange(ctx, *sequence, notification())
 			if err != nil {
 				continue
 				// todo: log
