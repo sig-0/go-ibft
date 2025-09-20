@@ -17,7 +17,6 @@ func Test_SequencerFinalizeCancelled(t *testing.T) {
 
 	cfg := Config{
 		Validator:      mockValidator{address: Alice},
-		Feed:           message.NewStore(),
 		Round0Duration: 10 * time.Millisecond,
 		Verifier:       allGoodVrf{},
 		ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
@@ -33,7 +32,7 @@ func Test_SequencerFinalizeCancelled(t *testing.T) {
 	go func(ctx context.Context) {
 		defer close(ch)
 
-		ch <- s.Finalize(ctx, 101, s.feed)
+		ch <- s.Finalize(ctx, 101, message.NewStore())
 	}(ctx)
 
 	cancel()
@@ -116,7 +115,6 @@ func Test_SequencerFinalize(t *testing.T) {
 				Transport:      dummyTransport{},
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
-				Feed:           message.NewStore(),
 			},
 		},
 
@@ -177,7 +175,6 @@ func Test_SequencerFinalize(t *testing.T) {
 				Transport:      dummyTransport{},
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
-				Feed:           message.NewStore(),
 			},
 		},
 
@@ -209,7 +206,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -281,7 +277,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -401,7 +396,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -472,7 +466,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -618,7 +611,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -705,7 +697,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					return Bob, nil
 				}},
 				Transport:      dummyTransport{},
-				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -784,7 +775,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -862,7 +852,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewStore(),
 				Round0Duration: 10 * time.Millisecond,
 			},
 
@@ -961,7 +950,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport: dummyTransport{},
-				Feed:      message.NewStore(),
 			},
 
 			messages: []any{
@@ -1054,7 +1042,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport:      dummyTransport{},
-				Feed:           message.NewStore(),
 				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
@@ -1116,22 +1103,23 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			tt.cfg.Verifier = tt.vrf
 
+			store := message.NewStore()
 			s := NewSequencer(tt.cfg)
 
 			for _, m := range tt.messages {
 				switch m := m.(type) {
 				case *message.RoundChange:
-					s.feed.RoundChangeMessages.Add(m)
+					store.RoundChangeMessages.Add(m)
 				case *message.Prepare:
-					s.feed.PrepareMessages.Add(m)
+					store.PrepareMessages.Add(m)
 				case *message.Commit:
-					s.feed.CommitMessages.Add(m)
+					store.CommitMessages.Add(m)
 				case *message.Proposal:
-					s.feed.ProposalMessages.Add(m)
+					store.ProposalMessages.Add(m)
 				}
 			}
 
-			res := s.Finalize(context.Background(), 101, s.feed)
+			res := s.Finalize(context.Background(), 101, store)
 			//assert.True(t, reflect.DeepEqual(tt.expected, res), "expected %#v, got %#v", tt.expected, res)
 			assert.EqualValues(t, tt.expected.Round, res.Round)
 			assert.Equal(t, tt.expected.Proposal, res.Proposal)

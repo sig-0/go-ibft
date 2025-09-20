@@ -25,18 +25,23 @@ func (s *Sequencer) buildProposalMessage(block []byte, sequence *Sequence) *mess
 	msg.Signature = s.validator.Sign(msg.Payload())
 
 	sequence.proposal = msg
-	
+
 	return msg
 
 }
 
-func (s *Sequencer) awaitProposal(ctx context.Context, sequence *Sequence, higherRounds bool) (*message.Proposal, error) {
+func (s *Sequencer) awaitProposal(
+	ctx context.Context,
+	sequence *Sequence,
+	store *message.Store,
+	higherRounds bool,
+) (*message.Proposal, error) {
 	round := sequence.round
 	if higherRounds {
 		round++
 	}
 
-	sub, cancelSub := s.feed.ProposalMessages.Subscribe(sequence.sequence, round, higherRounds)
+	sub, cancelSub := store.ProposalMessages.Subscribe(sequence.sequence, round, higherRounds)
 	defer cancelSub()
 
 	//cache := message.NewCache(s.isValidMsgProposal)

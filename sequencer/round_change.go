@@ -24,13 +24,14 @@ func (s *Sequencer) awaitRCC(
 	ctx context.Context,
 	sequence *Sequence,
 	higherRounds bool,
+	store *message.Store,
 ) (*message.RoundChangeCertificate, error) {
 	round := sequence.round
 	if higherRounds {
 		round++
 	}
 
-	sub, cancelSub := s.feed.RoundChangeMessages.Subscribe(sequence.sequence, round, higherRounds)
+	sub, cancelSub := store.RoundChangeMessages.Subscribe(sequence.sequence, round, higherRounds)
 	defer cancelSub()
 
 	//cache := message.NewCache(s.isValidMsgRoundChange)

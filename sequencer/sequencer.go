@@ -28,7 +28,6 @@ type Config struct {
 	ValidatorSet   ValidatorSet
 	Verifier       Verifier
 	Transport      Transport
-	Feed           *message.Store
 	Keccak         KeccakFn
 	Round0Duration time.Duration
 }
@@ -43,7 +42,6 @@ type Sequencer struct {
 	validatorSet   ValidatorSet
 	vrf            Verifier
 	transport      Transport
-	feed           *message.Store
 	keccak         KeccakFn
 	wg             sync.WaitGroup
 	round0Duration time.Duration
@@ -54,7 +52,6 @@ func NewSequencer(cfg Config) *Sequencer {
 	return &Sequencer{
 		validator:      cfg.Validator,
 		transport:      cfg.Transport,
-		feed:           cfg.Feed,
 		keccak:         cfg.Keccak,
 		vrf:            cfg.Verifier,
 		round0Duration: cfg.Round0Duration,
@@ -112,7 +109,7 @@ func (s *Sequencer) finalize(ctx context.Context, sequence *Sequence, messages *
 			sequence.round++
 
 			msg := s.buildRoundChangeMessage(sequence)
-			s.feed.RoundChangeMessages.Add(msg) // add to self
+			messages.RoundChangeMessages.Add(msg) // add to self
 			s.transport.MulticastRoundChange(msg)
 
 		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound, sequence, messages):
@@ -126,7 +123,7 @@ func (s *Sequencer) finalize(ctx context.Context, sequence *Sequence, messages *
 			sequence.rcc = rcc
 			sequence.round = rcc.Messages[0].Round
 
-		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound, sequence):
+		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound, sequence, messages):
 			teardown()
 			if !ok {
 				return nil
@@ -134,7 +131,7 @@ func (s *Sequencer) finalize(ctx context.Context, sequence *Sequence, messages *
 
 			s.acceptProposal(proposal, sequence)
 
-		case fb, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound, sequence):
+		case fb, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound, sequence, messages):
 			teardown()
 			if !ok {
 				return nil
@@ -171,7 +168,11 @@ func (s *Sequencer) startRoundTimer(ctx context.Context, sequence *Sequence) <-c
 }
 
 // awaitHigherRoundProposal listens for proposal messages from rounds higher than the current
-func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context, sequence *Sequence) <-chan *message.Proposal {
+func (s *Sequencer) awaitHigherRoundProposal(
+	ctx context.Context,
+	sequence *Sequence,
+	store *message.Store,
+) <-chan *message.Proposal {
 	s.wg.Add(1)
 
 	c := make(chan *message.Proposal, 1)
@@ -182,7 +183,7 @@ func (s *Sequencer) awaitHigherRoundProposal(ctx context.Context, sequence *Sequ
 			s.wg.Done()
 		}()
 
-		proposal, err := s.awaitProposal(ctx, seq, true)
+		proposal, err := s.awaitProposal(ctx, seq, store, true)
 		if err != nil {
 			return
 		}
@@ -205,7 +206,7 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx context.Context, sequence *Sequence,
 			s.wg.Done()
 		}()
 
-		rcc, err := s.awaitRCC(ctx, seq, true)
+		rcc, err := s.awaitRCC(ctx, seq, true, messages)
 		if err != nil {
 			return
 		}
@@ -217,7 +218,11 @@ func (s *Sequencer) awaitHigherRoundRCC(ctx context.Context, sequence *Sequence,
 }
 
 // awaitFinalizedBlockInCurrentRound starts the block finalization algorithm for the current round
-func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx context.Context, sequence *Sequence) <-chan *SequenceResult {
+func (s *Sequencer) awaitFinalizedBlockInCurrentRound(
+	ctx context.Context,
+	sequence *Sequence,
+	store *message.Store,
+) <-chan *SequenceResult {
 	s.wg.Add(1)
 
 	c := make(chan *SequenceResult, 1)
@@ -227,7 +232,7 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(ctx context.Context, seque
 			s.wg.Done()
 		}()
 
-		if err := s.runRound(ctx, seq); err != nil {
+		if err := s.runRound(ctx, seq, store); err != nil {
 			return
 		}
 
@@ -246,14 +251,18 @@ func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
 }
 
 // todo: should this be a critical error?
-func (s *Sequencer) buildProposal(ctx context.Context, sequence *Sequence) ([]byte, error) {
+func (s *Sequencer) buildProposal(
+	ctx context.Context,
+	sequence *Sequence,
+	store *message.Store,
+) ([]byte, error) {
 	if sequence.round == 0 {
 		return s.validator.BuildProposal(sequence.sequence), nil
 	}
 
 	if sequence.rcc == nil {
 		// round jump triggered by round timer -> justify proposal with round change certificate
-		RCC, err := s.awaitRCC(ctx, sequence, false)
+		RCC, err := s.awaitRCC(ctx, sequence, false, store)
 		if err != nil {
 			return nil, err
 		}
@@ -269,14 +278,18 @@ func (s *Sequencer) buildProposal(ctx context.Context, sequence *Sequence) ([]by
 	return block, nil
 }
 
-func (s *Sequencer) runRound(ctx context.Context, sequence *Sequence) error {
+func (s *Sequencer) runRound(
+	ctx context.Context,
+	sequence *Sequence,
+	store *message.Store,
+) error {
 	proposer, err := s.validatorSet.GetProposer(context.TODO(), sequence.sequence, sequence.round)
 	if err != nil {
 		panic(err)
 	}
 
 	if shouldPropose := bytes.Equal(proposer, s.validator.Address()); shouldPropose {
-		proposal, err := s.buildProposal(ctx, sequence)
+		proposal, err := s.buildProposal(ctx, sequence, store)
 		if err != nil {
 			return err
 		}
@@ -286,7 +299,7 @@ func (s *Sequencer) runRound(ctx context.Context, sequence *Sequence) error {
 	}
 
 	if sequence.proposal == nil {
-		proposal, err := s.awaitProposal(ctx, sequence, false)
+		proposal, err := s.awaitProposal(ctx, sequence, store, false)
 		if err != nil {
 			return err
 		}
@@ -294,7 +307,7 @@ func (s *Sequencer) runRound(ctx context.Context, sequence *Sequence) error {
 		s.acceptProposal(proposal, sequence)
 	}
 
-	prepares, err := s.awaitPrepareQuorum(ctx, sequence)
+	prepares, err := s.awaitPrepareQuorum(ctx, sequence, store)
 	if err != nil {
 		return err
 	}
@@ -307,7 +320,7 @@ func (s *Sequencer) runRound(ctx context.Context, sequence *Sequence) error {
 	msg := s.buildCommitMessage(sequence)
 	s.transport.MulticastCommit(msg)
 
-	commits, err := s.awaitCommitQuorum(ctx, sequence)
+	commits, err := s.awaitCommitQuorum(ctx, sequence, store)
 	if err != nil {
 		return err
 	}

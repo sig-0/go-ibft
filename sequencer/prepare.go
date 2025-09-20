@@ -20,8 +20,12 @@ func (s *Sequencer) buildPrepareMessage(sequence *Sequence) *message.Prepare {
 	return msg
 }
 
-func (s *Sequencer) awaitPrepareQuorum(ctx context.Context, sequence *Sequence) ([]*message.Prepare, error) {
-	sub, cancelSub := s.feed.PrepareMessages.Subscribe(sequence.sequence, sequence.round, false)
+func (s *Sequencer) awaitPrepareQuorum(
+	ctx context.Context,
+	sequence *Sequence,
+	store *message.Store,
+) ([]*message.Prepare, error) {
+	sub, cancelSub := store.PrepareMessages.Subscribe(sequence.sequence, sequence.round, false)
 	defer cancelSub()
 
 	//cache := message.NewCache(s.isValidMsgPrepare)

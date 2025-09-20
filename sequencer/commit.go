@@ -21,8 +21,12 @@ func (s *Sequencer) buildCommitMessage(sequence *Sequence) *message.Commit {
 	return msg
 }
 
-func (s *Sequencer) awaitCommitQuorum(ctx context.Context, sequence *Sequence) ([]*message.Commit, error) {
-	sub, cancelSub := s.feed.CommitMessages.Subscribe(sequence.sequence, sequence.round, false)
+func (s *Sequencer) awaitCommitQuorum(
+	ctx context.Context,
+	sequence *Sequence,
+	messages *message.Store,
+) ([]*message.Commit, error) {
+	sub, cancelSub := messages.CommitMessages.Subscribe(sequence.sequence, sequence.round, false)
 	defer cancelSub()
 
 	//cache := message.NewCache(s.isValidMsgCommit)
