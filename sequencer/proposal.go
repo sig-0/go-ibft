@@ -17,7 +17,7 @@ func (s *Sequencer) buildProposalMessage(block []byte, sequence *Sequence) *mess
 		Round:                  sequence.round,
 		Sender:                 s.validator.Address(),
 		ProposedBlock:          pb,
-		BlockHash:              s.keccak(pb.Bytes()),
+		BlockHash:              message.GetProposalHash(block, sequence.round),
 		RoundChangeCertificate: sequence.rcc,
 	}
 

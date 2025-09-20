@@ -20,15 +20,11 @@ type SequenceResult struct {
 	Round    uint64
 }
 
-// KeccakFn returns the KECCAK256 digest of arbitrary input
-type KeccakFn func(data []byte) []byte
-
 type Config struct {
 	Validator      Validator
 	ValidatorSet   ValidatorSet
 	Verifier       Verifier
 	Transport      Transport
-	Keccak         KeccakFn
 	Round0Duration time.Duration
 }
 
@@ -42,7 +38,6 @@ type Sequencer struct {
 	validatorSet   ValidatorSet
 	vrf            Verifier
 	transport      Transport
-	keccak         KeccakFn
 	wg             sync.WaitGroup
 	round0Duration time.Duration
 }
@@ -52,7 +47,6 @@ func NewSequencer(cfg Config) *Sequencer {
 	return &Sequencer{
 		validator:      cfg.Validator,
 		transport:      cfg.Transport,
-		keccak:         cfg.Keccak,
 		vrf:            cfg.Verifier,
 		round0Duration: cfg.Round0Duration,
 		validatorSet:   cfg.ValidatorSet,
@@ -63,8 +57,6 @@ func NewSequencer(cfg Config) *Sequencer {
 // is reached for the provided sequence. Otherwise, it runs forever until cancelled by the caller
 func (s *Sequencer) Finalize(ctx context.Context, sequenceNumber uint64, messages *message.Store) *SequenceResult {
 	sequence := Sequence{sequence: sequenceNumber}
-
-	// todo: get validators
 
 	c := make(chan *SequenceResult, 1)
 	go func(seq *Sequence) {

@@ -1,6 +1,7 @@
 package message
 
 import (
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -8,6 +9,15 @@ type message interface {
 	GetSender() []byte
 	GetSequence() uint64
 	GetRound() uint64
+}
+
+func GetProposalHash(p []byte, round uint64) []byte {
+	input := append(p, byte(round)) // this is fine as being in round 255 means clients are long gone
+	hash := sha3.NewLegacyKeccak256()
+	defer hash.Reset()
+
+	hash.Write(input)
+	return hash.Sum(nil)
 }
 
 func (x *Proposal) Payload() []byte {

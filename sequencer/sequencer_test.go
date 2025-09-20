@@ -113,7 +113,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					return Bob, nil
 				}},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 		},
@@ -173,7 +172,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 		},
@@ -206,7 +204,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 
@@ -277,7 +274,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 
@@ -396,7 +392,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 
@@ -466,7 +461,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 			messages: []any{
@@ -611,7 +605,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 
@@ -697,7 +690,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					return Bob, nil
 				}},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 
@@ -775,7 +767,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 				},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 
@@ -846,7 +837,6 @@ func Test_SequencerFinalize(t *testing.T) {
 
 					return Nina, nil
 				}},
-				Keccak: DummyKeccak,
 				Validator: mockValidator{
 					address: Alice,
 					signFn:  DummySignFn,
@@ -943,7 +933,6 @@ func Test_SequencerFinalize(t *testing.T) {
 
 					return Nina, nil
 				}},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 				Validator: mockValidator{
 					address: Alice,
@@ -1042,7 +1031,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					signFn:  DummySignFn,
 				},
 				Transport:      dummyTransport{},
-				Keccak:         DummyKeccak,
 				Round0Duration: 10 * time.Millisecond,
 			},
 
