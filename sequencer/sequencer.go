@@ -149,14 +149,13 @@ func (s *Sequencer) finalize(
 				return nil
 			}
 
-			//s.acceptProposal(sequence, proposal)
 			sequence.Proposal = proposal
 			sequence.Round = proposal.Round
 			sequence.Seals = nil
 
 			msg := s.buildPrepareMessage(sequence)
 			s.transport.MulticastPrepare(msg)
-			//messages.PrepareMessages.Add(msg)
+			messages.PrepareMessages.Add(msg)
 
 		case _, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound, sequence, messages):
 			teardown()
@@ -336,7 +335,7 @@ func (s *Sequencer) runRound(
 			sequence.Seals = nil
 
 			msg := s.buildPrepareMessage(sequence)
-			//store.PrepareMessages.Add(msg)
+			store.PrepareMessages.Add(msg)
 			s.transport.MulticastPrepare(msg)
 		}
 	}
