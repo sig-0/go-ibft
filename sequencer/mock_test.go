@@ -101,6 +101,20 @@ func (m allGoodConsensus) AwaitRoundChange(ctx context.Context, sequence Sequenc
 	}
 }
 
+type consensusOfTwo struct {
+	allGoodConsensus
+}
+
+func (m consensusOfTwo) AwaitCommit(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error) {
+	messages, _ := m.allGoodConsensus.AwaitCommit(ctx, sequence, store)
+	if len(messages) < 2 {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	return messages, nil
+}
+
 type mockProposerAlgo func(ctx context.Context, sequence, round uint64) ([]byte, error)
 
 func (m mockProposerAlgo) GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error) {

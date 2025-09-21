@@ -354,7 +354,7 @@ func (s *Sequencer) runRound(
 	sequence.LatestPC = pc
 
 	msg := s.buildCommitMessage(sequence)
-	//store.CommitMessages.Add(msg)
+	store.CommitMessages.Add(msg)
 	s.transport.MulticastCommit(msg)
 
 	commits, err := s.consensus.AwaitCommit(ctx, *sequence, store)

@@ -121,6 +121,10 @@ func Test_SequencerFinalize(t *testing.T) {
 				Proposal: []byte("alice_proposal"),
 				Seals: []CommitSeal{
 					{
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
+					},
+					{
 						From: Bob.Address(),
 						Seal: []byte("bob_sig"),
 					},
@@ -371,6 +375,10 @@ func Test_SequencerFinalize(t *testing.T) {
 				Proposal: []byte("alice_proposal"),
 				Seals: []CommitSeal{
 					{
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
+					},
+					{
 						From: Bob.Address(),
 						Seal: []byte("bob_sig"),
 					},
@@ -439,6 +447,10 @@ func Test_SequencerFinalize(t *testing.T) {
 				Round:    1,
 				Proposal: []byte("bob_proposal"),
 				Seals: []CommitSeal{
+					{
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
+					},
 					{
 						From: Bob.Address(),
 						Seal: []byte("bob_sig"),
@@ -563,6 +575,10 @@ func Test_SequencerFinalize(t *testing.T) {
 				Round:    3,
 				Proposal: []byte("alice_proposal"),
 				Seals: []CommitSeal{
+					{
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
+					},
 					{
 						From: Bob.Address(),
 						Seal: []byte("bob_sig"),
@@ -704,6 +720,10 @@ func Test_SequencerFinalize(t *testing.T) {
 				Proposal: []byte("alice_proposal"),
 				Seals: []CommitSeal{
 					{
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
+					},
+					{
 						From: Bob.Address(),
 						Seal: []byte("bob_sig"),
 					},
@@ -777,7 +797,6 @@ func Test_SequencerFinalize(t *testing.T) {
 						From: Alice.Address(),
 						Seal: []byte("alice_sig"),
 					},
-
 					{
 						From: Nina.Address(),
 						Seal: []byte("nina_sig"),
@@ -852,7 +871,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "no commit messages in round 0",
-			consensus: allGoodConsensus{blockHigherProposal: true},
+			consensus: consensusOfTwo{allGoodConsensus{blockHigherProposal: true}},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 0 {
@@ -935,12 +954,12 @@ func Test_SequencerFinalize(t *testing.T) {
 					Round:    1,
 				},
 
-				&message.Commit{
-					Sender:     Alice.Address(),
-					Sequence:   101,
-					Round:      1,
-					CommitSeal: []byte("alice_sig"),
-				},
+				//&message.Commit{
+				//	Sender:     Chris.Address(),
+				//	Sequence:   101,
+				//	Round:      1,
+				//	CommitSeal: []byte("chris_sig"),
+				//},
 				&message.Commit{
 					Sender:     Bob.Address(),
 					Sequence:   101,
