@@ -2,8 +2,8 @@ package sequencer
 
 import "context"
 
-// Validator represents a unique consensus actor in the network whose role
-// is to broadcast (signed) consensus messages and make proposals (if elected)
+// Validator represents a unique consensus.go actor in the network whose role
+// is to broadcast (signed) consensus.go messages and make proposals (if elected)
 type Validator interface {
 	// Sign returns the signature generated from digest
 	Sign(digest []byte) []byte

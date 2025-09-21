@@ -38,35 +38,12 @@ func (t dummyTransport) MulticastCommit(_ *message.Commit) {}
 
 func (t dummyTransport) MulticastRoundChange(_ *message.RoundChange) {}
 
-type mockConsensus struct {
-	awaitProposal    func(ctx context.Context, sequence Sequence, store *message.Store, bool2 bool) (*message.Proposal, error)
-	awaitPrepare     func(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Prepare, error)
-	awaitCommit      func(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error)
-	awaitRoundChange func(ctx context.Context, sequence Sequence, store *message.Store, bool2 bool) ([]*message.RoundChange, error)
-}
-
-func (m mockConsensus) AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) (*message.Proposal, error) {
-	return m.awaitProposal(ctx, sequence, store, fromHigherRounds)
-}
-
-func (m mockConsensus) AwaitRoundChange(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) ([]*message.RoundChange, error) {
-	return m.awaitRoundChange(ctx, sequence, store, fromHigherRounds)
-}
-
-func (m mockConsensus) AwaitPrepare(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Prepare, error) {
-	return m.awaitPrepare(ctx, sequence, store)
-}
-
-func (m mockConsensus) AwaitCommit(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error) {
-	return m.awaitCommit(ctx, sequence, store)
-}
-
 type allGoodConsensus struct {
 	blockHigherProposal, blockHigherRCC bool
 }
 
 func (m allGoodConsensus) AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) (*message.Proposal, error) {
-	sub, cancel := store.ProposalMessages.Subscribe(sequence.sequence, sequence.round, fromHigherRounds)
+	sub, cancel := store.ProposalMessages.Subscribe(sequence.Number, sequence.Round, fromHigherRounds)
 	defer cancel()
 
 	for {
@@ -85,7 +62,7 @@ func (m allGoodConsensus) AwaitProposal(ctx context.Context, sequence Sequence, 
 }
 
 func (m allGoodConsensus) AwaitPrepare(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Prepare, error) {
-	messages := store.PrepareMessages.Get(sequence.sequence, sequence.round)
+	messages := store.PrepareMessages.Get(sequence.Number, sequence.Round)
 	if len(messages) == 0 {
 		<-ctx.Done() // block
 		return nil, ctx.Err()
@@ -95,7 +72,7 @@ func (m allGoodConsensus) AwaitPrepare(ctx context.Context, sequence Sequence, s
 }
 
 func (m allGoodConsensus) AwaitCommit(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error) {
-	messages := store.CommitMessages.Get(sequence.sequence, sequence.round)
+	messages := store.CommitMessages.Get(sequence.Number, sequence.Round)
 	if len(messages) == 0 {
 		<-ctx.Done() // block
 		return nil, ctx.Err()
@@ -105,7 +82,7 @@ func (m allGoodConsensus) AwaitCommit(ctx context.Context, sequence Sequence, st
 }
 
 func (m allGoodConsensus) AwaitRoundChange(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) ([]*message.RoundChange, error) {
-	sub, cancel := store.RoundChangeMessages.Subscribe(sequence.sequence, sequence.round, fromHigherRounds)
+	sub, cancel := store.RoundChangeMessages.Subscribe(sequence.Number, sequence.Round, fromHigherRounds)
 	defer cancel()
 
 	for {

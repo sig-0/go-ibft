@@ -44,7 +44,7 @@ func main() {
 
 		// ...
 
-		// receive consensus messages from the network
+		// receive consensus.go messages from the network
 		_ = msgStore.Add(msg)
 	}()
 
