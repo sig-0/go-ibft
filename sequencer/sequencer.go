@@ -23,7 +23,7 @@ type SequenceResult struct {
 type Config struct {
 	Validator      Validator
 	ValidatorSet   ProposerAlgo
-	Verifier       Verifier
+	Consensus      Consensus
 	Transport      Transport
 	Round0Duration time.Duration
 }
@@ -36,7 +36,7 @@ type Config struct {
 type Sequencer struct {
 	validator      Validator
 	validatorSet   ProposerAlgo
-	vrf            Verifier
+	consensus      Consensus
 	transport      Transport
 	wg             sync.WaitGroup
 	round0Duration time.Duration
@@ -47,7 +47,7 @@ func NewSequencer(cfg Config) *Sequencer {
 	return &Sequencer{
 		validator:      cfg.Validator,
 		transport:      cfg.Transport,
-		vrf:            cfg.Verifier,
+		consensus:      cfg.Consensus,
 		round0Duration: cfg.Round0Duration,
 		validatorSet:   cfg.ValidatorSet,
 	}
@@ -183,7 +183,7 @@ func (s *Sequencer) awaitHigherRoundProposal(
 			s.wg.Done()
 		}()
 
-		proposal, err := s.awaitProposal(ctx, seq, store, true)
+		proposal, err := s.consensus.AwaitProposal(ctx, *seq, store, true)
 		if err != nil {
 			return
 		}
@@ -198,25 +198,25 @@ func (s *Sequencer) awaitHigherRoundProposal(
 func (s *Sequencer) awaitHigherRoundRCC(
 	ctx context.Context,
 	sequence *Sequence,
-	messages *message.Store,
+	store *message.Store,
 ) <-chan *message.RoundChangeCertificate {
 	s.wg.Add(1)
 
 	c := make(chan *message.RoundChangeCertificate, 1)
 
-	go func(seq *Sequence, messages *message.Store) {
+	go func(seq *Sequence, store *message.Store) {
 		defer func() {
 			close(c)
 			s.wg.Done()
 		}()
 
-		rcc, err := s.awaitRCC(ctx, seq, true, messages)
+		messages, err := s.consensus.AwaitRoundChange(ctx, *seq, store, true)
 		if err != nil {
 			return
 		}
 
-		c <- rcc
-	}(sequence, messages)
+		c <- &message.RoundChangeCertificate{Messages: messages}
+	}(sequence, store)
 
 	return c
 }
@@ -258,12 +258,12 @@ func (s *Sequencer) buildProposal(
 	if sequence.round != 0 {
 		if sequence.rcc == nil {
 			// higher round proposals must include rcc
-			RCC, err := s.awaitRCC(ctx, sequence, false, store)
+			messages, err := s.consensus.AwaitRoundChange(ctx, *sequence, store, false)
 			if err != nil {
 				return nil, err
 			}
 
-			sequence.rcc = RCC
+			sequence.rcc = &message.RoundChangeCertificate{Messages: messages}
 		}
 
 		block, _ := sequence.rcc.HighestRoundBlock()
@@ -287,6 +287,7 @@ func (s *Sequencer) runRound(
 		}
 
 		if shouldPropose := bytes.Equal(proposer, s.validator.Address()); shouldPropose {
+
 			proposal, err := s.buildProposal(ctx, sequence, store)
 			if err != nil {
 				return err
@@ -294,7 +295,7 @@ func (s *Sequencer) runRound(
 
 			s.transport.MulticastProposal(s.buildProposalMessage(proposal, sequence))
 		} else {
-			proposal, err := s.awaitProposal(ctx, sequence, store, false)
+			proposal, err := s.consensus.AwaitProposal(ctx, *sequence, store, false)
 			if err != nil {
 				return err
 			}
@@ -303,14 +304,14 @@ func (s *Sequencer) runRound(
 		}
 	}
 
-	prepares, err := s.awaitPrepare(ctx, sequence, store)
+	prepares, err := s.consensus.AwaitPrepare(ctx, *sequence, store)
 	if err != nil {
 		return err
 	}
 
 	s.acceptPrepare(sequence, prepares)
 
-	commits, err := s.awaitCommit(ctx, sequence, store)
+	commits, err := s.consensus.AwaitCommit(ctx, *sequence, store)
 	if err != nil {
 		return err
 	}

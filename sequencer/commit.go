@@ -1,8 +1,6 @@
 package sequencer
 
 import (
-	"context"
-
 	"github.com/sig-0/go-ibft/message"
 )
 
@@ -21,45 +19,46 @@ func (s *Sequencer) buildCommitMessage(sequence *Sequence) *message.Commit {
 	return msg
 }
 
-func (s *Sequencer) awaitCommit(
-	ctx context.Context,
-	sequence *Sequence,
-	messages *message.Store,
-) ([]*message.Commit, error) {
-	sub, cancelSub := messages.CommitMessages.Subscribe(sequence.sequence, sequence.round, false)
-	defer cancelSub()
-
-	//cache := message.NewCache(s.isValidMsgCommit)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case notification := <-sub:
-			//cache.Add(notification()...)
-
-			messages, err := s.vrf.CheckCommit(ctx, *sequence, notification())
-			if err != nil {
-				// todo: log
-				continue
-			}
-
-			return messages, nil
-
-			//commits := cache.Get()
-			//addresses := make([][]byte, 0, len(commits))
-			//for _, commit := range commits {
-			//	addresses = append(addresses, commit.GetSender())
-			//}
-			//
-			//if len(commits) == 0 || !s.verifier.HasQuorum(addresses, s.state.sequence) {
-			//	continue
-			//}
-			//
-			//return commits, nil
-		}
-	}
-}
+//
+//func (s *Sequencer) awaitCommit(
+//	ctx context.Context,
+//	sequence *Sequence,
+//	messages *message.Store,
+//) ([]*message.Commit, error) {
+//	sub, cancelSub := messages.CommitMessages.Subscribe(sequence.sequence, sequence.round, false)
+//	defer cancelSub()
+//
+//	//cache := message.NewCache(s.isValidMsgCommit)
+//
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			return nil, ctx.Err()
+//		case notification := <-sub:
+//			//cache.Add(notification()...)
+//
+//			messages, err := s.consensus.AwaitCommit(ctx, *sequence, notification())
+//			if err != nil {
+//				// todo: log
+//				continue
+//			}
+//
+//			return messages, nil
+//
+//			//commits := cache.Get()
+//			//addresses := make([][]byte, 0, len(commits))
+//			//for _, commit := range commits {
+//			//	addresses = append(addresses, commit.GetSender())
+//			//}
+//			//
+//			//if len(commits) == 0 || !s.verifier.HasQuorum(addresses, s.state.sequence) {
+//			//	continue
+//			//}
+//			//
+//			//return commits, nil
+//		}
+//	}
+//}
 
 //
 //func (s *Sequencer) isValidMsgCommit(msg *message.Commit) bool {

@@ -18,7 +18,7 @@ func Test_SequencerFinalizeCancelled(t *testing.T) {
 	cfg := Config{
 		Validator:      Alice,
 		Round0Duration: 10 * time.Millisecond,
-		Verifier:       allGoodVrf{},
+		Consensus:      allGoodConsensus{},
 		ValidatorSet: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 			return Bob.Address(), nil
 		}),
@@ -47,11 +47,13 @@ func Test_SequencerFinalize(t *testing.T) {
 		name         string
 		validator    Validator
 		proposerAlgo ProposerAlgo
+		consensus    Consensus
 		messages     []any
 		expected     *SequenceResult
 	}{
 		{
 			name:      "proposal is accepted in round 0",
+			consensus: allGoodConsensus{},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				return Bob.Address(), nil
@@ -108,6 +110,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "Bob and Chris accept Alice's proposal in round 0",
+			consensus: allGoodConsensus{},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				return Alice.Address(), nil
@@ -159,6 +162,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "Alice and Chris accept Bob's proposal in round 1 due to round change",
+			consensus: allGoodConsensus{blockHigherProposal: true},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				return Bob.Address(), nil
@@ -233,6 +237,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "Alice jumps to round 1 proposal and accepts it",
+			consensus: allGoodConsensus{},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				return Chris.Address(), nil
@@ -351,7 +356,8 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name: "block proposed in round 1",
+			name:      "block proposed in round 1",
+			consensus: allGoodConsensus{blockHigherRCC: true},
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 1 {
 					return Alice.Address(), nil
@@ -420,6 +426,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "old block proposed in round 1",
+			consensus: allGoodConsensus{blockHigherRCC: true},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 1 {
@@ -542,6 +549,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "future rcc triggers round jump",
+			consensus: allGoodConsensus{},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 3 {
@@ -604,6 +612,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "future proposal triggers round jump",
+			consensus: allGoodConsensus{},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 5 {
@@ -681,6 +690,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "round timer triggers round jump",
+			consensus: allGoodConsensus{},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 1 {
@@ -745,6 +755,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "no prepare messages in round 0",
+			consensus: allGoodConsensus{},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 0 {
@@ -841,6 +852,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "no commit messages in round 0",
+			consensus: allGoodConsensus{blockHigherProposal: true},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 0 {
@@ -940,6 +952,7 @@ func Test_SequencerFinalize(t *testing.T) {
 
 		{
 			name:      "round 0 proposer fails to build block",
+			consensus: allGoodConsensus{blockHigherProposal: true, blockHigherRCC: true},
 			validator: Alice,
 			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 0 {
@@ -1044,7 +1057,7 @@ func Test_SequencerFinalize(t *testing.T) {
 			cfg := Config{
 				Validator:      tt.validator,
 				ValidatorSet:   tt.proposerAlgo,
-				Verifier:       allGoodVrf{},
+				Consensus:      tt.consensus,
 				Transport:      dummyTransport{},
 				Round0Duration: 10 * time.Millisecond,
 			}

@@ -3,7 +3,6 @@ package sequencer
 
 import (
 	"context"
-	"errors"
 
 	"github.com/sig-0/go-ibft/message"
 )
@@ -13,19 +12,7 @@ var (
 	Bob   = mockValidator("bob")
 	Chris = mockValidator("chris")
 	Nina  = mockValidator("nina")
-
-	DummySignFn = func(_ []byte) []byte { return nil }
 )
-
-type dummyTransport struct{}
-
-func (t dummyTransport) MulticastProposal(_ *message.Proposal) {}
-
-func (t dummyTransport) MulticastPrepare(_ *message.Prepare) {}
-
-func (t dummyTransport) MulticastCommit(_ *message.Commit) {}
-
-func (t dummyTransport) MulticastRoundChange(_ *message.RoundChange) {}
 
 type mockValidator string
 
@@ -41,39 +28,100 @@ func (v mockValidator) BuildProposal(_ uint64) []byte {
 	return []byte(v + "_proposal")
 }
 
-type allGoodVrf struct {
+type dummyTransport struct{}
+
+func (t dummyTransport) MulticastProposal(_ *message.Proposal) {}
+
+func (t dummyTransport) MulticastPrepare(_ *message.Prepare) {}
+
+func (t dummyTransport) MulticastCommit(_ *message.Commit) {}
+
+func (t dummyTransport) MulticastRoundChange(_ *message.RoundChange) {}
+
+type mockConsensus struct {
+	awaitProposal    func(ctx context.Context, sequence Sequence, store *message.Store, bool2 bool) (*message.Proposal, error)
+	awaitPrepare     func(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Prepare, error)
+	awaitCommit      func(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error)
+	awaitRoundChange func(ctx context.Context, sequence Sequence, store *message.Store, bool2 bool) ([]*message.RoundChange, error)
 }
 
-func (m allGoodVrf) CheckProposal(ctx context.Context, sequence Sequence, messages []*message.Proposal) (*message.Proposal, error) {
-	if len(messages) == 0 {
-		return nil, errors.New("messages is empty")
+func (m mockConsensus) AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) (*message.Proposal, error) {
+	return m.awaitProposal(ctx, sequence, store, fromHigherRounds)
+}
+
+func (m mockConsensus) AwaitRoundChange(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) ([]*message.RoundChange, error) {
+	return m.awaitRoundChange(ctx, sequence, store, fromHigherRounds)
+}
+
+func (m mockConsensus) AwaitPrepare(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Prepare, error) {
+	return m.awaitPrepare(ctx, sequence, store)
+}
+
+func (m mockConsensus) AwaitCommit(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error) {
+	return m.awaitCommit(ctx, sequence, store)
+}
+
+type allGoodConsensus struct {
+	blockHigherProposal, blockHigherRCC bool
+}
+
+func (m allGoodConsensus) AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) (*message.Proposal, error) {
+	sub, cancel := store.ProposalMessages.Subscribe(sequence.sequence, sequence.round, fromHigherRounds)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case fn := <-sub:
+			messages := fn()
+			if len(messages) == 0 || m.blockHigherProposal && fromHigherRounds == true {
+				continue
+			}
+
+			return messages[0], nil
+		}
 	}
-
-	return messages[0], nil
 }
 
-func (m allGoodVrf) CheckPrepare(ctx context.Context, sequence Sequence, messages []*message.Prepare) ([]*message.Prepare, error) {
+func (m allGoodConsensus) AwaitPrepare(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Prepare, error) {
+	messages := store.PrepareMessages.Get(sequence.sequence, sequence.round)
 	if len(messages) == 0 {
-		return nil, errors.New("messages is empty")
+		<-ctx.Done() // block
+		return nil, ctx.Err()
 	}
 
 	return messages, nil
 }
 
-func (m allGoodVrf) CheckCommit(ctx context.Context, sequence Sequence, messages []*message.Commit) ([]*message.Commit, error) {
+func (m allGoodConsensus) AwaitCommit(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error) {
+	messages := store.CommitMessages.Get(sequence.sequence, sequence.round)
 	if len(messages) == 0 {
-		return nil, errors.New("messages is empty")
+		<-ctx.Done() // block
+		return nil, ctx.Err()
 	}
 
 	return messages, nil
 }
 
-func (m allGoodVrf) CheckRoundChange(ctx context.Context, sequence Sequence, messages []*message.RoundChange) ([]*message.RoundChange, error) {
-	if len(messages) == 0 {
-		return nil, errors.New("messages is empty")
-	}
+func (m allGoodConsensus) AwaitRoundChange(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) ([]*message.RoundChange, error) {
+	sub, cancel := store.RoundChangeMessages.Subscribe(sequence.sequence, sequence.round, fromHigherRounds)
+	defer cancel()
 
-	return messages, nil
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case fn := <-sub:
+			messages := fn()
+
+			if len(messages) == 0 || m.blockHigherRCC && fromHigherRounds == true {
+				continue
+			}
+
+			return messages, nil
+		}
+	}
 }
 
 type mockProposerAlgo func(ctx context.Context, sequence, round uint64) ([]byte, error)

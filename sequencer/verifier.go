@@ -6,9 +6,9 @@ import (
 	"github.com/sig-0/go-ibft/message"
 )
 
-type Verifier interface {
-	CheckProposal(ctx context.Context, sequence Sequence, messages []*message.Proposal) (*message.Proposal, error)
-	CheckPrepare(ctx context.Context, sequence Sequence, messages []*message.Prepare) ([]*message.Prepare, error)
-	CheckCommit(ctx context.Context, sequence Sequence, messages []*message.Commit) ([]*message.Commit, error)
-	CheckRoundChange(ctx context.Context, sequence Sequence, messages []*message.RoundChange) ([]*message.RoundChange, error)
+type Consensus interface {
+	AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) (*message.Proposal, error)
+	AwaitRoundChange(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) ([]*message.RoundChange, error)
+	AwaitPrepare(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Prepare, error)
+	AwaitCommit(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error)
 }

@@ -1,8 +1,6 @@
 package sequencer
 
 import (
-	"context"
-
 	"github.com/sig-0/go-ibft/message"
 )
 
@@ -30,45 +28,46 @@ func (s *Sequencer) buildProposalMessage(block []byte, sequence *Sequence) *mess
 
 }
 
-func (s *Sequencer) awaitProposal(
-	ctx context.Context,
-	sequence *Sequence,
-	store *message.Store,
-	higherRounds bool,
-) (*message.Proposal, error) {
-	round := sequence.round
-	if higherRounds {
-		round++
-	}
-
-	sub, cancelSub := store.ProposalMessages.Subscribe(sequence.sequence, round, higherRounds)
-	defer cancelSub()
-
-	//cache := message.NewCache(s.isValidMsgProposal)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case notification := <-sub:
-			//cache.Add(notification()...)
-			msg, err := s.vrf.CheckProposal(ctx, *sequence, notification())
-			if err != nil {
-				// todo: log
-				continue
-			}
-
-			return msg, nil
-
-			//proposals := cache.Get()
-			//if len(proposals) == 0 {
-			//	continue
-			//}
-			//
-			//return proposals[0], nil
-		}
-	}
-}
+//
+//func (s *Sequencer) awaitProposal(
+//	ctx context.Context,
+//	sequence *Sequence,
+//	store *message.Store,
+//	higherRounds bool,
+//) (*message.Proposal, error) {
+//	round := sequence.round
+//	if higherRounds {
+//		round++
+//	}
+//
+//	sub, cancelSub := store.ProposalMessages.Subscribe(sequence.sequence, round, higherRounds)
+//	defer cancelSub()
+//
+//	//cache := message.NewCache(s.isValidMsgProposal)
+//
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			return nil, ctx.Err()
+//		case notification := <-sub:
+//			//cache.Add(notification()...)
+//			msg, err := s.vrf.CheckProposal(ctx, *sequence, notification())
+//			if err != nil {
+//				// todo: log
+//				continue
+//			}
+//
+//			return msg, nil
+//
+//			//proposals := cache.Get()
+//			//if len(proposals) == 0 {
+//			//	continue
+//			//}
+//			//
+//			//return proposals[0], nil
+//		}
+//	}
+//}
 
 //
 //func (s *Sequencer) isValidMsgProposal(msg *message.Proposal) bool {

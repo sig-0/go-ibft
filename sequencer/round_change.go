@@ -1,8 +1,6 @@
 package sequencer
 
 import (
-	"context"
-
 	"github.com/sig-0/go-ibft/message"
 )
 
@@ -20,50 +18,51 @@ func (s *Sequencer) buildRoundChangeMessage(sequence *Sequence) *message.RoundCh
 	return msg
 }
 
-func (s *Sequencer) awaitRCC(
-	ctx context.Context,
-	sequence *Sequence,
-	higherRounds bool,
-	store *message.Store,
-) (*message.RoundChangeCertificate, error) {
-	round := sequence.round
-	if higherRounds {
-		round++
-	}
-
-	sub, cancelSub := store.RoundChangeMessages.Subscribe(sequence.sequence, round, higherRounds)
-	defer cancelSub()
-
-	//cache := message.NewCache(s.isValidMsgRoundChange)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case notification := <-sub:
-			//cache.Add(notification()...)
-
-			messages, err := s.vrf.CheckRoundChange(ctx, *sequence, notification())
-			if err != nil {
-				continue
-				// todo: log
-			}
-
-			//roundChanges := cache.Get()
-			//addresses := make([][]byte, 0, len(roundChanges))
-			//for _, commit := range roundChanges {
-			//	addresses = append(addresses, commit.GetSender())
-			//}
-			//
-			//if len(roundChanges) == 0 || !s.verifier.HasQuorum(addresses, s.state.sequence) {
-			//	continue
-			//}
-
-			return &message.RoundChangeCertificate{Messages: messages}, nil
-
-		}
-	}
-}
+//
+//func (s *Sequencer) awaitRCC(
+//	ctx context.Context,
+//	sequence *Sequence,
+//	higherRounds bool,
+//	store *message.Store,
+//) (*message.RoundChangeCertificate, error) {
+//	round := sequence.round
+//	if higherRounds {
+//		round++
+//	}
+//
+//	sub, cancelSub := store.RoundChangeMessages.Subscribe(sequence.sequence, round, higherRounds)
+//	defer cancelSub()
+//
+//	//cache := message.NewCache(s.isValidMsgRoundChange)
+//
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			return nil, ctx.Err()
+//		case notification := <-sub:
+//			//cache.Add(notification()...)
+//
+//			messages, err := s.consensus.AwaitRoundChange(ctx, *sequence, notification(), false)
+//			if err != nil {
+//				continue
+//				// todo: log
+//			}
+//
+//			//roundChanges := cache.Get()
+//			//addresses := make([][]byte, 0, len(roundChanges))
+//			//for _, commit := range roundChanges {
+//			//	addresses = append(addresses, commit.GetSender())
+//			//}
+//			//
+//			//if len(roundChanges) == 0 || !s.verifier.HasQuorum(addresses, s.state.sequence) {
+//			//	continue
+//			//}
+//
+//			return &message.RoundChangeCertificate{Messages: messages}, nil
+//
+//		}
+//	}
+//}
 
 //
 //func (s *Sequencer) isValidMsgRoundChange(msg *message.RoundChange) bool {

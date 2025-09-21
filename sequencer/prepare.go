@@ -1,8 +1,6 @@
 package sequencer
 
 import (
-	"context"
-
 	"github.com/sig-0/go-ibft/message"
 )
 
@@ -20,45 +18,46 @@ func (s *Sequencer) buildPrepareMessage(sequence *Sequence) *message.Prepare {
 	return msg
 }
 
-func (s *Sequencer) awaitPrepare(
-	ctx context.Context,
-	sequence *Sequence,
-	store *message.Store,
-) ([]*message.Prepare, error) {
-	sub, cancelSub := store.PrepareMessages.Subscribe(sequence.sequence, sequence.round, false)
-	defer cancelSub()
-
-	//cache := message.NewCache(s.isValidMsgPrepare)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case notification := <-sub:
-			//cache.Add(notification()...)
-
-			messages, err := s.vrf.CheckPrepare(ctx, *sequence, notification())
-			if err != nil {
-				// todo: log
-				continue
-			}
-
-			return messages, nil
-
-			//prepares := cache.Get()
-			//addresses := make([][]byte, 0, len(prepares))
-			//for _, commit := range prepares {
-			//	addresses = append(addresses, commit.GetSender())
-			//}
-			//
-			//if !s.verifier.HasQuorum(addresses, s.state.sequence) {
-			//	continue
-			//}
-			//
-			//return prepares, nil
-		}
-	}
-}
+//
+//func (s *Sequencer) awaitPrepare(
+//	ctx context.Context,
+//	sequence *Sequence,
+//	store *message.Store,
+//) ([]*message.Prepare, error) {
+//	sub, cancelSub := store.PrepareMessages.Subscribe(sequence.sequence, sequence.round, false)
+//	defer cancelSub()
+//
+//	//cache := message.NewCache(s.isValidMsgPrepare)
+//
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			return nil, ctx.Err()
+//		case notification := <-sub:
+//			//cache.Add(notification()...)
+//
+//			messages, err := s.consensus.AwaitPrepare(ctx, *sequence, notification())
+//			if err != nil {
+//				// todo: log
+//				continue
+//			}
+//
+//			return messages, nil
+//
+//			//prepares := cache.Get()
+//			//addresses := make([][]byte, 0, len(prepares))
+//			//for _, commit := range prepares {
+//			//	addresses = append(addresses, commit.GetSender())
+//			//}
+//			//
+//			//if !s.verifier.HasQuorum(addresses, s.state.sequence) {
+//			//	continue
+//			//}
+//			//
+//			//return prepares, nil
+//		}
+//	}
+//}
 
 //
 //func (s *Sequencer) isValidMsgPrepare(msg *message.Prepare) bool {
