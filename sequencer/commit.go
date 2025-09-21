@@ -21,7 +21,7 @@ func (s *Sequencer) buildCommitMessage(sequence *Sequence) *message.Commit {
 	return msg
 }
 
-func (s *Sequencer) awaitCommitQuorum(
+func (s *Sequencer) awaitCommit(
 	ctx context.Context,
 	sequence *Sequence,
 	messages *message.Store,

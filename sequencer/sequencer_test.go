@@ -16,12 +16,12 @@ func Test_SequencerFinalizeCancelled(t *testing.T) {
 	t.Parallel()
 
 	cfg := Config{
-		Validator:      mockValidator{address: Alice},
+		Validator:      Alice,
 		Round0Duration: 10 * time.Millisecond,
 		Verifier:       allGoodVrf{},
-		ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-			return Bob, nil
-		}},
+		ValidatorSet: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			return Bob.Address(), nil
+		}),
 	}
 
 	s := NewSequencer(cfg)
@@ -44,287 +44,277 @@ func Test_SequencerFinalize(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		expected *SequenceResult
-		vrf      Verifier
-		cfg      Config
-		name     string
-		messages []any
+		name         string
+		validator    Validator
+		proposerAlgo ProposerAlgo
+		messages     []any
+		expected     *SequenceResult
 	}{
 		{
-			name: "proposal is accepted in round 0",
+			name:      "proposal is accepted in round 0",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				return Bob.Address(), nil
+			}),
 			expected: &SequenceResult{
 				Round:    0,
-				Proposal: []byte("Bob's proposal"),
+				Proposal: []byte("bob_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Alice,
-						Seal: []byte("Alice seal"),
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
 					},
 					{
-						From: Chris,
-						Seal: []byte("Chris seal"),
+						From: Chris.Address(),
+						Seal: []byte("chris_sig"),
 					},
 				},
 			},
-
-			vrf: allGoodVrf{},
 			messages: []any{
 				&message.Proposal{
-					Sender:   Bob,
+					Sender:   Bob.Address(),
 					Sequence: 101,
 					Round:    0,
 					ProposedBlock: &message.ProposedBlock{
-						Block: []byte("Bob's proposal"),
+						Block: []byte("bob_proposal"),
 						Round: 0,
 					},
 				},
 				&message.Prepare{
-					Sender:   Alice,
+					Sender:   Alice.Address(),
 					Sequence: 101,
 					Round:    0,
 				},
-
 				&message.Prepare{
-					Sender:   Chris,
+					Sender:   Chris.Address(),
 					Sequence: 101,
 					Round:    0,
 				},
 
 				&message.Commit{
-					Sender:     Alice,
+					Sender:     Alice.Address(),
 					Sequence:   101,
 					Round:      0,
-					CommitSeal: []byte("Alice seal"),
+					CommitSeal: []byte("alice_sig"),
 				},
 				&message.Commit{
-					Sender:     Chris,
+					Sender:     Chris.Address(),
 					Sequence:   101,
 					Round:      0,
-					CommitSeal: []byte("Chris seal"),
+					CommitSeal: []byte("chris_sig"),
 				},
-			},
-
-			cfg: Config{
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-				},
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					return Bob, nil
-				}},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
 			},
 		},
 
 		{
-			name: "Bob and Chris accept Alice's proposal in round 0",
+			name:      "Bob and Chris accept Alice's proposal in round 0",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				return Alice.Address(), nil
+			}),
+
 			expected: &SequenceResult{
 				Round:    0,
-				Proposal: []byte("Alice's proposal"),
+				Proposal: []byte("alice_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Bob,
-						Seal: []byte("Bob seal"),
+						From: Bob.Address(),
+						Seal: []byte("bob_sig"),
 					},
 					{
-						From: Chris,
-						Seal: []byte("Chris seal"),
+						From: Chris.Address(),
+						Seal: []byte("chris_sig"),
 					},
 				},
 			},
-
-			vrf: allGoodVrf{},
 
 			messages: []any{
 				&message.Prepare{
-					Sender: Bob, Sequence: 101, Round: 0,
-					BlockHash: DummyKeccakValue,
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    0,
 				},
 
 				&message.Prepare{
-					Sender: Chris, Sequence: 101, Round: 0,
-					BlockHash: DummyKeccakValue,
+					Sender:   Chris.Address(),
+					Sequence: 101,
+					Round:    0,
 				},
 
 				&message.Commit{
-					Sender: Bob, Sequence: 101, Round: 0,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Bob seal"),
+					Sender:     Bob.Address(),
+					Sequence:   101,
+					Round:      0,
+					CommitSeal: []byte("bob_sig"),
 				},
 
 				&message.Commit{
-					Sender: Chris, Sequence: 101, Round: 0,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Chris seal"),
+					Sender:     Chris.Address(),
+					Sequence:   101,
+					Round:      0,
+					CommitSeal: []byte("chris_sig"),
 				},
-			},
-
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					return Alice, nil
-				}},
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-					buildProposalFn: func(_ uint64) []byte {
-						return []byte("Alice's proposal")
-					},
-				},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
 			},
 		},
 
 		{
-			name: "Alice and Chris accept Bob's proposal in round 1 due to round change",
+			name:      "Alice and Chris accept Bob's proposal in round 1 due to round change",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				return Bob.Address(), nil
+			}),
+
 			expected: &SequenceResult{
 				Round:    1,
-				Proposal: []byte("Bob's round 1 proposal"),
+				Proposal: []byte("bob_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Alice,
-						Seal: []byte("Alice seal"),
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
 					},
 					{
-						From: Chris,
-						Seal: []byte("Chris seal"),
+						From: Chris.Address(),
+						Seal: []byte("chris_sig"),
 					},
 				},
-			},
-
-			vrf: allGoodVrf{},
-
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					return Bob, nil
-				}},
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-				},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
 			},
 
 			messages: []any{
 				&message.Proposal{
-					Sender: Bob, Sequence: 101, Round: 1,
-					BlockHash:     DummyKeccakValue,
-					ProposedBlock: &message.ProposedBlock{Block: []byte("Bob's round 1 proposal"), Round: 1},
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    1,
+					ProposedBlock: &message.ProposedBlock{
+						Block: []byte("bob_proposal"),
+						Round: 1,
+					},
 					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 						{
-							Sequence: 101, Round: 1, Sender: Alice,
+							Sender:   Alice.Address(),
+							Sequence: 101,
+							Round:    1,
 						},
 
 						{
-							Sequence: 101, Round: 1, Sender: Chris,
+							Sender:   Chris.Address(),
+							Sequence: 101,
+							Round:    1,
 						},
 					}},
 				},
 
 				&message.Prepare{
-					Sender: Alice, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Alice.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Prepare{
-					Sender: Chris, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Chris.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Commit{
-					Sender: Alice, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Alice seal"),
+					Sender:     Alice.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("alice_sig"),
 				},
 
 				&message.Commit{
-					Sender: Chris, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Chris seal"),
+					Sender:     Chris.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("chris_sig"),
 				},
 			},
 		},
 
 		{
-			name: "Alice jumps to round 1 proposal and accepts it",
-			vrf:  allGoodVrf{},
+			name:      "Alice jumps to round 1 proposal and accepts it",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				return Chris.Address(), nil
+			}),
+
 			expected: &SequenceResult{
 				Round:    1,
-				Proposal: []byte("Chris' proposal"),
+				Proposal: []byte("chris_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Alice,
-						Seal: []byte("Alice seal"),
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
 					},
 					{
-						From: Chris,
-						Seal: []byte("Chris seal"),
+						From: Chris.Address(),
+						Seal: []byte("chris_sig"),
 					},
 				},
-			},
-
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					return Chris, nil
-				}},
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-				},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
 			},
 
 			messages: []any{
 				&message.Proposal{
-					Sender: Bob, Sequence: 101, Round: 1,
-					BlockHash:     DummyKeccakValue,
-					ProposedBlock: &message.ProposedBlock{Block: []byte("Chris' proposal"), Round: 1},
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    1,
+					ProposedBlock: &message.ProposedBlock{
+						Block: []byte("chris_proposal"),
+						Round: 1,
+					},
 					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 						{
-							Sender: Bob, Sequence: 101, Round: 1,
+							Sender:   Bob.Address(),
+							Sequence: 101,
+							Round:    1,
 							LatestPreparedCertificate: &message.PreparedCertificate{
 								ProposalMessage: &message.Proposal{
-									Sender: Chris, Sequence: 101, Round: 0,
-									BlockHash: DummyKeccakValue,
+									Sender:   Chris.Address(),
+									Sequence: 101,
+									Round:    0,
 									ProposedBlock: &message.ProposedBlock{
-										Block: []byte("Chris' proposal"),
+										Block: []byte("chris_proposal"),
 										Round: 0,
 									},
 								},
 								PrepareMessages: []*message.Prepare{
 									{
-										Sender: Bob, Sequence: 101, Round: 0,
-										BlockHash: DummyKeccakValue,
+										Sender:   Bob.Address(),
+										Sequence: 101,
+										Round:    0,
 									},
 									{
-										Sender: Nina, Sequence: 101, Round: 0,
-										BlockHash: DummyKeccakValue,
+										Sender:   Nina.Address(),
+										Sequence: 101,
+										Round:    0,
 									},
 								},
 							},
 						},
 						{
-							Sender: Nina, Sequence: 101, Round: 1,
+							Sender:   Nina.Address(),
+							Sequence: 101,
+							Round:    1,
 							LatestPreparedCertificate: &message.PreparedCertificate{
 								ProposalMessage: &message.Proposal{
-									Sender: Chris, Sequence: 101, Round: 0,
-									BlockHash: DummyKeccakValue,
+									Sender:   Chris.Address(),
+									Sequence: 101,
+									Round:    0,
 									ProposedBlock: &message.ProposedBlock{
-										Block: []byte("Chris' proposal"),
+										Block: []byte("chris_proposal"),
 										Round: 0,
 									},
 								},
 								PrepareMessages: []*message.Prepare{
 									{
-										Sender: Bob, Sequence: 101, Round: 0,
-										BlockHash: DummyKeccakValue,
+										Sender:   Bob.Address(),
+										Sequence: 101,
+										Round:    0,
 									},
 									{
-										Sender: Nina, Sequence: 101, Round: 0,
-										BlockHash: DummyKeccakValue,
+										Sender:   Nina.Address(),
+										Sequence: 101,
+										Round:    0,
 									},
 								},
 							},
@@ -333,728 +323,673 @@ func Test_SequencerFinalize(t *testing.T) {
 				},
 
 				&message.Prepare{
-					Sender: Alice, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Alice.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Prepare{
-					Sender: Chris, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Chris.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Commit{
-					Sender: Alice, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Alice seal"),
+					Sender:     Alice.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("alice_sig"),
 				},
 
 				&message.Commit{
-					Sender: Chris, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Chris seal"),
+					Sender:     Chris.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("chris_sig"),
 				},
 			},
 		},
 
 		{
 			name: "block proposed in round 1",
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 1 {
+					return Alice.Address(), nil
+				}
 
-			vrf: allGoodVrf{},
+				return Nina.Address(), nil
+			}),
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    1,
-				Proposal: []byte("Alice's round 1 proposal"),
+				Proposal: []byte("alice_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Bob,
-						Seal: []byte("Bob seal"),
+						From: Bob.Address(),
+						Seal: []byte("bob_sig"),
 					},
 
 					{
-						From: Nina,
-						Seal: []byte("Nina seal"),
+						From: Nina.Address(),
+						Seal: []byte("nina_sig"),
 					},
 				},
-			},
-
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					if round == 1 {
-						return Alice, nil
-					}
-
-					return Nina, nil
-				}},
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-					buildProposalFn: func(_ uint64) []byte {
-						return []byte("Alice's round 1 proposal")
-					},
-				},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
 			},
 
 			messages: []any{
 				// need to justify Alice's proposal for round 1
 				&message.RoundChange{
-					Sequence: 101, Round: 1, Sender: Alice,
+					Sender:   Alice.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.RoundChange{
-					Sequence: 101, Round: 1, Sender: Nina,
+					Sender:   Nina.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Prepare{
-					Sequence: 101, Round: 1, Sender: Bob,
-					BlockHash: DummyKeccakValue,
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Prepare{
-					Sequence: 101, Round: 1, Sender: Nina,
-					BlockHash: DummyKeccakValue,
+					Sender:   Nina.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Commit{
-					Sequence: 101, Round: 1, Sender: Bob,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Bob seal"),
+					Sender:     Bob.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("bob_sig"),
 				},
 
 				&message.Commit{
-					Sequence: 101, Round: 1, Sender: Nina,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Nina seal"),
+					Sender:     Nina.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("nina_sig"),
 				},
 			},
 		},
 
 		{
-			name: "old block proposed in round 1",
+			name:      "old block proposed in round 1",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 1 {
+					return Alice.Address(), nil
+				}
 
-			vrf: allGoodVrf{},
+				return Nina.Address(), nil
+			}),
 			expected: &SequenceResult{
 				Round:    1,
-				Proposal: []byte("Bob's round 0 proposal"),
+				Proposal: []byte("bob_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Bob,
-						Seal: []byte("Bob seal"),
+						From: Bob.Address(),
+						Seal: []byte("bob_sig"),
 					},
 					{
-						From: Chris,
-						Seal: []byte("Chris seal"),
+						From: Chris.Address(),
+						Seal: []byte("chris_sig"),
 					},
 				},
 			},
 
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					if round == 1 {
-						return Alice, nil
-					}
-
-					return Nina, nil
-				}},
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-				},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
-			},
 			messages: []any{
 				&message.RoundChange{
-					Sender:   Chris,
+					Sender:   Chris.Address(),
 					Sequence: 101,
 					Round:    1,
 					LatestPreparedProposedBlock: &message.ProposedBlock{
-						Block: []byte("Bob's round 0 proposal"),
+						Block: []byte("bob_proposal"),
 						Round: 0,
 					},
 					LatestPreparedCertificate: &message.PreparedCertificate{
 						ProposalMessage: &message.Proposal{
-							Sender:    Bob,
-							Sequence:  101,
-							Round:     0,
-							BlockHash: DummyKeccakValue,
+							Sender:   Bob.Address(),
+							Sequence: 101,
+							Round:    0,
 							ProposedBlock: &message.ProposedBlock{
-								Block: []byte("Bob's round 0 proposal"),
+								Block: []byte("bob_proposal"),
 								Round: 0,
 							},
 						},
 
 						PrepareMessages: []*message.Prepare{
 							{
-								Sender:    Chris,
-								Sequence:  101,
-								Round:     0,
-								BlockHash: DummyKeccakValue,
+								Sender:   Chris.Address(),
+								Sequence: 101,
+								Round:    0,
 							},
 							{
-								Sender:    Nina,
-								Sequence:  101,
-								Round:     0,
-								BlockHash: DummyKeccakValue,
+								Sender:   Nina.Address(),
+								Sequence: 101,
+								Round:    0,
 							},
 						},
 					},
 				},
 
 				&message.RoundChange{
-					Sender:   Nina,
+					Sender:   Nina.Address(),
 					Sequence: 101,
 					Round:    1,
 					LatestPreparedProposedBlock: &message.ProposedBlock{
-						Block: []byte("Bob's round 0 proposal"),
+						Block: []byte("bob_proposal"),
 						Round: 0,
 					},
 					LatestPreparedCertificate: &message.PreparedCertificate{
 						ProposalMessage: &message.Proposal{
-							Sender:    Bob,
-							Sequence:  101,
-							Round:     0,
-							BlockHash: DummyKeccakValue,
+							Sender:   Bob.Address(),
+							Sequence: 101,
+							Round:    0,
 							ProposedBlock: &message.ProposedBlock{
-								Block: []byte("Bob's round 0 proposal"),
+								Block: []byte("bob_proposal"),
 								Round: 0,
 							},
 						},
 
 						PrepareMessages: []*message.Prepare{
 							{
-								Sender:    Chris,
-								Sequence:  101,
-								Round:     0,
-								BlockHash: DummyKeccakValue,
+								Sender:   Chris.Address(),
+								Sequence: 101,
+								Round:    0,
 							},
 							{
-								Sender:    Nina,
-								Sequence:  101,
-								Round:     0,
-								BlockHash: DummyKeccakValue,
+								Sender:   Nina.Address(),
+								Sequence: 101,
+								Round:    0,
 							},
 						},
 					},
 				},
 
 				&message.Prepare{
-					Sender:    Bob,
-					Sequence:  101,
-					Round:     1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Prepare{
-					Sender:    Chris,
-					Sequence:  101,
-					Round:     1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Chris.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Commit{
-					Sender:     Bob,
+					Sender:     Bob.Address(),
 					Sequence:   101,
 					Round:      1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Bob seal"),
+					CommitSeal: []byte("bob_sig"),
 				},
 
 				&message.Commit{
-					Sender:     Chris,
+					Sender:     Chris.Address(),
 					Sequence:   101,
 					Round:      1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Chris seal"),
+					CommitSeal: []byte("chris_sig"),
 				},
 			},
 		},
 
 		{
-			name: "future rcc triggers round jump",
+			name:      "future rcc triggers round jump",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 3 {
+					return Alice.Address(), nil
+				}
 
-			vrf: allGoodVrf{},
+				return Nina.Address(), nil
+			}),
+
 			expected: &SequenceResult{
 				Round:    3,
-				Proposal: []byte("Alice round 3 proposal"),
+				Proposal: []byte("alice_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Bob,
-						Seal: []byte("Bob seal"),
+						From: Bob.Address(),
+						Seal: []byte("bob_sig"),
 					},
 					{
-						From: Chris,
-						Seal: []byte("Chris seal"),
+						From: Chris.Address(),
+						Seal: []byte("chris_sig"),
 					},
 				},
-			},
-
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					if round == 3 {
-						return Alice, nil
-					}
-
-					return Nina, nil
-				}},
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-					buildProposalFn: func(_ uint64) []byte {
-						return []byte("Alice round 3 proposal")
-					},
-				},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
 			},
 
 			messages: []any{
 				&message.RoundChange{
-					Sender:   Bob,
+					Sender:   Bob.Address(),
 					Sequence: 101,
 					Round:    3,
 				},
-
 				&message.RoundChange{
-					Sender:   Chris,
+					Sender:   Chris.Address(),
 					Sequence: 101,
 					Round:    3,
-				}, &message.Prepare{
-
-					Sender:   Bob,
-					Sequence: 101,
-					Round:    3,
-
-					BlockHash: DummyKeccakValue,
 				},
-
 				&message.Prepare{
-
-					Sender:   Chris,
+					Sender:   Bob.Address(),
 					Sequence: 101,
 					Round:    3,
-
-					BlockHash: DummyKeccakValue,
 				},
-
-				&message.Commit{
-
-					Sender:   Bob,
+				&message.Prepare{
+					Sender:   Chris.Address(),
 					Sequence: 101,
 					Round:    3,
-
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Bob seal"),
 				},
-
 				&message.Commit{
-
-					Sender:   Chris,
-					Sequence: 101,
-					Round:    3,
-
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Chris seal"),
+					Sender:     Bob.Address(),
+					Sequence:   101,
+					Round:      3,
+					CommitSeal: []byte("bob_sig"),
+				},
+				&message.Commit{
+					Sender:     Chris.Address(),
+					Sequence:   101,
+					Round:      3,
+					CommitSeal: []byte("chris_sig"),
 				},
 			},
 		},
 
 		{
-			name: "future proposal triggers round jump",
-			vrf:  allGoodVrf{},
+			name:      "future proposal triggers round jump",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 5 {
+					return Nina.Address(), nil
+				}
+
+				return Bob.Address(), nil
+			}),
 			expected: &SequenceResult{
 				Round:    5,
-				Proposal: []byte("round 5 block"),
+				Proposal: []byte("nina_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Alice,
-						Seal: []byte("Alice seal"),
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
 					},
 					{
-						From: Nina,
-						Seal: []byte("Nina seal"),
+						From: Nina.Address(),
+						Seal: []byte("nina_sig"),
 					},
 				},
-			},
-
-			cfg: Config{
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-				},
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					if round == 5 {
-						return Nina, nil
-					}
-
-					return Bob, nil
-				}},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
 			},
 
 			messages: []any{
 				&message.Proposal{
-					Sender: Nina, Sequence: 101, Round: 5,
-					ProposedBlock: &message.ProposedBlock{Block: []byte("round 5 block"), Round: 5},
-					BlockHash:     DummyKeccakValue,
+					Sender:   Nina.Address(),
+					Sequence: 101,
+					Round:    5,
+					ProposedBlock: &message.ProposedBlock{
+						Block: []byte("nina_proposal"),
+						Round: 5,
+					},
 					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 						{
-							Sequence: 101, Round: 5, Sender: Chris,
+							Sender:   Chris.Address(),
+							Sequence: 101,
+							Round:    5,
 						},
 
 						{
-							Sequence: 101, Round: 5, Sender: Bob,
+							Sender:   Bob.Address(),
+							Sequence: 101,
+							Round:    5,
 						},
 					}},
 				},
 
 				&message.Prepare{
-					Sender: Alice, Sequence: 101, Round: 5,
-					BlockHash: DummyKeccakValue,
+					Sender:   Alice.Address(),
+					Sequence: 101,
+					Round:    5,
 				},
 
 				&message.Prepare{
-					Sender: Nina, Sequence: 101, Round: 5,
-					BlockHash: DummyKeccakValue,
+					Sender:   Nina.Address(),
+					Sequence: 101,
+					Round:    5,
 				},
 
 				&message.Commit{
-					Sender: Alice, Sequence: 101, Round: 5,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Alice seal"),
+					Sender:     Alice.Address(),
+					Sequence:   101,
+					Round:      5,
+					CommitSeal: []byte("alice_sig"),
 				},
 
 				&message.Commit{
-					Sender: Nina, Sequence: 101, Round: 5,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Nina seal"),
+					Sender:     Nina.Address(),
+					Sequence:   101,
+					Round:      5,
+					CommitSeal: []byte("nina_sig"),
 				},
 			},
 		},
 
 		{
-			name: "round timer triggers round jump",
-			vrf:  allGoodVrf{},
+			name:      "round timer triggers round jump",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 1 {
+					return Alice.Address(), nil
+				}
+
+				return Nina.Address(), nil
+			}),
 			expected: &SequenceResult{
 				Round:    1,
-				Proposal: []byte("Alice round 1 proposal"),
+				Proposal: []byte("alice_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Bob,
-						Seal: []byte("Bob seal"),
+						From: Bob.Address(),
+						Seal: []byte("bob_sig"),
 					},
 					{
-						From: Chris,
-						Seal: []byte("Chris seal"),
+						From: Chris.Address(),
+						Seal: []byte("chris_sig"),
 					},
 				},
 			},
-
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					if round == 1 {
-						return Alice, nil
-					}
-
-					return Nina, nil
-				}},
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-					buildProposalFn: func(_ uint64) []byte {
-						return []byte("Alice round 1 proposal")
-					},
-				},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
-			},
-
 			messages: []any{
 				//&message.RoundChange{
 				//	// no way to mock the
-				//	Sender:   Alice,
+				//	Sender:   Alice.Address(),
 				//	Sequence: 101,
 				//	Round:    1,
 				//},
 
 				//&message.RoundChange{
-				//	Sender: Chris, Sequence: 101, Round: 1,
+				//	Sender: Chris.Address(), Sequence: 101, Round: 1,
 				//},
 
 				&message.Prepare{
-					Sender: Bob, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Prepare{
-					Sender: Chris, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Chris.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Commit{
-					Sender: Bob, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Bob seal"),
+					Sender:     Bob.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("bob_sig"),
 				},
 
 				&message.Commit{
-					Sender: Chris, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Chris seal"),
+					Sender:     Chris.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("chris_sig"),
 				},
 			},
 		},
 
 		{
-			name: "no prepare messages in round 0",
-			vrf:  allGoodVrf{},
+			name:      "no prepare messages in round 0",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 0 {
+					return Bob.Address(), nil
+				}
+
+				if round == 1 {
+					return Chris.Address(), nil
+				}
+
+				return Nina.Address(), nil
+			}),
+
 			expected: &SequenceResult{
 				Round:    1,
-				Proposal: []byte("round 1 block"),
+				Proposal: []byte("chris_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Alice,
-						Seal: []byte("Alice seal"),
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
 					},
 
 					{
-						From: Nina,
-						Seal: []byte("Nina seal"),
+						From: Nina.Address(),
+						Seal: []byte("nina_sig"),
 					},
 				},
-			},
-
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					if round == 0 {
-						return Bob, nil
-					}
-
-					if round == 1 {
-						return Chris, nil
-					}
-
-					return Nina, nil
-				}},
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-				},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
 			},
 
 			messages: []any{
 				&message.Proposal{
-					Sender:    Bob,
-					Sequence:  101,
-					Round:     0,
-					BlockHash: DummyKeccakValue,
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    0,
 					ProposedBlock: &message.ProposedBlock{
-						Block: []byte("round 0 block"),
+						Block: []byte("bob_proposal"),
 						Round: 0,
 					},
 				},
 
 				&message.Prepare{
-					Sender:    Alice,
-					Sequence:  101,
-					Round:     0,
-					BlockHash: DummyKeccakValue,
+					Sender:   Alice.Address(),
+					Sequence: 101,
+					Round:    0,
 				},
 
 				&message.Proposal{
-					Sender: Chris, Sequence: 101, Round: 1,
-					BlockHash:     DummyKeccakValue,
-					ProposedBlock: &message.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
+					Sender:        Chris.Address(),
+					Sequence:      101,
+					Round:         1,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("chris_proposal"), Round: 1},
 					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 						{
-							Sequence: 101, Round: 1, Sender: Alice,
+							Sender:   Alice.Address(),
+							Sequence: 101,
+							Round:    1,
 						},
 
 						{
-							Sequence: 101, Round: 1, Sender: Chris,
+							Sender:   Chris.Address(),
+							Sequence: 101,
+							Round:    1,
 						},
 					}},
 				},
 
 				&message.Prepare{
-					Sender: Alice, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Alice.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Prepare{
-					Sender: Nina, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Nina.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Commit{
-					Sender: Alice, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Alice seal"),
+					Sender:     Alice.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("alice_sig"),
 				},
 
 				&message.Commit{
-					Sender: Nina, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Nina seal"),
+					Sender:     Nina.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("nina_sig"),
 				},
 			},
 		},
 
 		{
-			name: "no commit messages in round 0",
-			vrf:  allGoodVrf{},
+			name:      "no commit messages in round 0",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 0 {
+					return Bob.Address(), nil
+				}
+
+				if round == 1 {
+					return Chris.Address(), nil
+				}
+
+				return Nina.Address(), nil
+			}),
 			expected: &SequenceResult{
 				Round:    1,
-				Proposal: []byte("round 1 block"),
+				Proposal: []byte("chris_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Alice,
-						Seal: []byte("Alice seal"),
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
 					},
 					{
-						From: Bob,
-						Seal: []byte("Bob seal"),
+						From: Bob.Address(),
+						Seal: []byte("bob_sig"),
 					},
 				},
-			},
-
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					if round == 0 {
-						return Bob, nil
-					}
-
-					if round == 1 {
-						return Chris, nil
-					}
-
-					return Nina, nil
-				}},
-				Round0Duration: 10 * time.Millisecond,
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-				},
-				Transport: dummyTransport{},
 			},
 
 			messages: []any{
 				// round 0
 				&message.Proposal{
-					Sender: Bob, Sequence: 101, Round: 0,
-					BlockHash:     DummyKeccakValue,
-					ProposedBlock: &message.ProposedBlock{Block: []byte("round 0 block"), Round: 0},
+					Sender:        Bob.Address(),
+					Sequence:      101,
+					Round:         0,
+					ProposedBlock: &message.ProposedBlock{Block: []byte("bob_proposal"), Round: 0},
 				},
 
 				&message.Prepare{
-					Sender: Alice, Sequence: 101, Round: 0,
-					BlockHash: DummyKeccakValue,
+					Sender:   Alice.Address(),
+					Sequence: 101,
+					Round:    0,
 				},
 				&message.Prepare{
-					Sender: Bob, Sequence: 101, Round: 0,
-					BlockHash: DummyKeccakValue,
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    0,
 				},
 
 				// round 1
 
 				&message.Proposal{
-					Sender: Chris, Sequence: 101, Round: 1,
-					BlockHash:     DummyKeccakValue,
-					ProposedBlock: &message.ProposedBlock{Block: []byte("round 1 block"), Round: 1},
+					Sender:   Chris.Address(),
+					Sequence: 101,
+					Round:    1,
+					ProposedBlock: &message.ProposedBlock{
+						Block: []byte("chris_proposal"),
+						Round: 1,
+					},
 					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 						{
-							Sender: Alice, Sequence: 101, Round: 1,
+							Sender:   Alice.Address(),
+							Sequence: 101,
+							Round:    1,
 						},
 						{
-							Sender: Bob, Sequence: 101, Round: 1,
+							Sender:   Bob.Address(),
+							Sequence: 101,
+							Round:    1,
 						},
 					}},
 				},
 
 				&message.Prepare{
-					Sender: Alice, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Alice.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 				&message.Prepare{
-					Sender: Bob, Sequence: 101, Round: 1,
-					BlockHash: DummyKeccakValue,
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    1,
 				},
 
 				&message.Commit{
-					Sender: Alice, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Alice seal"),
+					Sender:     Alice.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("alice_sig"),
 				},
 				&message.Commit{
-					Sender: Bob, Sequence: 101, Round: 1,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Bob seal"),
+					Sender:     Bob.Address(),
+					Sequence:   101,
+					Round:      1,
+					CommitSeal: []byte("bob_sig"),
 				},
 			},
 		},
 
 		{
-			name: "round 0 proposer fails to build block",
-			vrf:  allGoodVrf{},
+			name:      "round 0 proposer fails to build block",
+			validator: Alice,
+			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+				if round == 0 {
+					return Bob.Address(), nil
+				}
+
+				if round == 1 {
+					return Alice.Address(), nil
+				}
+
+				return Chris.Address(), nil
+			}),
 			expected: &SequenceResult{
 				Round:    2,
-				Proposal: []byte("round 2 block"),
+				Proposal: []byte("chris_proposal"),
 				Seals: []CommitSeal{
 					{
-						From: Bob,
-						Seal: []byte("Bob seal"),
+						From: Bob.Address(),
+						Seal: []byte("bob_sig"),
 					},
 					{
-						From: Alice,
-						Seal: []byte("Alice seal"),
+						From: Alice.Address(),
+						Seal: []byte("alice_sig"),
 					},
 				},
-			},
-
-			cfg: Config{
-				ValidatorSet: mockValidatorSet{getProposerFn: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
-					if round == 0 {
-						return Bob, nil
-					}
-
-					if round == 1 {
-						return Alice, nil
-					}
-
-					return Chris, nil
-				}},
-				Validator: mockValidator{
-					address: Alice,
-					signFn:  DummySignFn,
-				},
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
 			},
 
 			messages: []any{
 				//&message.RoundChange{
-				//	Sender:   Chris,
+				//	Sender:   Chris.Address(),
 				//	Sequence: 101,
 				//	Round:    1,
 				//},
 
 				&message.Proposal{
-					Sender:        Chris,
-					Sequence:      101,
-					Round:         2,
-					ProposedBlock: &message.ProposedBlock{Block: []byte("round 2 block"), Round: 2},
-					BlockHash:     DummyKeccakValue,
+					Sender:   Chris.Address(),
+					Sequence: 101,
+					Round:    2,
+					ProposedBlock: &message.ProposedBlock{
+						Block: []byte("chris_proposal"),
+						Round: 2,
+					},
 					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 						{
-							Sender:   Bob,
+							Sender:   Bob.Address(),
 							Sequence: 101,
 							Round:    2,
 						},
 						{
-							Sender:   Chris,
+							Sender:   Chris.Address(),
 							Sequence: 101,
 							Round:    2,
 						},
@@ -1062,23 +997,26 @@ func Test_SequencerFinalize(t *testing.T) {
 				},
 
 				&message.Prepare{
-					Sender: Bob, Sequence: 101, Round: 2,
-					BlockHash: DummyKeccakValue,
+					Sender:   Bob.Address(),
+					Sequence: 101,
+					Round:    2,
 				},
 				&message.Prepare{
-					Sender: Alice, Sequence: 101, Round: 2,
-					BlockHash: DummyKeccakValue,
-				},
-
-				&message.Commit{
-					Sender: Bob, Sequence: 101, Round: 2,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Bob seal"),
+					Sender:   Alice.Address(),
+					Sequence: 101,
+					Round:    2,
 				},
 				&message.Commit{
-					Sender: Alice, Sequence: 101, Round: 2,
-					BlockHash:  DummyKeccakValue,
-					CommitSeal: []byte("Alice seal"),
+					Sender:     Bob.Address(),
+					Sequence:   101,
+					Round:      2,
+					CommitSeal: []byte("bob_sig"),
+				},
+				&message.Commit{
+					Sender:     Alice.Address(),
+					Sequence:   101,
+					Round:      2,
+					CommitSeal: []byte("alice_sig"),
 				},
 			},
 		},
@@ -1089,11 +1027,7 @@ func Test_SequencerFinalize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			tt.cfg.Verifier = tt.vrf
-
 			store := message.NewStore()
-			s := NewSequencer(tt.cfg)
-
 			for _, m := range tt.messages {
 				switch m := m.(type) {
 				case *message.RoundChange:
@@ -1107,7 +1041,16 @@ func Test_SequencerFinalize(t *testing.T) {
 				}
 			}
 
-			res := s.Finalize(context.Background(), 101, store)
+			cfg := Config{
+				Validator:      tt.validator,
+				ValidatorSet:   tt.proposerAlgo,
+				Verifier:       allGoodVrf{},
+				Transport:      dummyTransport{},
+				Round0Duration: 10 * time.Millisecond,
+			}
+
+			res := NewSequencer(cfg).Finalize(context.Background(), 101, store)
+
 			//assert.True(t, reflect.DeepEqual(tt.expected, res), "expected %#v, got %#v", tt.expected, res)
 			assert.EqualValues(t, tt.expected.Round, res.Round)
 			assert.Equal(t, tt.expected.Proposal, res.Proposal)
@@ -1119,7 +1062,7 @@ func Test_SequencerFinalize(t *testing.T) {
 				return slices.Compare(a.From, b.From)
 			})
 
-			assert.EqualValues(t, tt.expected.Seals, res.Seals)
+			assert.Equal(t, tt.expected.Seals, res.Seals)
 		})
 	}
 }

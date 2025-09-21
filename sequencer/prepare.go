@@ -20,7 +20,7 @@ func (s *Sequencer) buildPrepareMessage(sequence *Sequence) *message.Prepare {
 	return msg
 }
 
-func (s *Sequencer) awaitPrepareQuorum(
+func (s *Sequencer) awaitPrepare(
 	ctx context.Context,
 	sequence *Sequence,
 	store *message.Store,
