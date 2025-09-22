@@ -7,12 +7,78 @@ import (
 	"github.com/sig-0/go-ibft/sequencer"
 )
 
+type ValidatorSet interface {
+	sequencer.ProposerAlgo
+
+	GetValidators(ctx context.Context, sequence uint64) ([][]byte, error)
+	CheckQuorum(ctx context.Context, sequence uint64, validators [][]byte) (bool, error)
+}
+
+type ProposalVerifier interface {
+	Verify(ctx context.Context, sequence uint64, proposal []byte) error
+}
+
 type Consensus struct {
+	vs                ValidatorSet
+	proposal          ProposalVerifier
+	sig               message.SignatureVerifier
+	currentValidators map[string]struct{}
+}
+
+func New(
+	vs ValidatorSet,
+	proposal ProposalVerifier,
+	vrf message.SignatureVerifier,
+) Consensus {
+	return Consensus{
+		vs:                vs,
+		proposal:          proposal,
+		sig:               vrf,
+		currentValidators: make(map[string]struct{}),
+	}
+}
+
+func (c Consensus) SetSequence(ctx context.Context, sequence uint64) error {
+	validators, err := c.vs.GetValidators(ctx, sequence)
+	if err != nil {
+		return err
+	}
+
+	for _, validator := range validators {
+		c.currentValidators[string(validator)] = struct{}{}
+	}
+
+	return nil
 }
 
 func (c Consensus) AwaitProposal(ctx context.Context, sequence sequencer.Sequence, store *message.Store, fromHigherRounds bool) (*message.Proposal, error) {
 	//TODO implement me
 	panic("implement me")
+
+	// create a cache for already processed messages based on type
+	seen := make(map[string]struct{})
+
+	// 1. subscribe to feed
+	sub, cancel := store.ProposalMessages.Subscribe(sequence.Number, sequence.Round, fromHigherRounds)
+	defer cancel()
+
+	// 2. select for ctx and sub
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case unwrap := <-sub:
+			messages := unwrap()
+			// 3. on each recv from sub:
+			// - unwrap all the messages (todo (message): they should only match the sequence)
+			// - if already seen skip
+			// - if valid add to valid messages
+			// - if not mark as seen
+
+			// - check quorum based on individual validator votes (valid messages)
+		}
+	}
+
 }
 
 func (c Consensus) AwaitRoundChange(ctx context.Context, sequence sequencer.Sequence, store *message.Store, fromHigherRounds bool) ([]*message.RoundChange, error) {

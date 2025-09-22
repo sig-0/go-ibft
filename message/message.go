@@ -9,6 +9,32 @@ type message interface {
 	GetSender() []byte
 	GetSequence() uint64
 	GetRound() uint64
+	Payload() []byte
+}
+
+type SignatureVerifier interface {
+	Verify(sender, digest, signature []byte) error
+}
+
+func Sign(msg message, signFn func([]byte) []byte) []byte {
+	payload := msg.Payload()
+	digest := keccak(payload)
+	return signFn(digest)
+}
+
+func VerifySignature(msg message, vrf SignatureVerifier) error {
+	sender := msg.GetSender()
+	payload := msg.Payload()
+	digest := keccak(payload)
+	return vrf.Verify(sender, digest, payload)
+}
+
+func keccak(input []byte) []byte {
+	hash := sha3.NewLegacyKeccak256()
+	defer hash.Reset()
+
+	hash.Write(input)
+	return hash.Sum(nil)
 }
 
 func GetProposalHash(p []byte, round uint64) []byte {
