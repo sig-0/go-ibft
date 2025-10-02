@@ -2,10 +2,10 @@ package message
 
 // Store is a thread-safe storage for consensus messages with a built-in sequencer.Feed mechanism
 type Store struct {
-	ProposalMessages    *Collection[*Proposal]
-	PrepareMessages     *Collection[*Prepare]
-	CommitMessages      *Collection[*Commit]
-	RoundChangeMessages *Collection[*RoundChange]
+	ProposalMessages    *Colllection[*Proposal]
+	PrepareMessages     *Colllection[*Prepare]
+	CommitMessages      *Colllection[*Commit]
+	RoundChangeMessages *Colllection[*RoundChange]
 }
 
 // NewStore returns a new Store instance

@@ -7,8 +7,10 @@ import (
 )
 
 type Consensus interface {
-	AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) (*message.Proposal, error)
-	AwaitRoundChange(ctx context.Context, sequence Sequence, store *message.Store, fromHigherRounds bool) ([]*message.RoundChange, error)
+	AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store) (*message.Proposal, error)
+	AwaitFutureProposal(ctx context.Context, sequence Sequence, store *message.Store) (*message.Proposal, error)
+	AwaitRoundChange(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.RoundChange, error)
+	AwaitFutureRoundChange(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.RoundChange, error)
 	AwaitPrepare(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Prepare, error)
 	AwaitCommit(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error)
 }

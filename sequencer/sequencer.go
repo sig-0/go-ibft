@@ -46,7 +46,7 @@ type Sequence struct {
 
 type Config struct {
 	Validator      Validator
-	ValidatorSet   ProposerAlgo
+	ProposerAlgo   ProposerAlgo
 	Consensus      Consensus
 	Transport      Transport
 	Round0Duration time.Duration
@@ -58,23 +58,13 @@ type Config struct {
 // that consensus.go is (eventually) reached, moving to higher rounds in case the network cannot agree on some proposal.
 // Given its simple API method Finalize, Sequencer is designed to work alongside a syncing protocol
 type Sequencer struct {
-	validator      Validator
-	validatorSet   ProposerAlgo
-	consensus      Consensus
-	transport      Transport
-	wg             sync.WaitGroup
-	round0Duration time.Duration
+	cfg Config
+	wg  sync.WaitGroup
 }
 
 // NewSequencer returns a Sequencer object for the provided validator
 func NewSequencer(cfg Config) *Sequencer {
-	return &Sequencer{
-		validator:      cfg.Validator,
-		transport:      cfg.Transport,
-		consensus:      cfg.Consensus,
-		round0Duration: cfg.Round0Duration,
-		validatorSet:   cfg.ValidatorSet,
-	}
+	return &Sequencer{cfg: cfg}
 }
 
 // Finalize runs the block finalization loop. This method returns a non-nil value only if consensus.go
@@ -130,7 +120,7 @@ func (s *Sequencer) finalize(
 
 			msg := s.buildRoundChangeMessage(sequence)
 			messages.RoundChangeMessages.Add(msg)
-			s.transport.MulticastRoundChange(msg)
+			s.transport().MulticastRoundChange(msg)
 
 		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound, sequence, messages):
 			teardown()
@@ -154,7 +144,7 @@ func (s *Sequencer) finalize(
 			sequence.Seals = nil
 
 			msg := s.buildPrepareMessage(sequence)
-			s.transport.MulticastPrepare(msg)
+			s.transport().MulticastPrepare(msg)
 			messages.PrepareMessages.Add(msg)
 
 		case _, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound, sequence, messages):
@@ -184,12 +174,12 @@ func (s *Sequencer) startRoundTimer(ctx context.Context, sequence *Sequence) <-c
 			s.wg.Done()
 		}()
 
-		roundTimer := s.getRoundTimer(round)
+		timer := time.NewTimer(s.getRoundDuration(round))
 
 		select {
 		case <-ctx.Done():
-			roundTimer.Stop()
-		case <-roundTimer.C:
+			timer.Stop()
+		case <-timer.C:
 			c <- struct{}{}
 		}
 	}(sequence.Round)
@@ -213,7 +203,7 @@ func (s *Sequencer) awaitHigherRoundProposal(
 			s.wg.Done()
 		}()
 
-		proposal, err := s.consensus.AwaitProposal(ctx, *seq, store, true)
+		proposal, err := s.consensus().AwaitFutureProposal(ctx, *seq, store)
 		if err != nil {
 			return
 		}
@@ -240,7 +230,7 @@ func (s *Sequencer) awaitHigherRoundRCC(
 			s.wg.Done()
 		}()
 
-		messages, err := s.consensus.AwaitRoundChange(ctx, *seq, store, true)
+		messages, err := s.consensus().AwaitFutureRoundChange(ctx, *seq, store)
 		if err != nil {
 			return
 		}
@@ -277,7 +267,11 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(
 }
 
 func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
-	return time.NewTimer(s.round0Duration * time.Duration(math.Pow(2, float64(round))))
+	return time.NewTimer(s.round0Duration() * time.Duration(math.Pow(2, float64(round))))
+}
+
+func (s *Sequencer) getRoundDuration(round uint64) time.Duration {
+	return s.round0Duration() * time.Duration(math.Pow(2, float64(round)))
 }
 
 func (s *Sequencer) buildProposal(
@@ -288,7 +282,7 @@ func (s *Sequencer) buildProposal(
 	if sequence.Round != 0 {
 		if sequence.RCC == nil {
 			// higher round proposals must include rcc
-			messages, err := s.consensus.AwaitRoundChange(ctx, *sequence, store, false)
+			messages, err := s.consensus().AwaitRoundChange(ctx, *sequence, store)
 			if err != nil {
 				return nil, err
 			}
@@ -302,7 +296,12 @@ func (s *Sequencer) buildProposal(
 		}
 	}
 
-	return s.validator.BuildProposal(sequence.Number), nil
+	proposal, err := s.validator().BuildProposal(ctx, sequence.Number)
+	if err != nil {
+		return nil, err
+	}
+
+	return proposal, nil
 }
 
 func (s *Sequencer) runRound(
@@ -311,21 +310,22 @@ func (s *Sequencer) runRound(
 	store *message.Store,
 ) error {
 	if noProposalYet := sequence.Proposal == nil; noProposalYet {
-		proposer, err := s.validatorSet.GetProposer(ctx, sequence.Number, sequence.Round)
+		proposer, err := s.proposerAlgo().GetProposer(ctx, sequence.Number, sequence.Round)
 		if err != nil {
 			return err
 		}
 
-		if shouldPropose := bytes.Equal(proposer, s.validator.Address()); shouldPropose {
-
+		if shouldPropose := bytes.Equal(proposer, s.validator().Address()); shouldPropose {
 			proposal, err := s.buildProposal(ctx, sequence, store)
 			if err != nil {
 				return err
 			}
 
-			s.transport.MulticastProposal(s.buildProposalMessage(proposal, sequence))
+			msg := s.buildProposalMessage(proposal, sequence)
+			sequence.Proposal = msg
+			s.transport().MulticastProposal(msg)
 		} else {
-			proposal, err := s.consensus.AwaitProposal(ctx, *sequence, store, false)
+			proposal, err := s.consensus().AwaitProposal(ctx, *sequence, store)
 			if err != nil {
 				return err
 			}
@@ -336,11 +336,11 @@ func (s *Sequencer) runRound(
 
 			msg := s.buildPrepareMessage(sequence)
 			store.PrepareMessages.Add(msg)
-			s.transport.MulticastPrepare(msg)
+			s.transport().MulticastPrepare(msg)
 		}
 	}
 
-	prepares, err := s.consensus.AwaitPrepare(ctx, *sequence, store)
+	prepares, err := s.consensus().AwaitPrepare(ctx, *sequence, store)
 	if err != nil {
 		return err
 	}
@@ -355,9 +355,9 @@ func (s *Sequencer) runRound(
 
 	msg := s.buildCommitMessage(sequence)
 	store.CommitMessages.Add(msg)
-	s.transport.MulticastCommit(msg)
+	s.transport().MulticastCommit(msg)
 
-	commits, err := s.consensus.AwaitCommit(ctx, *sequence, store)
+	commits, err := s.consensus().AwaitCommit(ctx, *sequence, store)
 	if err != nil {
 		return err
 	}
@@ -370,4 +370,24 @@ func (s *Sequencer) runRound(
 	}
 
 	return nil
+}
+
+func (s *Sequencer) validator() Validator {
+	return s.cfg.Validator
+}
+
+func (s *Sequencer) transport() Transport {
+	return s.cfg.Transport
+}
+
+func (s *Sequencer) consensus() Consensus {
+	return s.cfg.Consensus
+}
+
+func (s *Sequencer) proposerAlgo() ProposerAlgo {
+	return s.cfg.ProposerAlgo
+}
+
+func (s *Sequencer) round0Duration() time.Duration {
+	return s.cfg.Round0Duration
 }

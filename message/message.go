@@ -9,6 +9,7 @@ type message interface {
 	GetSender() []byte
 	GetSequence() uint64
 	GetRound() uint64
+	GetSignature() []byte
 	Payload() []byte
 }
 
@@ -16,17 +17,16 @@ type SignatureVerifier interface {
 	Verify(sender, digest, signature []byte) error
 }
 
-func Sign(msg message, signFn func([]byte) []byte) []byte {
-	payload := msg.Payload()
-	digest := keccak(payload)
-	return signFn(digest)
+type Signer interface {
+	Sign([]byte) []byte
+}
+
+func Sign(msg message, signer Signer) []byte {
+	return signer.Sign(keccak(msg.Payload()))
 }
 
 func VerifySignature(msg message, vrf SignatureVerifier) error {
-	sender := msg.GetSender()
-	payload := msg.Payload()
-	digest := keccak(payload)
-	return vrf.Verify(sender, digest, payload)
+	return vrf.Verify(msg.GetSender(), keccak(msg.Payload()), msg.GetSignature())
 }
 
 func keccak(input []byte) []byte {
@@ -37,13 +37,12 @@ func keccak(input []byte) []byte {
 	return hash.Sum(nil)
 }
 
-func GetProposalHash(p []byte, round uint64) []byte {
-	input := append(p, byte(round)) // this is fine as being in round 255 means clients are long gone
-	hash := sha3.NewLegacyKeccak256()
-	defer hash.Reset()
+func GetProposalHash(pb *ProposedBlock) []byte {
+	input := make([]byte, 0, len(pb.Block)+1)
+	input = append(input, pb.Block...)
+	input = append(input, byte(pb.Round))
 
-	hash.Write(input)
-	return hash.Sum(nil)
+	return keccak(input)
 }
 
 func (x *Proposal) Payload() []byte {
@@ -112,11 +111,6 @@ func (x *RoundChange) Payload() []byte {
 
 func (x *RoundChange) IsMalformed() bool {
 	return len(x.Sender) == 0 || len(x.Signature) == 0
-}
-
-func (x *ProposedBlock) Bytes() []byte {
-	bz, _ := proto.Marshal(x) //nolint:errcheck //proto
-	return bz
 }
 
 func (rcc *RoundChangeCertificate) HighestRoundBlock() ([]byte, uint64) {

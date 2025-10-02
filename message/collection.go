@@ -4,28 +4,130 @@ import (
 	"sync"
 )
 
-type Collection[M message] struct {
+type Collection[M message] interface {
+	Add(M)
+	Remove(M)
+	GetAll() map[uint64][]M
+	GetAllInSequence(uint64) []M
+	ClearAll()
+	ClearAllInSequence(uint64)
+	Subscribe(uint64) <-chan func() ([]M, func())
+}
+
+type set[M message] map[string]M
+
+type coll[M message] struct {
+	messages    map[uint64]set[M]
+	messagesMux sync.RWMutex
+
+	subs    map[string]subscription[M]
+	subsMux sync.RWMutex
+}
+
+func (c *coll[M]) Add(m M) {
+	c.messagesMux.Lock()
+	defer c.messagesMux.Unlock()
+
+	s, ok := c.messages[m.GetSequence()]
+	if !ok {
+		c.messages[m.GetSequence()] = make(set[M])
+		s = c.messages[m.GetSequence()]
+	}
+
+	s[string(m.GetSignature())] = m
+
+	c.subsMux.RLock()
+	defer c.subsMux.RUnlock()
+	for _, sub := range c.subs {
+		if sub.sequence != m.GetSequence() {
+			continue
+		}
+
+		sub.sub <- func() []M {
+			return c.GetAllInSequence(sub.sequence)
+		}
+	}
+}
+
+func (c *coll[M]) Remove(m M) {
+	c.messagesMux.Lock()
+	defer c.messagesMux.Unlock()
+
+	s, ok := c.messages[m.GetSequence()]
+	if !ok {
+		return // no message here
+	}
+
+	delete(s, string(m.GetSignature()))
+}
+
+func (c *coll[M]) GetAll() map[uint64][]M {
+	c.messagesMux.RLock()
+	defer c.messagesMux.RUnlock()
+
+	res := make(map[uint64][]M)
+	for sequence, set := range c.messages {
+		for _, msg := range set {
+			res[sequence] = append(res[sequence], msg)
+		}
+	}
+
+	return res
+}
+
+func (c *coll[M]) GetAllInSequence(sequence uint64) []M {
+	c.messagesMux.RLock()
+	defer c.messagesMux.RUnlock()
+
+	res := make([]M, 0, len(c.messages[sequence]))
+	for _, msg := range c.messages[sequence] {
+		res = append(res, msg)
+	}
+
+	return res
+}
+
+func (c *coll[M]) ClearAll() {
+	c.messagesMux.Lock()
+	defer c.messagesMux.Unlock()
+
+	clear(c.messages)
+}
+
+func (c *coll[M]) ClearAllInSequence(sequence uint64) {
+	c.messagesMux.Lock()
+	defer c.messagesMux.Unlock()
+
+	clear(c.messages[sequence])
+}
+
+func (c *coll[M]) Subscribe(u uint64) <-chan func() ([]M, func()) {
+	//TODO implement me
+	panic("implement me")
+}
+
+type Colllection[M message] struct {
 	msgCollection[M]
 	subscriptions[M]
 
 	collectionMux, subscriptionMux sync.RWMutex
 }
 
-func NewMsgCollection[M message]() *Collection[M] {
-	return &Collection[M]{
+func NewMsgCollection[M message]() *Colllection[M] {
+	return &Colllection[M]{
 		msgCollection: msgCollection[M]{},
 		subscriptions: subscriptions[M]{},
 	}
 }
 
-func (c *Collection[M]) Clear() {
+func (c *Colllection[M]) Clear() {
 	c.collectionMux.Lock()
 	defer c.collectionMux.Unlock()
 
 	clear(c.msgCollection)
 }
 
-func (c *Collection[M]) Subscribe(sequence, round uint64, higherRounds bool) (chan func() []M, func()) {
+func (c *Colllection[M]) Subscribe(sequence, round uint64, higherRounds bool) (chan func() []M, func()) {
 	sub := newSubscription[M](sequence, round, higherRounds)
 	unregister := c.registerSubscription(sub)
 
@@ -34,7 +136,7 @@ func (c *Collection[M]) Subscribe(sequence, round uint64, higherRounds bool) (ch
 	return sub.sub, unregister
 }
 
-func (c *Collection[M]) registerSubscription(sub subscription[M]) func() {
+func (c *Colllection[M]) registerSubscription(sub subscription[M]) func() {
 	c.subscriptionMux.Lock()
 	defer c.subscriptionMux.Unlock()
 
@@ -48,7 +150,7 @@ func (c *Collection[M]) registerSubscription(sub subscription[M]) func() {
 	}
 }
 
-func (c *Collection[M]) Add(msg M) {
+func (c *Colllection[M]) Add(msg M) {
 	c.collectionMux.Lock()
 	defer c.collectionMux.Unlock()
 
@@ -74,14 +176,14 @@ func (c *Collection[M]) Add(msg M) {
 	})
 }
 
-func (c *Collection[M]) Get(sequence, round uint64) []M {
+func (c *Colllection[M]) Get(sequence, round uint64) []M {
 	c.collectionMux.RLock()
 	defer c.collectionMux.RUnlock()
 
 	return c.msgCollection.loadSet(sequence, round).Messages()
 }
 
-func (c *Collection[M]) getNotificationFn(sequence, round uint64, higherRounds bool) func() []M {
+func (c *Colllection[M]) getNotificationFn(sequence, round uint64, higherRounds bool) func() []M {
 	return func() []M {
 		c.collectionMux.RLock()
 		defer c.collectionMux.RUnlock()

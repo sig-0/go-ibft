@@ -12,7 +12,7 @@ type Validator interface {
 	Address() []byte
 
 	// BuildProposal returns this validator's proposal for given sequence
-	BuildProposal(sequence uint64) []byte
+	BuildProposal(ctx context.Context, sequence uint64) ([]byte, error)
 }
 
 type ProposerAlgo interface {
