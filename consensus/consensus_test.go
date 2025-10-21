@@ -1,5 +1,200 @@
 package consensus
 
+import (
+	"context"
+	"errors"
+	"testing"
+	"testing/synctest"
+
+	"github.com/sig-0/go-ibft/message"
+	"github.com/sig-0/go-ibft/sequencer"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type mockValidatorSet struct {
+	proposer   []byte
+	validators [][]byte
+	minQuorum  int
+}
+
+func (vs mockValidatorSet) GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error) {
+	return vs.proposer, nil
+}
+
+func (vs mockValidatorSet) GetValidators(ctx context.Context, sequence uint64) ([][]byte, error) {
+	return vs.validators, nil
+}
+
+func (vs mockValidatorSet) CheckQuorum(ctx context.Context, sequence uint64, validators [][]byte) (bool, error) {
+	return len(validators) >= vs.minQuorum, nil
+}
+
+type mockProposalVerifier struct {
+	err error
+}
+
+func (vrf mockProposalVerifier) Verify(ctx context.Context, sequence uint64, proposal []byte) error {
+	return vrf.err
+}
+
+type mockSignatureVerifier struct {
+}
+
+func (vrf mockSignatureVerifier) Verify(sender, digest, signature []byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func Test_AwaitProposal(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no incoming messages", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			var (
+				vs               = mockValidatorSet{}
+				proposalVerifier = mockProposalVerifier{}
+				sigVerifier      = mockSignatureVerifier{}
+			)
+
+			cons := New(vs, proposalVerifier, sigVerifier)
+			ctx, cancel := context.WithCancel(context.Background())
+
+			var err error
+			go func() {
+				sequence := sequencer.Sequence{Number: 101, Round: 0}
+				_, err = cons.AwaitProposal(ctx, sequence, message.NewStore())
+			}()
+
+			synctest.Wait()
+			require.NoError(t, err)
+
+			cancel()
+
+			synctest.Wait()
+			assert.ErrorIs(t, err, context.Canceled)
+		})
+	})
+
+	t.Run("no messages matching round", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			var (
+				vs               = mockValidatorSet{}
+				proposalVerifier = mockProposalVerifier{}
+				sigVerifier      = mockSignatureVerifier{}
+			)
+
+			cons := New(vs, proposalVerifier, sigVerifier)
+			ctx, cancel := context.WithCancel(context.Background())
+
+			var (
+				err   error
+				store = message.NewStore()
+			)
+
+			store.ProposalMessages.Add(&message.Proposal{
+				Sequence: 101,
+				Round:    99999,
+			})
+
+			go func() {
+				sequence := sequencer.Sequence{Number: 101, Round: 0}
+				_, err = cons.AwaitProposal(ctx, sequence, store)
+			}()
+
+			synctest.Wait()
+			require.NoError(t, err)
+
+			cancel()
+
+			synctest.Wait()
+			assert.ErrorIs(t, err, context.Canceled)
+		})
+	})
+
+	t.Run("no valid messages", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			var (
+				vs = mockValidatorSet{
+					proposer: []byte("the proposer"),
+				}
+				proposalVerifier = mockProposalVerifier{
+					err: errors.New("not good block"),
+				}
+				sigVerifier = mockSignatureVerifier{}
+			)
+
+			cons := New(vs, proposalVerifier, sigVerifier)
+			ctx, cancel := context.WithCancel(context.Background())
+
+			var (
+				err   error
+				store = message.NewStore()
+			)
+
+			pb := &message.ProposedBlock{
+				Block: []byte("block"),
+				Round: 0,
+			}
+
+			store.ProposalMessages.Add(&message.Proposal{
+				Sender:        []byte("the proposer"),
+				Sequence:      101,
+				Round:         0,
+				ProposedBlock: pb,
+				BlockHash:     message.GetProposalHash(pb),
+			})
+
+			go func() {
+				sequence := sequencer.Sequence{Number: 101, Round: 0}
+				_, err = cons.AwaitProposal(ctx, sequence, store)
+			}()
+
+			synctest.Wait()
+			require.NoError(t, err)
+
+			cancel()
+
+			synctest.Wait()
+			assert.ErrorIs(t, err, context.Canceled)
+		})
+	})
+
+	t.Run("awaited proposal", func(t *testing.T) {
+		var (
+			vs = mockValidatorSet{
+				proposer: []byte("the proposer"),
+			}
+			proposalVerifier = mockProposalVerifier{}
+			sigVerifier      = mockSignatureVerifier{}
+		)
+
+		cons := New(vs, proposalVerifier, sigVerifier)
+
+		pb := &message.ProposedBlock{
+			Block: []byte("block"),
+			Round: 0,
+		}
+
+		msg := &message.Proposal{
+			Sender:        []byte("the proposer"),
+			Sequence:      101,
+			Round:         0,
+			ProposedBlock: pb,
+			BlockHash:     message.GetProposalHash(pb),
+		}
+
+		store := message.NewStore()
+		store.ProposalMessages.Add(msg)
+
+		sequence := sequencer.Sequence{Number: 101, Round: 0}
+		awaitedProposal, err := cons.AwaitProposal(context.Background(), sequence, store)
+		require.NoError(t, err)
+
+		assert.Equal(t, msg, awaitedProposal)
+	})
+}
+
 //
 //import (
 //	"bytes"

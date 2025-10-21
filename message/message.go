@@ -8,7 +8,6 @@ import (
 type message interface {
 	GetSender() []byte
 	GetSequence() uint64
-	GetRound() uint64
 	GetSignature() []byte
 	Payload() []byte
 }
