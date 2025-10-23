@@ -124,7 +124,7 @@ func (c Consensus) isValidProposal(
 	}
 
 	if msg.Round == 0 {
-		return c.proposal.Verify(ctx, msg.Sequence, msg.ProposedBlock.Block) == nil
+		return c.vrf.VerifyProposal(ctx, msg.Sequence, msg.ProposedBlock.Block) == nil
 	}
 
 	/* non zero round proposals */
@@ -150,16 +150,15 @@ func (c Consensus) isValidProposal(
 	blockHash, round := trimmedRCC.HighestRoundBlockHash()
 	if blockHash == nil {
 		// there is no previously agreed upon block hash, build a new proposal
-		return c.proposal.Verify(ctx, msg.Sequence, msg.ProposedBlock.Block) == nil
+		return c.vrf.VerifyProposal(ctx, msg.Sequence, msg.ProposedBlock.Block) == nil
 	}
 
-	// reuse the proposed block from previous (highest) round
 	pb := &message.ProposedBlock{
 		Block: msg.ProposedBlock.Block,
 		Round: round,
 	}
 
-	// block hash and a keccak hash of proposed block match
+	// block hash must match hash of the proposed block
 	return bytes.Equal(blockHash, message.GetProposalHash(pb))
 }
 
@@ -204,8 +203,8 @@ func (c Consensus) isValidRCC(
 	}
 
 	ok, err := c.vs.CheckQuorum(ctx, sequence, senders)
-	if err != nil {
-		return false // todo: log
+	if err != nil || !ok {
+		return false
 	}
 
 	return ok

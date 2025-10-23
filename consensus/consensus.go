@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"context"
-	"sort"
 
 	"github.com/sig-0/go-ibft/message"
 	"github.com/sig-0/go-ibft/sequencer"
@@ -15,26 +14,26 @@ type ValidatorSet interface {
 	CheckQuorum(ctx context.Context, sequence uint64, validators [][]byte) (bool, error)
 }
 
-type ProposalVerifier interface {
-	Verify(ctx context.Context, sequence uint64, proposal []byte) error
+type Verifier interface {
+	VerifyProposal(ctx context.Context, sequence uint64, proposal []byte) error
 }
 
 type Consensus struct {
 	vs                ValidatorSet
-	proposal          ProposalVerifier
+	vrf               Verifier
 	sig               message.SignatureVerifier
 	currentValidators map[string]struct{}
 }
 
 func New(
 	vs ValidatorSet,
-	proposal ProposalVerifier,
-	vrf message.SignatureVerifier,
+	vrf Verifier,
+	sig message.SignatureVerifier,
 ) Consensus {
 	return Consensus{
 		vs:                vs,
-		proposal:          proposal,
-		sig:               vrf,
+		vrf:               vrf,
+		sig:               sig,
 		currentValidators: make(map[string]struct{}),
 	}
 }

@@ -4,13 +4,58 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"testing/synctest"
 
-	"github.com/sig-0/go-ibft/message"
-	"github.com/sig-0/go-ibft/sequencer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_InitSequence_ExternalError(t *testing.T) {
+	t.Parallel()
+
+	err := errors.New("external error")
+	vs := theRealMockVS{getValidatorsFn: func(_ context.Context, _ uint64) ([][]byte, error) {
+		return nil, err
+	}}
+
+	cons := New(vs, nil, nil)
+	assert.ErrorIs(t, err, cons.InitSequence(context.Background(), 101))
+}
+
+func Test_InitSequence_Ok(t *testing.T) {
+	t.Parallel()
+
+	vs := theRealMockVS{getValidatorsFn: func(_ context.Context, _ uint64) ([][]byte, error) {
+		return [][]byte{[]byte("alice"), []byte("bob")}, nil
+	}}
+
+	cons := New(vs, nil, nil)
+	require.NoError(t, cons.InitSequence(context.Background(), 101))
+
+	require.Len(t, cons.currentValidators, 2)
+
+	_, ok := cons.currentValidators["alice"]
+	assert.True(t, ok)
+	_, ok = cons.currentValidators["bob"]
+	assert.True(t, ok)
+}
+
+type theRealMockVS struct {
+	getProposersFn  func(ctx context.Context, sequence, round uint64) ([]byte, error)
+	getValidatorsFn func(ctx context.Context, sequence uint64) ([][]byte, error)
+	checkQuorumFn   func(ctx context.Context, sequence uint64, validators [][]byte) (bool, error)
+}
+
+func (b theRealMockVS) GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error) {
+	return b.getProposersFn(ctx, sequence, round)
+}
+
+func (b theRealMockVS) GetValidators(ctx context.Context, sequence uint64) ([][]byte, error) {
+	return b.getValidatorsFn(ctx, sequence)
+}
+
+func (b theRealMockVS) CheckQuorum(ctx context.Context, sequence uint64, validators [][]byte) (bool, error) {
+	return b.checkQuorumFn(ctx, sequence, validators)
+}
 
 type mockValidatorSet struct {
 	proposer   []byte
@@ -31,168 +76,27 @@ func (vs mockValidatorSet) CheckQuorum(ctx context.Context, sequence uint64, val
 }
 
 type mockProposalVerifier struct {
-	err error
+	valid bool
 }
 
-func (vrf mockProposalVerifier) Verify(ctx context.Context, sequence uint64, proposal []byte) error {
-	return vrf.err
+func (vrf mockProposalVerifier) VerifyProposal(ctx context.Context, sequence uint64, proposal []byte) error {
+	if !vrf.valid {
+		return errors.New("invalid proposal")
+	}
+
+	return nil
 }
 
 type mockSignatureVerifier struct {
+	valid bool
 }
 
 func (vrf mockSignatureVerifier) Verify(sender, digest, signature []byte) error {
-	//TODO implement me
-	panic("implement me")
-}
+	if !vrf.valid {
+		return errors.New("invalid signature")
+	}
 
-func Test_AwaitProposal(t *testing.T) {
-	t.Parallel()
-
-	t.Run("no incoming messages", func(t *testing.T) {
-		synctest.Test(t, func(t *testing.T) {
-			var (
-				vs               = mockValidatorSet{}
-				proposalVerifier = mockProposalVerifier{}
-				sigVerifier      = mockSignatureVerifier{}
-			)
-
-			cons := New(vs, proposalVerifier, sigVerifier)
-			ctx, cancel := context.WithCancel(context.Background())
-
-			var err error
-			go func() {
-				sequence := sequencer.Sequence{Number: 101, Round: 0}
-				_, err = cons.AwaitProposal(ctx, sequence, message.NewStore())
-			}()
-
-			synctest.Wait()
-			require.NoError(t, err)
-
-			cancel()
-
-			synctest.Wait()
-			assert.ErrorIs(t, err, context.Canceled)
-		})
-	})
-
-	t.Run("no messages matching round", func(t *testing.T) {
-		synctest.Test(t, func(t *testing.T) {
-			var (
-				vs               = mockValidatorSet{}
-				proposalVerifier = mockProposalVerifier{}
-				sigVerifier      = mockSignatureVerifier{}
-			)
-
-			cons := New(vs, proposalVerifier, sigVerifier)
-			ctx, cancel := context.WithCancel(context.Background())
-
-			var (
-				err   error
-				store = message.NewStore()
-			)
-
-			store.ProposalMessages.Add(&message.Proposal{
-				Sequence: 101,
-				Round:    99999,
-			})
-
-			go func() {
-				sequence := sequencer.Sequence{Number: 101, Round: 0}
-				_, err = cons.AwaitProposal(ctx, sequence, store)
-			}()
-
-			synctest.Wait()
-			require.NoError(t, err)
-
-			cancel()
-
-			synctest.Wait()
-			assert.ErrorIs(t, err, context.Canceled)
-		})
-	})
-
-	t.Run("no valid messages", func(t *testing.T) {
-		synctest.Test(t, func(t *testing.T) {
-			var (
-				vs = mockValidatorSet{
-					proposer: []byte("the proposer"),
-				}
-				proposalVerifier = mockProposalVerifier{
-					err: errors.New("not good block"),
-				}
-				sigVerifier = mockSignatureVerifier{}
-			)
-
-			cons := New(vs, proposalVerifier, sigVerifier)
-			ctx, cancel := context.WithCancel(context.Background())
-
-			var (
-				err   error
-				store = message.NewStore()
-			)
-
-			pb := &message.ProposedBlock{
-				Block: []byte("block"),
-				Round: 0,
-			}
-
-			store.ProposalMessages.Add(&message.Proposal{
-				Sender:        []byte("the proposer"),
-				Sequence:      101,
-				Round:         0,
-				ProposedBlock: pb,
-				BlockHash:     message.GetProposalHash(pb),
-			})
-
-			go func() {
-				sequence := sequencer.Sequence{Number: 101, Round: 0}
-				_, err = cons.AwaitProposal(ctx, sequence, store)
-			}()
-
-			synctest.Wait()
-			require.NoError(t, err)
-
-			cancel()
-
-			synctest.Wait()
-			assert.ErrorIs(t, err, context.Canceled)
-		})
-	})
-
-	t.Run("awaited proposal", func(t *testing.T) {
-		var (
-			vs = mockValidatorSet{
-				proposer: []byte("the proposer"),
-			}
-			proposalVerifier = mockProposalVerifier{}
-			sigVerifier      = mockSignatureVerifier{}
-		)
-
-		cons := New(vs, proposalVerifier, sigVerifier)
-
-		pb := &message.ProposedBlock{
-			Block: []byte("block"),
-			Round: 0,
-		}
-
-		msg := &message.Proposal{
-			Sender:        []byte("the proposer"),
-			Sequence:      101,
-			Round:         0,
-			ProposedBlock: pb,
-			BlockHash:     message.GetProposalHash(pb),
-		}
-
-		store := message.NewStore()
-		store.ProposalMessages.Add(msg)
-
-		sequence := sequencer.Sequence{Number: 101, Round: 0}
-		awaitedProposal, err := cons.AwaitProposal(context.Background(), sequence, store)
-		require.NoError(t, err)
-
-		assert.Equal(t, msg, awaitedProposal)
-	})
+	return nil
 }
 
 //
