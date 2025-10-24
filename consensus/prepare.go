@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"context"
+	"sync"
 
 	"github.com/sig-0/go-ibft/message"
 	"github.com/sig-0/go-ibft/sequencer"
@@ -13,10 +14,12 @@ func (c Consensus) AwaitPrepare(
 	seq sequencer.Sequence,
 	store *message.Store,
 ) ([]*message.Prepare, error) {
-	seen := make(map[string]struct{})
-	valid := make([]*message.Prepare, 0)
-	sequence := seq.Number
-	round := seq.Round
+	var (
+		sequence = seq.Number
+		round    = seq.Round
+		seen     = make(map[string]struct{})
+		valid    = make([]*message.Prepare, 0)
+	)
 
 	sub, cancel := store.PrepareMessages.Subscribe(sequence)
 	defer cancel()
@@ -27,9 +30,9 @@ func (c Consensus) AwaitPrepare(
 			return nil, ctx.Err()
 		case unwrap := <-sub:
 			messages := unwrap()
+			candidates := make([]*message.Prepare, 0, len(messages))
 			for _, msg := range messages {
 				if msg.Round != round {
-					// only interested in higher rounds
 					continue
 				}
 
@@ -39,30 +42,23 @@ func (c Consensus) AwaitPrepare(
 
 				seen[string(msg.Signature)] = struct{}{}
 
-				if !c.isValidPrepare(ctx, seq, msg) {
-					continue
-				}
-
-				valid = append(valid, msg)
+				candidates = append(candidates, msg)
 			}
+
+			valid = filterValidPrepareMessages(ctx, c, candidates, seq)
 		}
 
 		getValidators := func(messages ...*message.Prepare) [][]byte {
 			validators := make([][]byte, 0, len(messages))
 			for _, msg := range messages {
-				validators = append(validators, msg.Signature)
+				validators = append(validators, msg.Sender)
 			}
 
 			return validators
 		}
 
 		ok, err := c.vs.CheckQuorum(ctx, sequence, getValidators(valid...))
-		if err != nil {
-			// todo: log
-			continue
-		}
-
-		if !ok {
+		if err != nil || !ok {
 			continue
 		}
 
@@ -82,4 +78,39 @@ func (c Consensus) isValidPrepare(_ context.Context, seq sequencer.Sequence, msg
 	}
 
 	return true
+}
+
+func filterValidPrepareMessages(
+	ctx context.Context,
+	cons Consensus,
+	messages []*message.Prepare,
+	sequence sequencer.Sequence,
+) []*message.Prepare {
+	filtered := make([]*message.Prepare, 0, len(messages))
+
+	var (
+		mux sync.Mutex
+		wg  sync.WaitGroup
+	)
+
+	for _, msg := range messages {
+		wg.Add(1)
+
+		go func(msg *message.Prepare) {
+			defer wg.Done()
+
+			if !cons.isValidPrepare(ctx, sequence, msg) {
+				return
+			}
+
+			mux.Lock()
+			defer mux.Unlock()
+
+			filtered = append(filtered, msg)
+		}(msg)
+	}
+
+	wg.Wait()
+
+	return filtered
 }
