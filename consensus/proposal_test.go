@@ -159,6 +159,255 @@ func Test_AwaitProposal(t *testing.T) {
 	})
 }
 
+func Test_AwaitFutureProposal(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no incoming proposals", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			var (
+				vs               = mockValidatorSet{}
+				proposalVerifier = mockProposalVerifier{}
+				sigVerifier      = mockSignatureVerifier{}
+			)
+
+			cons := New(vs, proposalVerifier, sigVerifier)
+			ctx, cancel := context.WithCancel(context.Background())
+
+			var err error
+			go func() {
+				sequence := sequencer.Sequence{Number: 101, Round: 0}
+				_, err = cons.AwaitFutureProposal(ctx, sequence, message.NewStore())
+			}()
+
+			synctest.Wait()
+			require.NoError(t, err)
+
+			cancel()
+
+			synctest.Wait()
+			assert.ErrorIs(t, err, context.Canceled)
+		})
+	})
+
+	t.Run("no proposal from higher rounds", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			var (
+				vs               = mockValidatorSet{}
+				proposalVerifier = mockProposalVerifier{}
+				sigVerifier      = mockSignatureVerifier{}
+			)
+
+			cons := New(vs, proposalVerifier, sigVerifier)
+			ctx, cancel := context.WithCancel(context.Background())
+
+			var (
+				err   error
+				store = message.NewStore()
+			)
+
+			store.ProposalMessages.Add(&message.Proposal{
+				Sequence: 101,
+				Round:    1,
+			})
+
+			go func() {
+				sequence := sequencer.Sequence{Number: 101, Round: 2}
+				_, err = cons.AwaitFutureProposal(ctx, sequence, store)
+			}()
+
+			synctest.Wait()
+			require.NoError(t, err)
+
+			cancel()
+
+			synctest.Wait()
+			assert.ErrorIs(t, err, context.Canceled)
+		})
+	})
+
+	t.Run("no valid proposal from higher rounds", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			var (
+				vs = mockValidatorSet{
+					proposer: []byte("the proposer"),
+				}
+				proposalVerifier = mockProposalVerifier{valid: false}
+				sigVerifier      = mockSignatureVerifier{}
+			)
+
+			cons := New(vs, proposalVerifier, sigVerifier)
+			ctx, cancel := context.WithCancel(context.Background())
+
+			var (
+				err   error
+				store = message.NewStore()
+			)
+
+			pb := &message.ProposedBlock{
+				Block: []byte("block"),
+				Round: 123,
+			}
+
+			store.ProposalMessages.Add(&message.Proposal{
+				Sender:        []byte("the proposer"),
+				Sequence:      101,
+				Round:         1,
+				ProposedBlock: pb,
+				BlockHash:     message.GetProposalHash(pb),
+			})
+
+			go func() {
+				sequence := sequencer.Sequence{Number: 101, Round: 0}
+				_, err = cons.AwaitFutureProposal(ctx, sequence, store)
+			}()
+
+			synctest.Wait()
+			require.NoError(t, err)
+
+			cancel()
+
+			synctest.Wait()
+			assert.ErrorIs(t, err, context.Canceled)
+		})
+	})
+
+	t.Run("awaited proposal from higher rounds", func(t *testing.T) {
+		var (
+			vs = theRealMockVS{
+				getProposersFn: func(_ context.Context, _, _ uint64) ([]byte, error) {
+					return []byte("the proposer"), nil
+				},
+				getValidatorsFn: func(_ context.Context, _ uint64) ([][]byte, error) {
+					return [][]byte{[]byte("alice"), []byte("bob")}, nil
+				},
+				checkQuorumFn: func(_ context.Context, _ uint64, _ [][]byte) (bool, error) {
+					return true, nil
+				},
+			}
+			proposalVerifier = mockProposalVerifier{valid: true}
+		)
+
+		cons := New(vs, proposalVerifier, nil)
+		ctx := context.Background()
+		sequence := sequencer.Sequence{Number: 101, Round: 0}
+		require.NoError(t, cons.InitSequence(ctx, sequence.Number))
+
+		pb := &message.ProposedBlock{
+			Block: []byte("block"),
+			Round: 3,
+		}
+
+		msg := &message.Proposal{
+			Sender:        []byte("the proposer"),
+			Sequence:      101,
+			Round:         3,
+			ProposedBlock: pb,
+			BlockHash:     message.GetProposalHash(pb),
+			RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
+				{
+					Sequence: 101,
+					Round:    3,
+					Sender:   []byte("alice"),
+				},
+				{
+					Sequence: 101,
+					Round:    3,
+					Sender:   []byte("bob"),
+				},
+			}},
+		}
+
+		store := message.NewStore()
+		store.ProposalMessages.Add(msg)
+
+		awaitedProposal, err := cons.AwaitFutureProposal(ctx, sequence, store)
+		require.NoError(t, err)
+
+		assert.Equal(t, msg, awaitedProposal)
+	})
+
+	t.Run("proposal with higher round takes precedence", func(t *testing.T) {
+		var (
+			vs = theRealMockVS{
+				getProposersFn: func(_ context.Context, _, _ uint64) ([]byte, error) {
+					return []byte("the proposer"), nil
+				},
+				getValidatorsFn: func(_ context.Context, _ uint64) ([][]byte, error) {
+					return [][]byte{[]byte("alice"), []byte("bob")}, nil
+				},
+				checkQuorumFn: func(_ context.Context, _ uint64, _ [][]byte) (bool, error) {
+					return true, nil
+				},
+			}
+			proposalVerifier = mockProposalVerifier{valid: true}
+		)
+
+		cons := New(vs, proposalVerifier, nil)
+		ctx := context.Background()
+		sequence := sequencer.Sequence{Number: 101, Round: 0}
+		require.NoError(t, cons.InitSequence(ctx, sequence.Number))
+
+		pb := &message.ProposedBlock{
+			Block: []byte("block"),
+			Round: 3,
+		}
+
+		msg := &message.Proposal{
+			Sender:        []byte("the proposer"),
+			Sequence:      101,
+			Round:         3,
+			ProposedBlock: pb,
+			BlockHash:     message.GetProposalHash(pb),
+			RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
+				{
+					Sequence: 101,
+					Round:    3,
+					Sender:   []byte("alice"),
+				},
+				{
+					Sequence: 101,
+					Round:    3,
+					Sender:   []byte("bob"),
+				},
+			}},
+		}
+
+		pb = &message.ProposedBlock{
+			Block: []byte("block"),
+			Round: 5,
+		}
+
+		higherRoundMsg := &message.Proposal{
+			Sender:        []byte("the proposer"),
+			Sequence:      101,
+			Round:         5,
+			ProposedBlock: pb,
+			BlockHash:     message.GetProposalHash(pb),
+			RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
+				{
+					Sequence: 101,
+					Round:    5,
+					Sender:   []byte("alice"),
+				},
+				{
+					Sequence: 101,
+					Round:    5,
+					Sender:   []byte("bob"),
+				},
+			}},
+		}
+
+		store := message.NewStore()
+		store.ProposalMessages.Add(msg)
+		store.ProposalMessages.Add(higherRoundMsg)
+
+		awaitedProposal, err := cons.AwaitFutureProposal(ctx, sequence, store)
+		require.NoError(t, err)
+
+		assert.Equal(t, higherRoundMsg, awaitedProposal)
+	})
+}
+
 func Test_IsValidProposalMessage(t *testing.T) {
 	t.Parallel()
 

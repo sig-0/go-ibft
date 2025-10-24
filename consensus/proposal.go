@@ -49,7 +49,6 @@ func (c Consensus) AwaitFutureProposal(
 	store *message.Store,
 ) (*message.Proposal, error) {
 	seen := make(map[string]struct{})
-	proposalsInRounds := make(map[uint64]*message.Proposal)
 
 	sub, cancel := store.ProposalMessages.Subscribe(sequence.Number)
 	defer cancel()
@@ -59,37 +58,36 @@ func (c Consensus) AwaitFutureProposal(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case unwrap := <-sub:
-			// todo: rework (highest to lowest)
-			messages := unwrap()
-			for _, msg := range messages {
-				if _, ok := seen[string(msg.Signature)]; ok {
+			// Much like for individual rounds, stop processing as soon as
+			// there is a single valid proposal. Proposals are processed from
+			// highest to lowest
+			candidates := make([]*message.Proposal, 0)
+			for _, proposal := range unwrap() {
+				sig := proposal.Signature
+				if _, ok := seen[string(sig)]; ok {
+					continue // already seen
+				}
+
+				seen[string(sig)] = struct{}{}
+
+				if proposal.Round <= sequence.Round {
+					continue // only interested in higher rounds
+				}
+
+				candidates = append(candidates, proposal)
+			}
+
+			sort.SliceStable(candidates, func(i, j int) bool {
+				return candidates[i].Round > candidates[j].Round // high to low
+			})
+
+			for _, proposal := range candidates {
+				if !c.isValidProposal(ctx, sequence, proposal) {
 					continue
 				}
 
-				seen[string(msg.Signature)] = struct{}{}
-
-				if msg.Round <= sequence.Round {
-					// only interested in higher rounds
-					continue
-				}
-
-				if !c.isValidProposal(ctx, sequence, msg) {
-					continue
-				}
-
-				proposalsInRounds[msg.Round] = msg
-
-				// now we check in descending order
-				rounds := make([]uint64, 0, len(messages))
-				for round := range proposalsInRounds {
-					rounds = append(rounds, round)
-				}
-
-				sort.SliceStable(rounds, func(i, j int) bool { return rounds[i] > rounds[j] })
-
-				// take the proposal from the highest round
-				highestRound := rounds[0]
-				return proposalsInRounds[highestRound], nil
+				// there is a valid proposal from a higher round
+				return proposal, nil
 			}
 		}
 	}
