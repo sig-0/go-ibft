@@ -120,7 +120,7 @@ func (s *Sequencer) finalize(
 
 			msg := s.buildRoundChangeMessage(sequence)
 			messages.RoundChangeMessages.Add(msg)
-			s.transport().MulticastRoundChange(msg)
+			s.transport().MulticastRoundChange(ctx, msg)
 
 		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound, sequence, messages):
 			teardown()
@@ -144,7 +144,7 @@ func (s *Sequencer) finalize(
 			sequence.Seals = nil
 
 			msg := s.buildPrepareMessage(sequence)
-			s.transport().MulticastPrepare(msg)
+			s.transport().MulticastPrepare(ctx, msg)
 			messages.PrepareMessages.Add(msg)
 
 		case _, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound, sequence, messages):
@@ -323,7 +323,7 @@ func (s *Sequencer) runRound(
 
 			msg := s.buildProposalMessage(proposal, sequence)
 			sequence.Proposal = msg
-			s.transport().MulticastProposal(msg)
+			s.transport().MulticastProposal(ctx, msg)
 		} else {
 			proposal, err := s.consensus().AwaitProposal(ctx, *sequence, store)
 			if err != nil {
@@ -336,7 +336,7 @@ func (s *Sequencer) runRound(
 
 			msg := s.buildPrepareMessage(sequence)
 			store.PrepareMessages.Add(msg)
-			s.transport().MulticastPrepare(msg)
+			s.transport().MulticastPrepare(ctx, msg)
 		}
 	}
 
@@ -355,7 +355,7 @@ func (s *Sequencer) runRound(
 
 	msg := s.buildCommitMessage(sequence)
 	store.CommitMessages.Add(msg)
-	s.transport().MulticastCommit(msg)
+	s.transport().MulticastCommit(ctx, msg)
 
 	commits, err := s.consensus().AwaitCommit(ctx, *sequence, store)
 	if err != nil {

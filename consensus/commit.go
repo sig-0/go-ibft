@@ -46,16 +46,12 @@ func (c Consensus) AwaitCommit(
 
 			valid = filterValidCommitMessages(ctx, c, candidates, seq)
 
-			getValidators := func(messages ...*message.Commit) [][]byte {
-				validators := make([][]byte, 0, len(messages))
-				for _, msg := range messages {
-					validators = append(validators, msg.Sender)
-				}
-
-				return validators
+			validators := make([][]byte, 0, len(valid))
+			for _, msg := range valid {
+				validators = append(validators, msg.Sender)
 			}
 
-			ok, err := c.vs.CheckQuorum(ctx, sequence, getValidators(valid...))
+			ok, err := c.vs.CheckQuorum(ctx, sequence, validators)
 			if err != nil || !ok {
 				continue
 			}
@@ -65,7 +61,7 @@ func (c Consensus) AwaitCommit(
 	}
 }
 
-func (c Consensus) isValidCommit(ctx context.Context, seq sequencer.Sequence, msg *message.Commit) bool {
+func (c Consensus) isValidCommit(_ context.Context, seq sequencer.Sequence, msg *message.Commit) bool {
 	// sender must be part of the validator set
 	if _, ok := c.currentValidators[string(msg.Sender)]; !ok {
 		return false

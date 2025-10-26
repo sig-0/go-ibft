@@ -30,13 +30,13 @@ func (v mockValidator) BuildProposal(ctx context.Context, sequence uint64) ([]by
 
 type dummyTransport struct{}
 
-func (t dummyTransport) MulticastProposal(_ *message.Proposal) {}
+func (t dummyTransport) MulticastProposal(ctx context.Context, msg *message.Proposal) {}
 
-func (t dummyTransport) MulticastPrepare(_ *message.Prepare) {}
+func (t dummyTransport) MulticastPrepare(ctx context.Context, msg *message.Prepare) {}
 
-func (t dummyTransport) MulticastCommit(_ *message.Commit) {}
+func (t dummyTransport) MulticastCommit(ctx context.Context, msg *message.Commit) {}
 
-func (t dummyTransport) MulticastRoundChange(_ *message.RoundChange) {}
+func (t dummyTransport) MulticastRoundChange(ctx context.Context, msg *message.RoundChange) {}
 
 type allGoodConsensus struct {
 	blockFutureProposal, blockFutureRCC bool
