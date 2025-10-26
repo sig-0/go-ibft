@@ -12,6 +12,10 @@ type message interface {
 	Payload() []byte
 }
 
+type Deriver interface {
+	DeriveSender(digest, signature []byte) ([]byte, error)
+}
+
 type SignatureVerifier interface {
 	Verify(sender, digest, signature []byte) error
 }

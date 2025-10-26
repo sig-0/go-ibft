@@ -40,31 +40,34 @@ func (c Consensus) AwaitRoundChange(
 				}
 
 				valid = append(valid, msg)
-				senders := make([][]byte, 0, len(valid))
-				for _, msg := range valid {
-					senders = append(senders, msg.Sender)
-				}
-
-				ok, err := c.vs.CheckQuorum(ctx, sequence.Number, senders)
-				if err != nil {
-					return nil, err // todo
-				}
-
-				if !ok {
-					continue
-				}
-
-				return valid, nil
 			}
+
+			senders := make([][]byte, 0, len(valid))
+			for _, msg := range valid {
+				senders = append(senders, msg.Sender)
+			}
+
+			ok, err := c.vs.CheckQuorum(ctx, sequence.Number, senders)
+			if err != nil || !ok {
+				continue
+			}
+
+			return valid, nil
 		}
 	}
 }
 
-func (c Consensus) AwaitFutureRoundChange(ctx context.Context, seq sequencer.Sequence, store *message.Store) ([]*message.RoundChange, error) {
-	sequence := seq.Number
-	round := seq.Round
-	seen := make(map[string]struct{})
-	rccByRounds := make(map[uint64]*message.RoundChangeCertificate)
+func (c Consensus) AwaitFutureRoundChange(
+	ctx context.Context,
+	seq sequencer.Sequence,
+	store *message.Store,
+) ([]*message.RoundChange, error) {
+	var (
+		sequence    = seq.Number
+		round       = seq.Round
+		seen        = make(map[string]struct{})
+		rccByRounds = make(map[uint64]*message.RoundChangeCertificate)
+	)
 
 	sub, cancel := store.RoundChangeMessages.Subscribe(seq.Number)
 	defer cancel()
@@ -111,7 +114,7 @@ func (c Consensus) AwaitFutureRoundChange(ctx context.Context, seq sequencer.Seq
 			getValidators := func(messages ...*message.RoundChange) [][]byte {
 				validators := make([][]byte, 0, len(messages))
 				for _, msg := range messages {
-					validators = append(validators, msg.Signature)
+					validators = append(validators, msg.Sender)
 				}
 
 				return validators
@@ -119,18 +122,13 @@ func (c Consensus) AwaitFutureRoundChange(ctx context.Context, seq sequencer.Seq
 
 			// take the proposal from the highest round
 			for _, round := range rounds {
-				messages := rccByRounds[round].Messages
-				ok, err := c.vs.CheckQuorum(ctx, sequence, getValidators(messages...))
-				if err != nil {
-					// todo: log
+				rcc := rccByRounds[round]
+				ok, err := c.vs.CheckQuorum(ctx, sequence, getValidators(rcc.Messages...))
+				if err != nil || !ok {
 					continue
 				}
 
-				if !ok {
-					continue
-				}
-
-				return messages, nil
+				return rcc.Messages, nil
 			}
 		}
 	}

@@ -8,11 +8,17 @@ import (
 	"github.com/sig-0/go-ibft/sequencer"
 )
 
-func (c Consensus) AwaitCommit(ctx context.Context, seq sequencer.Sequence, store *message.Store) ([]*message.Commit, error) {
-	seen := make(map[string]struct{})
-	valid := make([]*message.Commit, 0)
-	sequence := seq.Number
-	round := seq.Round
+func (c Consensus) AwaitCommit(
+	ctx context.Context,
+	seq sequencer.Sequence,
+	store *message.Store,
+) ([]*message.Commit, error) {
+	var (
+		sequence = seq.Number
+		round    = seq.Round
+		seen     = make(map[string]struct{})
+		valid    = make([]*message.Commit, 0)
+	)
 
 	sub, cancel := store.CommitMessages.Subscribe(sequence)
 	defer cancel()
@@ -23,46 +29,39 @@ func (c Consensus) AwaitCommit(ctx context.Context, seq sequencer.Sequence, stor
 			return nil, ctx.Err()
 		case unwrap := <-sub:
 			messages := unwrap()
+			candidates := make([]*message.Commit, 0, len(messages))
 			for _, msg := range messages {
+				if msg.Round != round {
+					continue
+				}
+
 				if _, ok := seen[string(msg.Signature)]; ok {
 					continue
 				}
 
 				seen[string(msg.Signature)] = struct{}{}
 
-				if msg.Round != round {
-					// only interested in active round
-					continue
-				}
-
-				if !c.isValidCommit(ctx, seq, msg) {
-					continue
-				}
-
-				valid = append(valid, msg)
-			}
-		}
-
-		getValidators := func(messages ...*message.Commit) [][]byte {
-			validators := make([][]byte, 0, len(messages))
-			for _, msg := range messages {
-				validators = append(validators, msg.Signature)
+				candidates = append(candidates, msg)
 			}
 
-			return validators
-		}
+			valid = filterValidCommitMessages(ctx, c, candidates, seq)
 
-		ok, err := c.vs.CheckQuorum(ctx, sequence, getValidators(valid...))
-		if err != nil {
-			// todo: log
-			continue
-		}
+			getValidators := func(messages ...*message.Commit) [][]byte {
+				validators := make([][]byte, 0, len(messages))
+				for _, msg := range messages {
+					validators = append(validators, msg.Sender)
+				}
 
-		if !ok {
-			continue
-		}
+				return validators
+			}
 
-		return valid, nil
+			ok, err := c.vs.CheckQuorum(ctx, sequence, getValidators(valid...))
+			if err != nil || !ok {
+				continue
+			}
+
+			return valid, nil
+		}
 	}
 }
 

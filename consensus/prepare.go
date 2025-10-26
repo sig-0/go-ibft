@@ -46,23 +46,23 @@ func (c Consensus) AwaitPrepare(
 			}
 
 			valid = filterValidPrepareMessages(ctx, c, candidates, seq)
-		}
 
-		getValidators := func(messages ...*message.Prepare) [][]byte {
-			validators := make([][]byte, 0, len(messages))
-			for _, msg := range messages {
-				validators = append(validators, msg.Sender)
+			getValidators := func(messages ...*message.Prepare) [][]byte {
+				validators := make([][]byte, 0, len(messages))
+				for _, msg := range messages {
+					validators = append(validators, msg.Sender)
+				}
+
+				return validators
 			}
 
-			return validators
-		}
+			ok, err := c.vs.CheckQuorum(ctx, sequence, getValidators(valid...))
+			if err != nil || !ok {
+				continue
+			}
 
-		ok, err := c.vs.CheckQuorum(ctx, sequence, getValidators(valid...))
-		if err != nil || !ok {
-			continue
+			return valid, nil
 		}
-
-		return valid, nil
 	}
 }
 
@@ -100,6 +100,41 @@ func filterValidPrepareMessages(
 			defer wg.Done()
 
 			if !cons.isValidPrepare(ctx, sequence, msg) {
+				return
+			}
+
+			mux.Lock()
+			defer mux.Unlock()
+
+			filtered = append(filtered, msg)
+		}(msg)
+	}
+
+	wg.Wait()
+
+	return filtered
+}
+
+func filterValidCommitMessages(
+	ctx context.Context,
+	cons Consensus,
+	messages []*message.Commit,
+	sequence sequencer.Sequence,
+) []*message.Commit {
+	filtered := make([]*message.Commit, 0, len(messages))
+
+	var (
+		mux sync.Mutex
+		wg  sync.WaitGroup
+	)
+
+	for _, msg := range messages {
+		wg.Add(1)
+
+		go func(msg *message.Commit) {
+			defer wg.Done()
+
+			if !cons.isValidCommit(ctx, sequence, msg) {
 				return
 			}
 
