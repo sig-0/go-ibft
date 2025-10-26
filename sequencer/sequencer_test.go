@@ -137,15 +137,17 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			messages: []any{
 				&message.Prepare{
-					Sender:   Bob.Address(),
-					Sequence: 101,
-					Round:    0,
+					Sender:    Bob.Address(),
+					Sequence:  101,
+					Round:     0,
+					Signature: Alice.Sign(nil),
 				},
 
 				&message.Prepare{
-					Sender:   Chris.Address(),
-					Sequence: 101,
-					Round:    0,
+					Sender:    Chris.Address(),
+					Sequence:  101,
+					Round:     0,
+					Signature: Chris.Sign(nil),
 				},
 
 				&message.Commit{
@@ -153,6 +155,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      0,
 					CommitSeal: []byte("bob_sig"),
+					Signature:  Bob.Sign(nil),
 				},
 
 				&message.Commit{
@@ -160,6 +163,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      0,
 					CommitSeal: []byte("chris_sig"),
+					Signature:  Chris.Sign(nil),
 				},
 			},
 		},
@@ -393,27 +397,31 @@ func Test_SequencerFinalize(t *testing.T) {
 			messages: []any{
 				// need to justify Alice's proposal for round 1
 				&message.RoundChange{
-					Sender:   Alice.Address(),
-					Sequence: 101,
-					Round:    1,
+					Sender:    Alice.Address(),
+					Sequence:  101,
+					Round:     1,
+					Signature: []byte("alice_sig"),
 				},
 
 				&message.RoundChange{
-					Sender:   Nina.Address(),
-					Sequence: 101,
-					Round:    1,
+					Sender:    Nina.Address(),
+					Sequence:  101,
+					Round:     1,
+					Signature: []byte("nina_sig"),
 				},
 
 				&message.Prepare{
-					Sender:   Bob.Address(),
-					Sequence: 101,
-					Round:    1,
+					Sender:    Bob.Address(),
+					Sequence:  101,
+					Round:     1,
+					Signature: []byte("bob_sig"),
 				},
 
 				&message.Prepare{
-					Sender:   Nina.Address(),
-					Sequence: 101,
-					Round:    1,
+					Sender:    Nina.Address(),
+					Sequence:  101,
+					Round:     1,
+					Signature: []byte("nina_sig"),
 				},
 
 				&message.Commit{
@@ -421,6 +429,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      1,
 					CommitSeal: []byte("bob_sig"),
+					Signature:  []byte("bob_sig"),
 				},
 
 				&message.Commit{
@@ -428,6 +437,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      1,
 					CommitSeal: []byte("nina_sig"),
+					Signature:  []byte("nina_sig"),
 				},
 			},
 		},
@@ -464,18 +474,20 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			messages: []any{
 				&message.RoundChange{
-					Sender:   Chris.Address(),
-					Sequence: 101,
-					Round:    1,
+					Sender:    Chris.Address(),
+					Sequence:  101,
+					Round:     1,
+					Signature: []byte("chris_sig"),
 					LatestPreparedProposedBlock: &message.ProposedBlock{
 						Block: []byte("bob_proposal"),
 						Round: 0,
 					},
 					LatestPreparedCertificate: &message.PreparedCertificate{
 						ProposalMessage: &message.Proposal{
-							Sender:   Bob.Address(),
-							Sequence: 101,
-							Round:    0,
+							Sender:    Bob.Address(),
+							Sequence:  101,
+							Round:     0,
+							Signature: []byte("bob_sig"),
 							ProposedBlock: &message.ProposedBlock{
 								Block: []byte("bob_proposal"),
 								Round: 0,
@@ -484,14 +496,16 @@ func Test_SequencerFinalize(t *testing.T) {
 
 						PrepareMessages: []*message.Prepare{
 							{
-								Sender:   Chris.Address(),
-								Sequence: 101,
-								Round:    0,
+								Sender:    Chris.Address(),
+								Sequence:  101,
+								Round:     0,
+								Signature: []byte("chris_sig"),
 							},
 							{
-								Sender:   Nina.Address(),
-								Sequence: 101,
-								Round:    0,
+								Sender:    Nina.Address(),
+								Sequence:  101,
+								Round:     0,
+								Signature: []byte("nina_sig"),
 							},
 						},
 					},
@@ -507,9 +521,10 @@ func Test_SequencerFinalize(t *testing.T) {
 					},
 					LatestPreparedCertificate: &message.PreparedCertificate{
 						ProposalMessage: &message.Proposal{
-							Sender:   Bob.Address(),
-							Sequence: 101,
-							Round:    0,
+							Sender:    Bob.Address(),
+							Sequence:  101,
+							Round:     0,
+							Signature: []byte("bob_sig"),
 							ProposedBlock: &message.ProposedBlock{
 								Block: []byte("bob_proposal"),
 								Round: 0,
@@ -518,29 +533,33 @@ func Test_SequencerFinalize(t *testing.T) {
 
 						PrepareMessages: []*message.Prepare{
 							{
-								Sender:   Chris.Address(),
-								Sequence: 101,
-								Round:    0,
+								Sender:    Chris.Address(),
+								Sequence:  101,
+								Round:     0,
+								Signature: []byte("chris_sig"),
 							},
 							{
-								Sender:   Nina.Address(),
-								Sequence: 101,
-								Round:    0,
+								Sender:    Nina.Address(),
+								Sequence:  101,
+								Round:     0,
+								Signature: []byte("nina_sig"),
 							},
 						},
 					},
 				},
 
 				&message.Prepare{
-					Sender:   Bob.Address(),
-					Sequence: 101,
-					Round:    1,
+					Sender:    Bob.Address(),
+					Sequence:  101,
+					Round:     1,
+					Signature: []byte("bob_sig"),
 				},
 
 				&message.Prepare{
-					Sender:   Chris.Address(),
-					Sequence: 101,
-					Round:    1,
+					Sender:    Chris.Address(),
+					Sequence:  101,
+					Round:     1,
+					Signature: []byte("chris_sig"),
 				},
 
 				&message.Commit{
@@ -548,6 +567,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      1,
 					CommitSeal: []byte("bob_sig"),
+					Signature:  []byte("bob_sig"),
 				},
 
 				&message.Commit{
@@ -555,6 +575,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      1,
 					CommitSeal: []byte("chris_sig"),
+					Signature:  []byte("chris_sig"),
 				},
 			},
 		},
@@ -592,36 +613,42 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			messages: []any{
 				&message.RoundChange{
-					Sender:   Bob.Address(),
-					Sequence: 101,
-					Round:    3,
+					Sender:    Bob.Address(),
+					Sequence:  101,
+					Round:     3,
+					Signature: []byte("bob_sig"),
 				},
 				&message.RoundChange{
-					Sender:   Chris.Address(),
-					Sequence: 101,
-					Round:    3,
+					Sender:    Chris.Address(),
+					Sequence:  101,
+					Round:     3,
+					Signature: []byte("chris_sig"),
 				},
 				&message.Prepare{
-					Sender:   Bob.Address(),
-					Sequence: 101,
-					Round:    3,
+					Sender:    Bob.Address(),
+					Sequence:  101,
+					Round:     3,
+					Signature: []byte("bob_sig"),
 				},
 				&message.Prepare{
-					Sender:   Chris.Address(),
-					Sequence: 101,
-					Round:    3,
+					Sender:    Chris.Address(),
+					Sequence:  101,
+					Round:     3,
+					Signature: []byte("chris_sig"),
 				},
 				&message.Commit{
 					Sender:     Bob.Address(),
 					Sequence:   101,
 					Round:      3,
 					CommitSeal: []byte("bob_sig"),
+					Signature:  []byte("bob_sig"),
 				},
 				&message.Commit{
 					Sender:     Chris.Address(),
 					Sequence:   101,
 					Round:      3,
 					CommitSeal: []byte("chris_sig"),
+					Signature:  []byte("chris_sig"),
 				},
 			},
 		},
@@ -654,38 +681,42 @@ func Test_SequencerFinalize(t *testing.T) {
 
 			messages: []any{
 				&message.Proposal{
-					Sender:   Nina.Address(),
-					Sequence: 101,
-					Round:    5,
+					Sender:    Nina.Address(),
+					Sequence:  101,
+					Round:     5,
+					Signature: []byte("nina_sig"),
 					ProposedBlock: &message.ProposedBlock{
 						Block: []byte("nina_proposal"),
 						Round: 5,
 					},
 					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 						{
-							Sender:   Chris.Address(),
-							Sequence: 101,
-							Round:    5,
+							Sender:    Chris.Address(),
+							Sequence:  101,
+							Round:     5,
+							Signature: []byte("chris_sig"),
 						},
-
 						{
-							Sender:   Bob.Address(),
-							Sequence: 101,
-							Round:    5,
+							Sender:    Bob.Address(),
+							Sequence:  101,
+							Round:     5,
+							Signature: []byte("bob_sig"),
 						},
 					}},
 				},
 
 				&message.Prepare{
-					Sender:   Alice.Address(),
-					Sequence: 101,
-					Round:    5,
+					Sender:    Alice.Address(),
+					Sequence:  101,
+					Round:     5,
+					Signature: []byte("alice_sig"),
 				},
 
 				&message.Prepare{
-					Sender:   Nina.Address(),
-					Sequence: 101,
-					Round:    5,
+					Sender:    Nina.Address(),
+					Sequence:  101,
+					Round:     5,
+					Signature: []byte("nina_sig"),
 				},
 
 				&message.Commit{
@@ -693,6 +724,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      5,
 					CommitSeal: []byte("alice_sig"),
+					Signature:  []byte("alice_sig"),
 				},
 
 				&message.Commit{
@@ -700,6 +732,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      5,
 					CommitSeal: []byte("nina_sig"),
+					Signature:  []byte("nina_sig"),
 				},
 			},
 		},
@@ -746,15 +779,17 @@ func Test_SequencerFinalize(t *testing.T) {
 				//},
 
 				&message.Prepare{
-					Sender:   Bob.Address(),
-					Sequence: 101,
-					Round:    1,
+					Sender:    Bob.Address(),
+					Sequence:  101,
+					Round:     1,
+					Signature: []byte("bob_sig"),
 				},
 
 				&message.Prepare{
-					Sender:   Chris.Address(),
-					Sequence: 101,
-					Round:    1,
+					Sender:    Chris.Address(),
+					Sequence:  101,
+					Round:     1,
+					Signature: []byte("chris_sig"),
 				},
 
 				&message.Commit{
@@ -762,6 +797,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      1,
 					CommitSeal: []byte("bob_sig"),
+					Signature:  []byte("bob_sig"),
 				},
 
 				&message.Commit{
@@ -769,6 +805,7 @@ func Test_SequencerFinalize(t *testing.T) {
 					Sequence:   101,
 					Round:      1,
 					CommitSeal: []byte("chris_sig"),
+					Signature:  []byte("chris_sig"),
 				},
 			},
 		},
@@ -1007,48 +1044,55 @@ func Test_SequencerFinalize(t *testing.T) {
 				//},
 
 				&message.Proposal{
-					Sender:   Chris.Address(),
-					Sequence: 101,
-					Round:    2,
+					Sender:    Chris.Address(),
+					Sequence:  101,
+					Round:     2,
+					Signature: []byte("chris_sig"),
 					ProposedBlock: &message.ProposedBlock{
 						Block: []byte("chris_proposal"),
 						Round: 2,
 					},
 					RoundChangeCertificate: &message.RoundChangeCertificate{Messages: []*message.RoundChange{
 						{
-							Sender:   Bob.Address(),
-							Sequence: 101,
-							Round:    2,
+							Sender:    Bob.Address(),
+							Sequence:  101,
+							Round:     2,
+							Signature: []byte("bob_sig"),
 						},
 						{
-							Sender:   Chris.Address(),
-							Sequence: 101,
-							Round:    2,
+							Sender:    Chris.Address(),
+							Sequence:  101,
+							Round:     2,
+							Signature: []byte("chris_sig"),
 						},
 					}},
 				},
 
 				&message.Prepare{
-					Sender:   Bob.Address(),
-					Sequence: 101,
-					Round:    2,
+					Sender:    Bob.Address(),
+					Sequence:  101,
+					Round:     2,
+					Signature: []byte("bob_sig"),
 				},
 				&message.Prepare{
-					Sender:   Alice.Address(),
-					Sequence: 101,
-					Round:    2,
+					Sender:    Alice.Address(),
+					Sequence:  101,
+					Round:     2,
+					Signature: []byte("alice_sig"),
 				},
 				&message.Commit{
 					Sender:     Bob.Address(),
 					Sequence:   101,
 					Round:      2,
 					CommitSeal: []byte("bob_sig"),
+					Signature:  []byte("bob_sig"),
 				},
 				&message.Commit{
 					Sender:     Alice.Address(),
 					Sequence:   101,
 					Round:      2,
 					CommitSeal: []byte("alice_sig"),
+					Signature:  []byte("alice_sig"),
 				},
 			},
 		},

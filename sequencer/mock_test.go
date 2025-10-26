@@ -43,13 +43,23 @@ type allGoodConsensus struct {
 }
 
 func (m allGoodConsensus) AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store) (*message.Proposal, error) {
-	messages := store.ProposalMessages.Get(sequence.Number, sequence.Round)
-	if len(messages) == 0 {
+	messages := store.ProposalMessages.GetSequence(sequence.Number)
+
+	filtered := make([]*message.Proposal, 0, len(messages))
+	for _, msg := range messages {
+		if msg.Round != sequence.Round {
+			continue
+		}
+
+		filtered = append(filtered, msg)
+	}
+
+	if len(filtered) == 0 {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
 
-	return messages[0], nil
+	return filtered[0], nil
 }
 
 func (m allGoodConsensus) AwaitFutureProposal(ctx context.Context, sequence Sequence, store *message.Store) (*message.Proposal, error) {
@@ -58,7 +68,7 @@ func (m allGoodConsensus) AwaitFutureProposal(ctx context.Context, sequence Sequ
 		return nil, ctx.Err()
 	}
 
-	sub, cancel := store.ProposalMessages.Subscribe(sequence.Number, sequence.Round, true)
+	sub, cancel := store.ProposalMessages.Subscribe(sequence.Number)
 	defer cancel()
 
 	for {
@@ -68,23 +78,41 @@ func (m allGoodConsensus) AwaitFutureProposal(ctx context.Context, sequence Sequ
 		case fn := <-sub:
 			messages := fn()
 
-			if len(messages) == 0 {
+			filtered := make([]*message.Proposal, 0, len(messages))
+			for _, msg := range messages {
+				if msg.Round <= sequence.Round {
+					continue
+				}
+
+				filtered = append(filtered, msg)
+			}
+
+			if len(filtered) == 0 {
 				continue
 			}
 
-			return messages[0], nil
+			return filtered[0], nil
 		}
 	}
 }
 
 func (m allGoodConsensus) AwaitRoundChange(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.RoundChange, error) {
-	messages := store.RoundChangeMessages.Get(sequence.Number, sequence.Round)
-	if len(messages) == 0 {
+	messages := store.RoundChangeMessages.GetSequence(sequence.Number)
+	filtered := make([]*message.RoundChange, 0, len(messages))
+	for _, msg := range messages {
+		if msg.Round != sequence.Round {
+			continue
+		}
+
+		filtered = append(filtered, msg)
+	}
+
+	if len(filtered) == 0 {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
 
-	return messages, nil
+	return filtered, nil
 }
 
 func (m allGoodConsensus) AwaitFutureRoundChange(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.RoundChange, error) {
@@ -93,7 +121,7 @@ func (m allGoodConsensus) AwaitFutureRoundChange(ctx context.Context, sequence S
 		return nil, ctx.Err()
 	}
 
-	sub, cancel := store.RoundChangeMessages.Subscribe(sequence.Number, sequence.Round, true)
+	sub, cancel := store.RoundChangeMessages.Subscribe(sequence.Number)
 	defer cancel()
 
 	for {
@@ -103,33 +131,60 @@ func (m allGoodConsensus) AwaitFutureRoundChange(ctx context.Context, sequence S
 		case fn := <-sub:
 			messages := fn()
 
-			if len(messages) == 0 {
+			filtered := make([]*message.RoundChange, 0, len(messages))
+			for _, msg := range messages {
+				if msg.Round <= sequence.Round {
+					continue
+				}
+
+				filtered = append(filtered, msg)
+			}
+
+			if len(filtered) == 0 {
 				continue
 			}
 
-			return messages, nil
+			return filtered, nil
 		}
 	}
 }
 
 func (m allGoodConsensus) AwaitPrepare(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Prepare, error) {
-	messages := store.PrepareMessages.Get(sequence.Number, sequence.Round)
-	if len(messages) == 0 {
+	messages := store.PrepareMessages.GetSequence(sequence.Number)
+	filtered := make([]*message.Prepare, 0, len(messages))
+	for _, msg := range messages {
+		if msg.Round != sequence.Round {
+			continue
+		}
+
+		filtered = append(filtered, msg)
+	}
+
+	if len(filtered) == 0 {
 		<-ctx.Done() // block
 		return nil, ctx.Err()
 	}
 
-	return messages, nil
+	return filtered, nil
 }
 
 func (m allGoodConsensus) AwaitCommit(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.Commit, error) {
-	messages := store.CommitMessages.Get(sequence.Number, sequence.Round)
-	if len(messages) == 0 {
+	messages := store.CommitMessages.GetSequence(sequence.Number)
+	filtered := make([]*message.Commit, 0, len(messages))
+	for _, msg := range messages {
+		if msg.Round != sequence.Round {
+			continue
+		}
+
+		filtered = append(filtered, msg)
+	}
+
+	if len(filtered) == 0 {
 		<-ctx.Done() // block
 		return nil, ctx.Err()
 	}
 
-	return messages, nil
+	return filtered, nil
 }
 
 type consensusOfTwo struct {
