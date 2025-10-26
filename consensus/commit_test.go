@@ -87,7 +87,7 @@ func Test_AwaitCommit(t *testing.T) {
 				},
 			}
 
-			sig = mockSignatureVerifier{valid: true}
+			sig = mockDeriver{addr: []byte("alice")}
 		)
 		cons := New(vs, nil, sig)
 		require.NoError(t, cons.InitSequence(context.Background(), 101))
@@ -179,7 +179,7 @@ func Test_IsValidCommitMessage(t *testing.T) {
 				BlockHash: tt.blockHash,
 			}}
 
-			sig := mockSignatureVerifier{valid: tt.validSig}
+			sig := mockDeriver{addr: []byte("alice")}
 
 			cons := New(vs, nil, sig)
 			require.NoError(t, cons.InitSequence(ctx, 101))

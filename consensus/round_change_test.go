@@ -88,7 +88,7 @@ func Test_AwaitRoundChange(t *testing.T) {
 				},
 			}
 
-			sig = mockSignatureVerifier{valid: true}
+			sig = mockDeriver{addr: []byte("alice")}
 		)
 		cons := New(vs, nil, sig)
 		require.NoError(t, cons.InitSequence(context.Background(), 101))
@@ -198,7 +198,7 @@ func Test_AwaitFutureRoundChange(t *testing.T) {
 				},
 			}
 
-			sig = mockSignatureVerifier{valid: true}
+			sig = mockDeriver{addr: []byte("alice")}
 		)
 		cons := New(vs, nil, sig)
 		require.NoError(t, cons.InitSequence(context.Background(), 101))

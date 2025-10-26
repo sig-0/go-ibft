@@ -18,26 +18,26 @@ type Store struct {
 func NewStore() *Store {
 	return &Store{
 		ProposalMessages: Collection[*Proposal]{
-			messages: make(map[uint64]set[*Proposal]),
+			messages: make(map[uint64]msgSet[*Proposal]),
 			subs:     make(map[string]subscription[*Proposal]),
 		},
 		PrepareMessages: Collection[*Prepare]{
-			messages: make(map[uint64]set[*Prepare]),
+			messages: make(map[uint64]msgSet[*Prepare]),
 			subs:     make(map[string]subscription[*Prepare]),
 		},
 		CommitMessages: Collection[*Commit]{
-			messages: make(map[uint64]set[*Commit]),
+			messages: make(map[uint64]msgSet[*Commit]),
 			subs:     make(map[string]subscription[*Commit]),
 		},
 		RoundChangeMessages: Collection[*RoundChange]{
-			messages: make(map[uint64]set[*RoundChange]),
+			messages: make(map[uint64]msgSet[*RoundChange]),
 			subs:     make(map[string]subscription[*RoundChange]),
 		},
 	}
 }
 
-type Collection[M message] struct {
-	messages    map[uint64]set[M]
+type Collection[M Message] struct {
+	messages    map[uint64]msgSet[M]
 	messagesMux sync.RWMutex
 
 	subs    map[string]subscription[M]
@@ -50,13 +50,14 @@ func (c *Collection[M]) Add(m M) {
 		c.messagesMux.Lock()
 		defer c.messagesMux.Unlock()
 
-		s, ok := c.messages[m.GetSequence()]
+		sequence := m.GetSequence()
+		set, ok := c.messages[sequence]
 		if !ok {
-			c.messages[m.GetSequence()] = make(set[M])
-			s = c.messages[m.GetSequence()]
+			c.messages[sequence] = make(msgSet[M])
+			set = c.messages[sequence]
 		}
 
-		s[string(m.GetSignature())] = m
+		set.set(m)
 	}()
 
 	// notify subscriptions
@@ -147,9 +148,9 @@ func (c *Collection[M]) Subscribe(sequence uint64) (<-chan func() []M, func()) {
 	return sub.ch, unsubscribe
 }
 
-type set[M message] map[string]M
+type msgSet[M Message] map[string]M
 
-func (s set[M]) get() []M {
+func (s msgSet[M]) get() []M {
 	res := make([]M, 0, len(s))
 	for _, m := range s {
 		res = append(res, m)
@@ -158,12 +159,16 @@ func (s set[M]) get() []M {
 	return res
 }
 
-type subscription[M message] struct {
+func (s msgSet[M]) set(msg M) {
+	s[string(msg.GetSignature())] = msg
+}
+
+type subscription[M Message] struct {
 	sequence uint64
 	ch       chan func() []M
 }
 
-func newSubscription[M message](sequence uint64) subscription[M] {
+func newSubscription[M Message](sequence uint64) subscription[M] {
 	return subscription[M]{
 		sequence: sequence,
 		ch:       make(chan func() []M, 1),

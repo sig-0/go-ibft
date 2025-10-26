@@ -17,7 +17,7 @@ func (s *Sequencer) buildProposalMessage(block []byte, sequence *Sequence) *mess
 		RoundChangeCertificate: sequence.RCC,
 	}
 
-	msg.Signature = message.Sign(msg, s.validator())
+	msg.Signature = message.SignMessage(msg, s.validator())
 
 	return msg
 
@@ -31,7 +31,7 @@ func (s *Sequencer) buildPrepareMessage(sequence *Sequence) *message.Prepare {
 		BlockHash: sequence.Proposal.BlockHash,
 	}
 
-	msg.Signature = message.Sign(msg, s.validator())
+	msg.Signature = message.SignMessage(msg, s.validator())
 
 	return msg
 }
@@ -45,7 +45,7 @@ func (s *Sequencer) buildCommitMessage(sequence *Sequence) *message.Commit {
 		CommitSeal: s.validator().Sign(sequence.Proposal.BlockHash),
 	}
 
-	msg.Signature = message.Sign(msg, s.validator())
+	msg.Signature = message.SignMessage(msg, s.validator())
 
 	return msg
 }
@@ -59,7 +59,7 @@ func (s *Sequencer) buildRoundChangeMessage(sequence *Sequence) *message.RoundCh
 		LatestPreparedCertificate:   sequence.LatestPC,
 	}
 
-	msg.Signature = message.Sign(msg, s.validator())
+	msg.Signature = message.SignMessage(msg, s.validator())
 
 	return msg
 }

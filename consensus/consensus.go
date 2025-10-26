@@ -21,19 +21,19 @@ type Verifier interface {
 type Consensus struct {
 	vs                ValidatorSet
 	vrf               Verifier
-	sig               message.SignatureVerifier
+	deriver           message.Deriver
 	currentValidators map[string]struct{}
 }
 
 func New(
 	vs ValidatorSet,
 	vrf Verifier,
-	sig message.SignatureVerifier,
+	d message.Deriver,
 ) Consensus {
 	return Consensus{
 		vs:                vs,
 		vrf:               vrf,
-		sig:               sig,
+		deriver:           d,
 		currentValidators: make(map[string]struct{}),
 	}
 }

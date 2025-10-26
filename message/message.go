@@ -1,35 +1,121 @@
 package message
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
+
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
 )
 
-type message interface {
+var (
+	ErrMissingField = errors.New("missing field in message")
+)
+
+type Message interface {
 	GetSender() []byte
 	GetSequence() uint64
 	GetSignature() []byte
 	Payload() []byte
 }
 
+type Signer interface {
+	Address() []byte
+	Sign([]byte) []byte
+}
+
 type Deriver interface {
 	DeriveSender(digest, signature []byte) ([]byte, error)
 }
 
-type SignatureVerifier interface {
-	Verify(sender, digest, signature []byte) error
-}
-
-type Signer interface {
-	Sign([]byte) []byte
-}
-
-func Sign(msg message, signer Signer) []byte {
+func SignMessage(msg Message, signer Signer) []byte {
 	return signer.Sign(keccak(msg.Payload()))
 }
 
-func VerifySignature(msg message, vrf SignatureVerifier) error {
-	return vrf.Verify(msg.GetSender(), keccak(msg.Payload()), msg.GetSignature())
+func VerifyMessage(msg Message, d Deriver) error {
+	if err := verifyFields(msg); err != nil {
+		return err
+	}
+
+	digest := keccak(msg.Payload())
+	sender, err := d.DeriveSender(digest, msg.GetSignature())
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(sender, msg.GetSender()) {
+		return fmt.Errorf("sender mismatch: %s != %s", string(sender), string(msg.GetSender()))
+	}
+
+	return nil
+}
+
+func verifyFields(msg Message) error {
+	switch msg := msg.(type) {
+	case *Proposal:
+		if len(msg.Sender) == 0 {
+			return fmt.Errorf("%w: no sender", ErrMissingField)
+		}
+
+		if len(msg.Signature) == 0 {
+			return fmt.Errorf("%w: no signature", ErrMissingField)
+		}
+
+		if len(msg.BlockHash) == 0 {
+			return fmt.Errorf("%w: no block hash", ErrMissingField)
+		}
+
+		if msg.ProposedBlock == nil {
+			return fmt.Errorf("%w: no proposed block", ErrMissingField)
+		}
+
+		return nil
+	case *Prepare:
+		if len(msg.Sender) == 0 {
+			return fmt.Errorf("%w: no sender", ErrMissingField)
+		}
+
+		if len(msg.Signature) == 0 {
+			return fmt.Errorf("%w: no signature", ErrMissingField)
+		}
+
+		if len(msg.BlockHash) == 0 {
+			return fmt.Errorf("%w: no block hash", ErrMissingField)
+		}
+
+		return nil
+	case *RoundChange:
+		if len(msg.Sender) == 0 {
+			return fmt.Errorf("%w: no sender", ErrMissingField)
+		}
+
+		if len(msg.Signature) == 0 {
+			return fmt.Errorf("%w: no signature", ErrMissingField)
+		}
+
+		return nil
+	case *Commit:
+		if len(msg.Sender) == 0 {
+			return fmt.Errorf("%w: no sender", ErrMissingField)
+		}
+
+		if len(msg.Signature) == 0 {
+			return fmt.Errorf("%w: no signature", ErrMissingField)
+		}
+
+		if len(msg.BlockHash) == 0 {
+			return fmt.Errorf("%w: no block hash", ErrMissingField)
+		}
+
+		if len(msg.CommitSeal) == 0 {
+			return fmt.Errorf("%w: no commit seal", ErrMissingField)
+		}
+
+		return nil
+	default:
+		return errors.New("unknown message type")
+	}
 }
 
 func keccak(input []byte) []byte {
@@ -62,10 +148,6 @@ func (x *Proposal) Payload() []byte {
 	return payload
 }
 
-func (x *Proposal) IsMalformed() bool {
-	return len(x.Sender) == 0 || len(x.Signature) == 0 || len(x.BlockHash) == 0 || x.ProposedBlock == nil
-}
-
 func (x *Prepare) Payload() []byte {
 	xx := &Prepare{
 		Sequence:  x.Sequence,
@@ -76,10 +158,6 @@ func (x *Prepare) Payload() []byte {
 
 	payload, _ := proto.Marshal(xx) //nolint:errcheck //proto
 	return payload
-}
-
-func (x *Prepare) IsMalformed() bool {
-	return len(x.Sender) == 0 || len(x.Signature) == 0 || len(x.BlockHash) == 0
 }
 
 func (x *Commit) Payload() []byte {
@@ -95,10 +173,6 @@ func (x *Commit) Payload() []byte {
 	return payload
 }
 
-func (x *Commit) IsMalformed() bool {
-	return len(x.Sender) == 0 || len(x.Signature) == 0 || len(x.BlockHash) == 0 || len(x.CommitSeal) == 0
-}
-
 func (x *RoundChange) Payload() []byte {
 	xx := &RoundChange{
 		Sequence:                    x.Sequence,
@@ -110,10 +184,6 @@ func (x *RoundChange) Payload() []byte {
 
 	payload, _ := proto.Marshal(xx) //nolint:errcheck //proto
 	return payload
-}
-
-func (x *RoundChange) IsMalformed() bool {
-	return len(x.Sender) == 0 || len(x.Signature) == 0
 }
 
 func (rcc *RoundChangeCertificate) HighestRoundBlock() ([]byte, uint64) {

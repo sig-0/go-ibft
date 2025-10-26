@@ -19,12 +19,12 @@ func Test_AwaitProposal(t *testing.T) {
 	t.Run("no incoming messages", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			var (
-				vs               = mockValidatorSet{}
-				proposalVerifier = mockProposalVerifier{}
-				sigVerifier      = mockSignatureVerifier{}
+				vs       = mockValidatorSet{}
+				verifier = mockProposalVerifier{}
+				deriver  = mockDeriver{}
 			)
 
-			cons := New(vs, proposalVerifier, sigVerifier)
+			cons := New(vs, verifier, deriver)
 			ctx, cancel := context.WithCancel(context.Background())
 
 			var err error
@@ -48,10 +48,10 @@ func Test_AwaitProposal(t *testing.T) {
 			var (
 				vs               = mockValidatorSet{}
 				proposalVerifier = mockProposalVerifier{}
-				sigVerifier      = mockSignatureVerifier{}
+				deriver          = mockDeriver{}
 			)
 
-			cons := New(vs, proposalVerifier, sigVerifier)
+			cons := New(vs, proposalVerifier, deriver)
 			ctx, cancel := context.WithCancel(context.Background())
 
 			var (
@@ -86,10 +86,10 @@ func Test_AwaitProposal(t *testing.T) {
 					proposer: []byte("the proposer"),
 				}
 				proposalVerifier = mockProposalVerifier{valid: false}
-				sigVerifier      = mockSignatureVerifier{}
+				deriver          = mockDeriver{}
 			)
 
-			cons := New(vs, proposalVerifier, sigVerifier)
+			cons := New(vs, proposalVerifier, deriver)
 			ctx, cancel := context.WithCancel(context.Background())
 
 			var (
@@ -167,10 +167,10 @@ func Test_AwaitFutureProposal(t *testing.T) {
 			var (
 				vs               = mockValidatorSet{}
 				proposalVerifier = mockProposalVerifier{}
-				sigVerifier      = mockSignatureVerifier{}
+				deriver          = mockDeriver{}
 			)
 
-			cons := New(vs, proposalVerifier, sigVerifier)
+			cons := New(vs, proposalVerifier, deriver)
 			ctx, cancel := context.WithCancel(context.Background())
 
 			var err error
@@ -194,10 +194,10 @@ func Test_AwaitFutureProposal(t *testing.T) {
 			var (
 				vs               = mockValidatorSet{}
 				proposalVerifier = mockProposalVerifier{}
-				sigVerifier      = mockSignatureVerifier{}
+				deriver          = mockDeriver{}
 			)
 
-			cons := New(vs, proposalVerifier, sigVerifier)
+			cons := New(vs, proposalVerifier, deriver)
 			ctx, cancel := context.WithCancel(context.Background())
 
 			var (
@@ -232,10 +232,10 @@ func Test_AwaitFutureProposal(t *testing.T) {
 					proposer: []byte("the proposer"),
 				}
 				proposalVerifier = mockProposalVerifier{valid: false}
-				sigVerifier      = mockSignatureVerifier{}
+				deriver          = mockDeriver{}
 			)
 
-			cons := New(vs, proposalVerifier, sigVerifier)
+			cons := New(vs, proposalVerifier, deriver)
 			ctx, cancel := context.WithCancel(context.Background())
 
 			var (
@@ -418,7 +418,7 @@ func Test_IsValidProposalMessage(t *testing.T) {
 
 		vs         ValidatorSet
 		vrf        Verifier
-		sig        message.SignatureVerifier
+		sig        message.Deriver
 		validators [][]byte
 
 		expected bool

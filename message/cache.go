@@ -1,12 +1,12 @@
 package message
 
-type Cache[M message] struct {
+type Cache[M Message] struct {
 	filterFn func(M) bool
 	seen     map[string]struct{}
 	messages []M
 }
 
-func NewCache[M message](filterFn func(M) bool) *Cache[M] {
+func NewCache[M Message](filterFn func(M) bool) *Cache[M] {
 	return &Cache[M]{
 		filterFn: filterFn,
 		messages: make([]M, 0),
