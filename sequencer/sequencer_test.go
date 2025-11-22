@@ -3,6 +3,7 @@ package sequencer
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ func Test_SequencerFinalizeCancelled(t *testing.T) {
 		}),
 	}
 
-	s := NewSequencer(cfg)
+	s := NewSequencer(slog.Default(), cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan *SequenceResult)
@@ -1125,7 +1126,7 @@ func Test_SequencerFinalize(t *testing.T) {
 				Round0Duration: 10 * time.Millisecond,
 			}
 
-			res := NewSequencer(cfg).Finalize(context.Background(), 101, store)
+			res := NewSequencer(slog.Default(), cfg).Finalize(context.Background(), 101, store)
 
 			//assert.True(t, reflect.DeepEqual(tt.expected, res), "expected %#v, got %#v", tt.expected, res)
 			assert.EqualValues(t, tt.expected.Round, res.Round)

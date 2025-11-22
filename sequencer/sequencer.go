@@ -3,6 +3,8 @@ package sequencer
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
+	"log/slog"
 	"math"
 	"sync"
 	"time"
@@ -60,11 +62,12 @@ type Config struct {
 type Sequencer struct {
 	cfg Config
 	wg  sync.WaitGroup
+	log *slog.Logger
 }
 
 // NewSequencer returns a Sequencer object for the provided validator
-func NewSequencer(cfg Config) *Sequencer {
-	return &Sequencer{cfg: cfg}
+func NewSequencer(log *slog.Logger, cfg Config) *Sequencer {
+	return &Sequencer{log: log, cfg: cfg}
 }
 
 // Finalize runs the block finalization loop. This method returns a non-nil value only if consensus.go
@@ -107,12 +110,17 @@ func (s *Sequencer) finalize(
 			s.wg.Wait()
 		}
 
+		s.log.Debug("running finalize", "sequence", sequence.Number, "round", sequence.Round)
+		now := time.Now()
+
 		select {
 		case _, ok := <-s.startRoundTimer(ctxRound, sequence):
 			teardown()
 			if !ok {
 				return nil
 			}
+
+			s.log.Debug("round timer expired", "round", sequence.Round, "elapsed", time.Since(now).Seconds())
 
 			sequence.Seals = nil
 			sequence.Proposal = nil
@@ -128,16 +136,21 @@ func (s *Sequencer) finalize(
 				return nil
 			}
 
+			round := rcc.Messages[0].Round
+			s.log.Debug("received round change certificate from higher round", "rcc_messages", len(rcc.Messages), "rcc_round", round)
+
 			sequence.Seals = nil
 			sequence.Proposal = nil
 			sequence.RCC = rcc
-			sequence.Round = rcc.Messages[0].Round
+			sequence.Round = round
 
 		case proposal, ok := <-s.awaitHigherRoundProposal(ctxRound, sequence, messages):
 			teardown()
 			if !ok {
 				return nil
 			}
+
+			s.log.Debug("received proposal from higher round", "proposal_hash", hex.EncodeToString(proposal.BlockHash), "proposal_round", proposal.Round)
 
 			sequence.Proposal = proposal
 			sequence.Round = proposal.Round
@@ -152,6 +165,8 @@ func (s *Sequencer) finalize(
 			if !ok {
 				return nil
 			}
+
+			s.log.Debug("proposal finalized!", "round", sequence.Round, "proposal_hash", hex.EncodeToString(sequence.Proposal.BlockHash), "seals", len(sequence.Seals))
 
 			return &SequenceResult{
 				Round:    sequence.Round,
@@ -316,6 +331,8 @@ func (s *Sequencer) runRound(
 		}
 
 		if shouldPropose := bytes.Equal(proposer, s.validator().Address()); shouldPropose {
+			s.log.Debug("I am the proposer", "proposer", hex.EncodeToString(proposer))
+
 			proposal, err := s.buildProposal(ctx, sequence, store)
 			if err != nil {
 				return err
@@ -324,11 +341,14 @@ func (s *Sequencer) runRound(
 			msg := s.buildProposalMessage(proposal, sequence)
 			sequence.Proposal = msg
 			s.transport().MulticastProposal(ctx, msg)
+			s.log.Debug("broadcasted proposal message", "proposal_hash", hex.EncodeToString(msg.BlockHash))
 		} else {
 			proposal, err := s.consensus().AwaitProposal(ctx, *sequence, store)
 			if err != nil {
 				return err
 			}
+
+			s.log.Debug("received proposal", "proposal_hash", hex.EncodeToString(proposal.BlockHash))
 
 			sequence.Proposal = proposal
 			sequence.Round = proposal.Round
@@ -337,6 +357,7 @@ func (s *Sequencer) runRound(
 			msg := s.buildPrepareMessage(sequence)
 			store.PrepareMessages.Add(msg)
 			s.transport().MulticastPrepare(ctx, msg)
+			s.log.Debug("broadcasted prepare msg", "proposal_hash", hex.EncodeToString(proposal.BlockHash))
 		}
 	}
 
@@ -344,6 +365,8 @@ func (s *Sequencer) runRound(
 	if err != nil {
 		return err
 	}
+
+	s.log.Debug("passed quorum of prepare messages", "round", sequence.Round, "prepares", len(prepares))
 
 	pc := &message.PreparedCertificate{
 		ProposalMessage: sequence.Proposal,
@@ -356,11 +379,14 @@ func (s *Sequencer) runRound(
 	msg := s.buildCommitMessage(sequence)
 	store.CommitMessages.Add(msg)
 	s.transport().MulticastCommit(ctx, msg)
+	s.log.Debug("broadcasted commit message", "seal", hex.EncodeToString(msg.CommitSeal))
 
 	commits, err := s.consensus().AwaitCommit(ctx, *sequence, store)
 	if err != nil {
 		return err
 	}
+
+	s.log.Debug("passed quorum of commit messages", "round", sequence.Round, "commits", len(commits))
 
 	for _, commit := range commits {
 		sequence.Seals = append(sequence.Seals, CommitSeal{
