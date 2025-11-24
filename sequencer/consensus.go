@@ -7,6 +7,7 @@ import (
 )
 
 type Consensus interface {
+	GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error)
 	AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store) (*message.Proposal, error)
 	AwaitFutureProposal(ctx context.Context, sequence Sequence, store *message.Store) (*message.Proposal, error)
 	AwaitRoundChange(ctx context.Context, sequence Sequence, store *message.Store) ([]*message.RoundChange, error)

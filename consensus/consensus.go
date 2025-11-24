@@ -4,12 +4,10 @@ import (
 	"context"
 
 	"github.com/sig-0/go-ibft/message"
-	"github.com/sig-0/go-ibft/sequencer"
 )
 
 type ValidatorSet interface {
-	sequencer.ProposerAlgo
-
+	GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error)
 	GetValidators(ctx context.Context, sequence uint64) ([][]byte, error)
 	CheckQuorum(ctx context.Context, sequence uint64, validators [][]byte) (bool, error)
 }
@@ -50,4 +48,8 @@ func (c Consensus) InitSequence(ctx context.Context, sequence uint64) error {
 	}
 
 	return nil
+}
+
+func (c Consensus) GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error) {
+	return c.vs.GetProposer(ctx, sequence, round)
 }

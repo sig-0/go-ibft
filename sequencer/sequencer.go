@@ -46,28 +46,35 @@ type Sequence struct {
 	Round uint64
 }
 
-type Config struct {
-	Validator      Validator
-	ProposerAlgo   ProposerAlgo
-	Consensus      Consensus
-	Transport      Transport
-	Round0Duration time.Duration
-}
-
 // Sequencer is the consensus.go actor's (Validator) block finalization process. Whenever the network moves to a
 // new sequence, all actors run their Sequencer processes to reach consensus.go on some proposal. Sequences consist of
 // rounds in which a chosen actor (Proposer) suggests their own proposal to the network. The Sequencer makes sure
 // that consensus.go is (eventually) reached, moving to higher rounds in case the network cannot agree on some proposal.
 // Given its simple API method Finalize, Sequencer is designed to work alongside a syncing protocol
 type Sequencer struct {
-	cfg Config
-	wg  sync.WaitGroup
-	log *slog.Logger
+	validator      Validator
+	consensus      Consensus
+	transport      Transport
+	wg             sync.WaitGroup
+	log            *slog.Logger
+	round0Duration time.Duration
 }
 
 // NewSequencer returns a Sequencer object for the provided validator
-func NewSequencer(log *slog.Logger, cfg Config) *Sequencer {
-	return &Sequencer{log: log, cfg: cfg}
+func NewSequencer(
+	log *slog.Logger,
+	c Consensus,
+	v Validator,
+	t Transport,
+	round0Duration time.Duration,
+) *Sequencer {
+	return &Sequencer{
+		log:            log,
+		consensus:      c,
+		validator:      v,
+		transport:      t,
+		round0Duration: round0Duration,
+	}
 }
 
 // Finalize runs the block finalization loop. This method returns a non-nil value only if consensus.go
@@ -128,7 +135,7 @@ func (s *Sequencer) finalize(
 
 			msg := s.buildRoundChangeMessage(sequence)
 			messages.RoundChangeMessages.Add(msg)
-			s.transport().MulticastRoundChange(ctx, msg)
+			s.transport.MulticastRoundChange(ctx, msg)
 
 		case rcc, ok := <-s.awaitHigherRoundRCC(ctxRound, sequence, messages):
 			teardown()
@@ -157,7 +164,7 @@ func (s *Sequencer) finalize(
 			sequence.Seals = nil
 
 			msg := s.buildPrepareMessage(sequence)
-			s.transport().MulticastPrepare(ctx, msg)
+			s.transport.MulticastPrepare(ctx, msg)
 			messages.PrepareMessages.Add(msg)
 
 		case _, ok := <-s.awaitFinalizedBlockInCurrentRound(ctxRound, sequence, messages):
@@ -218,7 +225,7 @@ func (s *Sequencer) awaitHigherRoundProposal(
 			s.wg.Done()
 		}()
 
-		proposal, err := s.consensus().AwaitFutureProposal(ctx, *seq, store)
+		proposal, err := s.consensus.AwaitFutureProposal(ctx, *seq, store)
 		if err != nil {
 			return
 		}
@@ -245,7 +252,7 @@ func (s *Sequencer) awaitHigherRoundRCC(
 			s.wg.Done()
 		}()
 
-		messages, err := s.consensus().AwaitFutureRoundChange(ctx, *seq, store)
+		messages, err := s.consensus.AwaitFutureRoundChange(ctx, *seq, store)
 		if err != nil {
 			return
 		}
@@ -281,12 +288,8 @@ func (s *Sequencer) awaitFinalizedBlockInCurrentRound(
 	return c
 }
 
-func (s *Sequencer) getRoundTimer(round uint64) *time.Timer {
-	return time.NewTimer(s.round0Duration() * time.Duration(math.Pow(2, float64(round))))
-}
-
 func (s *Sequencer) getRoundDuration(round uint64) time.Duration {
-	return s.round0Duration() * time.Duration(math.Pow(2, float64(round)))
+	return s.round0Duration * time.Duration(math.Pow(2, float64(round)))
 }
 
 func (s *Sequencer) buildProposal(
@@ -297,7 +300,7 @@ func (s *Sequencer) buildProposal(
 	if sequence.Round != 0 {
 		if sequence.RCC == nil {
 			// higher round proposals must include rcc
-			messages, err := s.consensus().AwaitRoundChange(ctx, *sequence, store)
+			messages, err := s.consensus.AwaitRoundChange(ctx, *sequence, store)
 			if err != nil {
 				return nil, err
 			}
@@ -311,7 +314,7 @@ func (s *Sequencer) buildProposal(
 		}
 	}
 
-	proposal, err := s.validator().BuildProposal(ctx, sequence.Number)
+	proposal, err := s.validator.BuildProposal(ctx, sequence.Number)
 	if err != nil {
 		return nil, err
 	}
@@ -325,12 +328,12 @@ func (s *Sequencer) runRound(
 	store *message.Store,
 ) error {
 	if noProposalYet := sequence.Proposal == nil; noProposalYet {
-		proposer, err := s.proposerAlgo().GetProposer(ctx, sequence.Number, sequence.Round)
+		proposer, err := s.consensus.GetProposer(ctx, sequence.Number, sequence.Round)
 		if err != nil {
 			return err
 		}
 
-		if shouldPropose := bytes.Equal(proposer, s.validator().Address()); shouldPropose {
+		if shouldPropose := bytes.Equal(proposer, s.validator.Address()); shouldPropose {
 			s.log.Debug("I am the proposer", "proposer", hex.EncodeToString(proposer))
 
 			proposal, err := s.buildProposal(ctx, sequence, store)
@@ -340,10 +343,10 @@ func (s *Sequencer) runRound(
 
 			msg := s.buildProposalMessage(proposal, sequence)
 			sequence.Proposal = msg
-			s.transport().MulticastProposal(ctx, msg)
+			s.transport.MulticastProposal(ctx, msg)
 			s.log.Debug("broadcasted proposal message", "proposal_hash", hex.EncodeToString(msg.BlockHash))
 		} else {
-			proposal, err := s.consensus().AwaitProposal(ctx, *sequence, store)
+			proposal, err := s.consensus.AwaitProposal(ctx, *sequence, store)
 			if err != nil {
 				return err
 			}
@@ -356,12 +359,12 @@ func (s *Sequencer) runRound(
 
 			msg := s.buildPrepareMessage(sequence)
 			store.PrepareMessages.Add(msg)
-			s.transport().MulticastPrepare(ctx, msg)
+			s.transport.MulticastPrepare(ctx, msg)
 			s.log.Debug("broadcasted prepare msg", "proposal_hash", hex.EncodeToString(proposal.BlockHash))
 		}
 	}
 
-	prepares, err := s.consensus().AwaitPrepare(ctx, *sequence, store)
+	prepares, err := s.consensus.AwaitPrepare(ctx, *sequence, store)
 	if err != nil {
 		return err
 	}
@@ -378,10 +381,10 @@ func (s *Sequencer) runRound(
 
 	msg := s.buildCommitMessage(sequence)
 	store.CommitMessages.Add(msg)
-	s.transport().MulticastCommit(ctx, msg)
+	s.transport.MulticastCommit(ctx, msg)
 	s.log.Debug("broadcasted commit message", "seal", hex.EncodeToString(msg.CommitSeal))
 
-	commits, err := s.consensus().AwaitCommit(ctx, *sequence, store)
+	commits, err := s.consensus.AwaitCommit(ctx, *sequence, store)
 	if err != nil {
 		return err
 	}
@@ -396,24 +399,4 @@ func (s *Sequencer) runRound(
 	}
 
 	return nil
-}
-
-func (s *Sequencer) validator() Validator {
-	return s.cfg.Validator
-}
-
-func (s *Sequencer) transport() Transport {
-	return s.cfg.Transport
-}
-
-func (s *Sequencer) consensus() Consensus {
-	return s.cfg.Consensus
-}
-
-func (s *Sequencer) proposerAlgo() ProposerAlgo {
-	return s.cfg.ProposerAlgo
-}
-
-func (s *Sequencer) round0Duration() time.Duration {
-	return s.cfg.Round0Duration
 }

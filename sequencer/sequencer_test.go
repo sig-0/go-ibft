@@ -16,16 +16,15 @@ import (
 func Test_SequencerFinalizeCancelled(t *testing.T) {
 	t.Parallel()
 
-	cfg := Config{
-		Validator:      Alice,
-		Round0Duration: 10 * time.Millisecond,
-		Consensus:      allGoodConsensus{},
-		ProposerAlgo: mockProposerAlgo(func(_ context.Context, _, _ uint64) ([]byte, error) {
+	var (
+		v              = Alice
+		round0Duration = 10 * time.Millisecond
+		consensus      = allGoodConsensus{getProposer: func(_ context.Context, _, _ uint64) ([]byte, error) {
 			return Bob.Address(), nil
-		}),
-	}
+		}}
+	)
 
-	s := NewSequencer(slog.Default(), cfg)
+	s := NewSequencer(slog.Default(), consensus, v, nil, round0Duration)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan *SequenceResult)
@@ -45,20 +44,18 @@ func Test_SequencerFinalize(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		name         string
-		validator    Validator
-		proposerAlgo ProposerAlgo
-		consensus    Consensus
-		messages     []any
-		expected     *SequenceResult
+		name      string
+		validator Validator
+		consensus Consensus
+		messages  []any
+		expected  *SequenceResult
 	}{
 		{
-			name:      "proposal is accepted in round 0",
-			consensus: allGoodConsensus{},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "proposal is accepted in round 0",
+			consensus: allGoodConsensus{getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				return Bob.Address(), nil
-			}),
+			}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    0,
 				Proposal: []byte("bob_proposal"),
@@ -110,13 +107,11 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "Bob and Chris accept Alice's proposal in round 0",
-			consensus: allGoodConsensus{},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "Bob and Chris accept Alice's proposal in round 0",
+			consensus: allGoodConsensus{getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				return Alice.Address(), nil
-			}),
-
+			}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    0,
 				Proposal: []byte("alice_proposal"),
@@ -170,13 +165,11 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "Alice and Chris accept Bob's proposal in round 1 due to round change",
-			consensus: allGoodConsensus{blockFutureProposal: true},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "Alice and Chris accept Bob's proposal in round 1 due to round change",
+			consensus: allGoodConsensus{blockFutureProposal: true, getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				return Bob.Address(), nil
-			}),
-
+			}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("bob_proposal"),
@@ -245,13 +238,11 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "Alice jumps to round 1 proposal and accepts it",
-			consensus: allGoodConsensus{},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "Alice jumps to round 1 proposal and accepts it",
+			consensus: allGoodConsensus{getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				return Chris.Address(), nil
-			}),
-
+			}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("chris_proposal"),
@@ -365,15 +356,14 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "block proposed in round 1",
-			consensus: allGoodConsensus{blockFutureRCC: true},
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "block proposed in round 1",
+			consensus: allGoodConsensus{blockFutureRCC: true, getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 1 {
 					return Alice.Address(), nil
 				}
 
 				return Nina.Address(), nil
-			}),
+			}},
 			validator: Alice,
 			expected: &SequenceResult{
 				Round:    1,
@@ -444,16 +434,15 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "old block proposed in round 1",
-			consensus: allGoodConsensus{blockFutureRCC: true},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "old block proposed in round 1",
+			consensus: allGoodConsensus{blockFutureRCC: true, getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 1 {
 					return Alice.Address(), nil
 				}
 
 				return Nina.Address(), nil
-			}),
+			}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("bob_proposal"),
@@ -582,17 +571,15 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "future rcc triggers round jump",
-			consensus: allGoodConsensus{},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "future rcc triggers round jump",
+			consensus: allGoodConsensus{getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 3 {
 					return Alice.Address(), nil
 				}
 
 				return Nina.Address(), nil
-			}),
-
+			}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    3,
 				Proposal: []byte("alice_proposal"),
@@ -655,16 +642,15 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "future proposal triggers round jump",
-			consensus: allGoodConsensus{},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "future proposal triggers round jump",
+			consensus: allGoodConsensus{getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 5 {
 					return Nina.Address(), nil
 				}
 
 				return Bob.Address(), nil
-			}),
+			}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    5,
 				Proposal: []byte("nina_proposal"),
@@ -739,16 +725,15 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "round timer triggers round jump",
-			consensus: allGoodConsensus{},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "round timer triggers round jump",
+			consensus: allGoodConsensus{getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 1 {
 					return Alice.Address(), nil
 				}
 
 				return Nina.Address(), nil
-			}),
+			}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("alice_proposal"),
@@ -812,10 +797,8 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "no prepare messages in round 0",
-			consensus: consensusOfTwo{allGoodConsensus{blockFutureProposal: true}},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "no prepare messages in round 0",
+			consensus: consensusOfTwo{allGoodConsensus{blockFutureProposal: true, getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 0 {
 					return Bob.Address(), nil
 				}
@@ -825,8 +808,8 @@ func Test_SequencerFinalize(t *testing.T) {
 				}
 
 				return Nina.Address(), nil
-			}),
-
+			}}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("chris_proposal"),
@@ -908,10 +891,8 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "no commit messages in round 0",
-			consensus: consensusOfTwo{allGoodConsensus{blockFutureProposal: true}},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "no commit messages in round 0",
+			consensus: consensusOfTwo{allGoodConsensus{blockFutureProposal: true, getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 0 {
 					return Bob.Address(), nil
 				}
@@ -921,7 +902,8 @@ func Test_SequencerFinalize(t *testing.T) {
 				}
 
 				return Nina.Address(), nil
-			}),
+			}}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    1,
 				Proposal: []byte("chris_proposal"),
@@ -992,12 +974,6 @@ func Test_SequencerFinalize(t *testing.T) {
 					Round:    1,
 				},
 
-				//&message.Commit{
-				//	Sender:     Chris.Address(),
-				//	Sequence:   101,
-				//	Round:      1,
-				//	CommitSeal: []byte("chris_sig"),
-				//},
 				&message.Commit{
 					Sender:     Bob.Address(),
 					Sequence:   101,
@@ -1008,10 +984,8 @@ func Test_SequencerFinalize(t *testing.T) {
 		},
 
 		{
-			name:      "round 0 proposer fails to build block",
-			consensus: allGoodConsensus{blockFutureProposal: true, blockFutureRCC: true},
-			validator: Alice,
-			proposerAlgo: mockProposerAlgo(func(ctx context.Context, sequence, round uint64) ([]byte, error) {
+			name: "round 0 proposer fails to build block",
+			consensus: allGoodConsensus{blockFutureProposal: true, blockFutureRCC: true, getProposer: func(ctx context.Context, sequence, round uint64) ([]byte, error) {
 				if round == 0 {
 					return Bob.Address(), nil
 				}
@@ -1021,7 +995,8 @@ func Test_SequencerFinalize(t *testing.T) {
 				}
 
 				return Chris.Address(), nil
-			}),
+			}},
+			validator: Alice,
 			expected: &SequenceResult{
 				Round:    2,
 				Proposal: []byte("chris_proposal"),
@@ -1118,15 +1093,8 @@ func Test_SequencerFinalize(t *testing.T) {
 				}
 			}
 
-			cfg := Config{
-				Validator:      tt.validator,
-				ProposerAlgo:   tt.proposerAlgo,
-				Consensus:      tt.consensus,
-				Transport:      dummyTransport{},
-				Round0Duration: 10 * time.Millisecond,
-			}
-
-			res := NewSequencer(slog.Default(), cfg).Finalize(context.Background(), 101, store)
+			s := NewSequencer(slog.Default(), tt.consensus, tt.validator, dummyTransport{}, 10*time.Millisecond)
+			res := s.Finalize(context.Background(), 101, store)
 
 			//assert.True(t, reflect.DeepEqual(tt.expected, res), "expected %#v, got %#v", tt.expected, res)
 			assert.EqualValues(t, tt.expected.Round, res.Round)

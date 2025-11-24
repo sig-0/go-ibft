@@ -14,7 +14,3 @@ type Validator interface {
 	// BuildProposal returns this validator's proposal for given sequence
 	BuildProposal(ctx context.Context, sequence uint64) ([]byte, error)
 }
-
-type ProposerAlgo interface {
-	GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error)
-}

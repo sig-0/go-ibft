@@ -40,6 +40,11 @@ func (t dummyTransport) MulticastRoundChange(ctx context.Context, msg *message.R
 
 type allGoodConsensus struct {
 	blockFutureProposal, blockFutureRCC bool
+	getProposer                         func(ctx context.Context, sequence, round uint64) ([]byte, error)
+}
+
+func (m allGoodConsensus) GetProposer(ctx context.Context, sequence, round uint64) ([]byte, error) {
+	return m.getProposer(ctx, sequence, round)
 }
 
 func (m allGoodConsensus) AwaitProposal(ctx context.Context, sequence Sequence, store *message.Store) (*message.Proposal, error) {
