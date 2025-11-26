@@ -6,9 +6,11 @@ import (
 	"log/slog"
 	"slices"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/sig-0/go-ibft/message"
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -16,28 +18,31 @@ import (
 func Test_SequencerFinalizeCancelled(t *testing.T) {
 	t.Parallel()
 
-	var (
-		v              = Alice
-		round0Duration = 10 * time.Millisecond
-		consensus      = allGoodConsensus{getProposer: func(_ context.Context, _, _ uint64) ([]byte, error) {
-			return Bob.Address(), nil
-		}}
-	)
+	synctest.Test(t, func(t *testing.T) {
+		var (
+			v              = Alice
+			round0Duration = 10 * time.Millisecond
+			consensus      = allGoodConsensus{getProposer: func(_ context.Context, _, _ uint64) ([]byte, error) {
+				return Bob.Address(), nil
+			}}
+		)
 
-	s := NewSequencer(slog.Default(), consensus, v, nil, round0Duration)
+		s := NewSequencer(slog.Default(), consensus, v, nil, round0Duration)
+		ctx, cancel := context.WithCancel(context.Background())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	ch := make(chan *SequenceResult)
+		var err error
+		go func(ctx context.Context) {
+			_, err = s.Finalize(ctx, 101, message.NewStore())
+		}(ctx)
 
-	go func(ctx context.Context) {
-		defer close(ch)
+		synctest.Wait()
+		require.NoError(t, err)
 
-		ch <- s.Finalize(ctx, 101, message.NewStore())
-	}(ctx)
+		cancel()
 
-	cancel()
-
-	assert.Nil(t, <-ch)
+		synctest.Wait()
+		assert.ErrorIs(t, err, context.Canceled)
+	})
 }
 
 func Test_SequencerFinalize(t *testing.T) {
@@ -1094,7 +1099,8 @@ func Test_SequencerFinalize(t *testing.T) {
 			}
 
 			s := NewSequencer(slog.Default(), tt.consensus, tt.validator, dummyTransport{}, 10*time.Millisecond)
-			res := s.Finalize(context.Background(), 101, store)
+			res, err := s.Finalize(context.Background(), 101, store)
+			require.NoError(t, err)
 
 			//assert.True(t, reflect.DeepEqual(tt.expected, res), "expected %#v, got %#v", tt.expected, res)
 			assert.EqualValues(t, tt.expected.Round, res.Round)

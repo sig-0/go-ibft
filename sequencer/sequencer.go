@@ -79,7 +79,7 @@ func NewSequencer(
 
 // Finalize runs the block finalization loop. This method returns a non-nil value only if consensus.go
 // is reached for the provided sequence. Otherwise, it runs forever until cancelled by the caller
-func (s *Sequencer) Finalize(ctx context.Context, sequenceNumber uint64, messages *message.Store) *SequenceResult {
+func (s *Sequencer) Finalize(ctx context.Context, sequenceNumber uint64, messages *message.Store) (*SequenceResult, error) {
 	sequence := Sequence{Number: sequenceNumber}
 
 	c := make(chan *SequenceResult, 1)
@@ -97,9 +97,9 @@ func (s *Sequencer) Finalize(ctx context.Context, sequenceNumber uint64, message
 	select {
 	case <-ctx.Done():
 		<-c // wait for finalize to return
-		return nil
+		return nil, ctx.Err()
 	case fb := <-c:
-		return fb
+		return fb, nil
 	}
 }
 
